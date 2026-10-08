@@ -26,6 +26,7 @@
 *.VC.db
 
 # IDE and local tool caches
+.vscode/
 .vs/
 .idea/
 .gradle/
