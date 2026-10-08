@@ -1,4 +1,4 @@
-# 18 PlacementSystem 放置系统设计
+# 22 PlacementSystem 放置系统设计
 
 系统编号：`PLAYER-02`  
 系统名称：`PlacementSystem`  
@@ -74,12 +74,12 @@ PlacementCancelledEvent
 
 - `InputSystem`；
 - `CameraSystem`；
-- `MapSystem`；
+- `MapManager`；
 - `ConfigSystem`；
 - `MechanismSystem`；
 - 未来可能需要的关卡资源/库存系统。
 - `LevelManager`/`ObjectiveSystem` 提供当前关卡阶段和目标状态；
-- `SlimeGroupSystem` 不直接依赖放置 UI，只读取放置结果和环境查询。
+- `SlimeGroupActor` 不直接依赖放置 UI，只读取放置结果和环境查询。
 
 ## 7. 关键不变量
 

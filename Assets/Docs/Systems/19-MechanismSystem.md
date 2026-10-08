@@ -1,4 +1,4 @@
-# 13 MechanismSystem 机关系统设计
+# 19 MechanismSystem 机关系统设计
 
 系统编号：`MECH-01`  
 系统名称：`MechanismSystem`  
@@ -72,12 +72,12 @@ MechanismExhaustedEvent
 ## 6. 依赖
 
 - `ConfigSystem`；
-- `MapSystem`；
+- `MapManager`；
 - `MovementSystem` 提供的接触事实；
 - `StatusManager` 处理效果；
 - `PassageSystem` 处理窄路相关规则。
 - `PlacementSystem` 提交玩家确认的环境元素放置结果。
-- `SlimeSystem`/`SlimeGroupSystem` 查询引导源和元素影响，不直接修改机关状态。
+- `SlimeManager`/`SlimeGroupActor` 查询引导源和元素影响，不直接修改机关状态。
 
 ## 7. 关键不变量
 

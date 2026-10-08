@@ -1,9 +1,9 @@
-# 23 ObjectiveSystem 关卡目标与护送武器系统设计
+# 26 ObjectiveSystem 关卡目标与护送武器系统设计
 
 系统编号：`CORE-04`  
 系统名称：`ObjectiveSystem`  
 默认命名空间：`SlimeBattle.Objectives`  
-建议实现目录：`Assets/Game/Scripts/Core/`  
+建议实现目录：`Assets/Game/Scripts/Objectives/`  
 生命周期：当前关卡上下文生命周期  
 状态：核心边界已确定，具体胜利目标待策划确认
 
@@ -80,8 +80,8 @@ ObjectiveFailedEvent
 - `LevelManager` 创建、暂停、重开和销毁本系统，并消费目标结果；
 - `ConfigSystem` 提供 `ObjectiveConfig` 和 `WeaponConfig`；
 - `StatusManager` 提供已经结算的武器效果；
-- `SlimeSystem` 发布史莱姆生成/死亡结果；
-- `GuardSystem` 查询武器状态并在武器受击时触发守卫行为；
+- `SlimeManager` 发布史莱姆生成/死亡结果；
+- `GuardManager` 查询武器状态并在武器受击时触发守卫行为；
 - `UISystem` 读取目标和武器快照并显示失败/成功反馈。
 
 推荐信息流为：攻击命中 → `StatusManager` 结算效果 → `ObjectiveSystem` 更新武器状态 → 发布武器/目标结果 → `LevelManager` 进入结算或重开流程。

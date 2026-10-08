@@ -1,4 +1,4 @@
-# 14 PassageSystem 窄路与通行系统设计
+# 20 PassageSystem 窄路与通行系统设计
 
 系统编号：`MECH-02`  
 系统名称：`PassageSystem`  
@@ -14,7 +14,7 @@
 - 判断进入请求应当通过、等待还是拒绝；
 - 在角色离开、死亡、取消或关卡重开时释放占用。
 
-如果策划最终确认“窄路只是普通碰撞地形”，本系统应合并回 `MapSystem` 或 `MovementSystem`，不要保留空壳模块。
+如果策划最终确认“窄路只是普通碰撞地形”，本系统应合并回 `MapManager` 或 `MovementSystem`，不要保留空壳模块。
 
 ## 2. 不负责的内容
 
@@ -55,7 +55,7 @@ PassageOccupantExitedEvent
 
 ## 6. 依赖
 
-- `MapSystem` 提供窄路标记和空间位置；
+- `MapManager` 提供窄路标记和空间位置；
 - `MovementSystem` 执行进入和离开；
 - 角色系统报告死亡和销毁；
 - `MechanismSystem` 在窄路被定义为特殊机关时提交触发请求。

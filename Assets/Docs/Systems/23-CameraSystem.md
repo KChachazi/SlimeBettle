@@ -1,4 +1,4 @@
-# 19 CameraSystem 镜头系统设计
+# 23 CameraSystem 镜头系统设计
 
 系统编号：`PRESENT-01`  
 系统名称：`CameraSystem`  
@@ -52,7 +52,7 @@ CameraBoundsChangedEvent
 ## 6. 依赖
 
 - Unity `Camera`；
-- `MapSystem` 提供地图边界；
+- `MapManager` 提供地图边界；
 - `InputSystem` 提供镜头语义输入；
 - UI 仅通过坐标转换或镜头状态查询使用它。
 

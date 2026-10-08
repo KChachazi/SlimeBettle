@@ -1,4 +1,4 @@
-# 17 InputSystem 输入系统设计
+# 21 InputSystem 输入系统设计
 
 系统编号：`PLAYER-01`  
 系统名称：`InputSystem`  
@@ -64,7 +64,7 @@ PlayerCommandSubmittedEvent
 - Unity Input System Package；
 - `LevelContext` 的输入生命周期；
 - `CameraSystem` 提供屏幕/世界坐标转换；
-- `PlacementSystem`、`GuardSystem` 或 UI 消费语义输入。
+- `PlacementSystem`、`GuardManager` 或 UI 消费语义输入。
 
 ## 7. 关键不变量
 
