@@ -11,6 +11,7 @@
 
 - 加载、卸载和重新加载关卡场景；
 - 创建和销毁当前关卡的 `LevelContext`；
+- 收集当前关卡需要的配置资产，创建并填充 `ConfigRegistry`，调用 `ValidateAll()`，再将同一份 Registry 交给需要配置的关卡系统；
 - 管理关卡运行阶段：加载、初始化、进行中、暂停、胜利、失败和卸载；
 - 消费 `ObjectiveSystem` 已确认的胜利/失败结果，并把结果转换为关卡阶段；
 - 转发暂停、重开、进入下一关和返回请求；
@@ -22,7 +23,7 @@
 - 不计算胜负条件的细节；
 - 不复制护送武器和史莱姆数量的运行时数据；
 - 不创建全局静态 EventBus；
-- 不实现地图、机关、战斗和 UI 的内部规则。
+- 不实现地图、机关、攻击行为、状态效果和 UI 的内部规则。
 
 ## 3. 核心数据
 
@@ -70,8 +71,9 @@ LevelUnloadedEvent
 3. 销毁旧的 `LevelContext` 与 `LevelEventBus`；
 4. 加载目标场景；
 5. 创建新的 `LevelContext`；
-6. 按初始化顺序连接系统并生成初始对象；
-7. 发布 `LevelStartedEvent`。
+6. 收集当前关卡的配置资产，注册到 `ConfigRegistry` 并执行 `ValidateAll()`；校验未通过时报告错误，不进入 `Running`；
+7. 将同一份已校验的 `ConfigRegistry` 交给需要配置的系统，创建并连接 LevelContext 持有的 Manager 和其他关卡服务，再生成初始对象；
+8. 发布 `LevelStartedEvent`。
 
 重开关卡采用重新加载当前关卡场景的方案。第一版不要求为每个请求携带本局 ID，但必须保证旧上下文、旧订阅和旧任务已经失效。
 
@@ -81,7 +83,7 @@ LevelUnloadedEvent
 - Unity `SceneManager` 或等价场景加载适配；
 - `LevelContext`；
 - `ObjectiveSystem`；
-- 关卡配置系统。
+- `ConfigRegistry` 和当前关卡的配置资产来源。
 
 ## 8. 关键不变量
 

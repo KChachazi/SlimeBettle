@@ -11,6 +11,8 @@
 
 `LevelContext` 是当前关卡的运行时边界，保存本局系统之间的明确引用和关卡级资源。`LevelEventBus` 是该上下文内部的类型化通知通道。
 
+LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、目标和其他关卡级服务。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
+
 - 创建、连接和销毁当前关卡的系统；
 - 持有当前 `LevelId`、关卡状态和关卡服务引用；
 - 提供当前关卡的 EventBus；
@@ -30,6 +32,13 @@ LevelId levelId
 LevelState levelState
 LevelEventBus eventBus
 LevelServices services
+SlimeManager slimeManager
+EnemyManager enemyManager
+GuardManager guardManager
+MapManager mapManager
+MovementSystem movementSystem
+StatusManager statusManager
+ObjectiveSystem objectiveSystem
 ```
 
 `LevelServices` 只保存已确认需要注入的系统引用。不能提供任意字符串查找和无限制的 `GetService` 作为默认连接方式。
@@ -68,10 +77,10 @@ void Clear();
 ## 7. 初始化顺序
 
 1. 创建上下文和 EventBus；
-2. 创建配置和地图查询服务；
-3. 创建目标、角色、移动、机关、效果和战斗系统；
-4. 创建输入、放置、镜头、UI 和表现适配；
-5. 注入明确引用；
+2. 由 `LevelManager` 收集并注册本关配置、调用 `ValidateAll()`，再创建地图查询服务；
+3. 创建 MapManager、SlimeManager、EnemyManager、GuardManager、MovementSystem、StatusManager 和 ObjectiveSystem；
+4. 创建输入、放置、镜头、UI、表现及已确认的机关适配；
+5. 由 `LevelManager` 向需要配置的系统传入同一份已校验的 `ConfigRegistry`，并注入其他明确引用；
 6. 让各系统执行自身初始化；
 7. 由 `LevelManager` 发布关卡开始结果。
 

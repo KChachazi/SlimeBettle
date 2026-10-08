@@ -85,8 +85,11 @@ TapTap 聚光灯 GameJam 项目。
 - [项目架构](Assets/Docs/项目架构.md)：需求分析、系统划分、数据所有权和系统间信息流。
 - [系统设计总览](Assets/Docs/Systems/00-系统总览与命名约定.md)：具体系统名称、命名空间、共享命名和依赖分层。
 - [全局 API 查询表](Assets/Docs/Systems/99-全局API查询表.md)：跨系统公共接口和结果事件的快速查询入口。
-- [史莱姆群体系统](Assets/Docs/Systems/22-SlimeGroupSystem.md)：群体形成、成员、队列、阵型和战斗策略。
-- [关卡目标与护送武器系统](Assets/Docs/Systems/23-ObjectiveSystem.md)：护送武器、成功/失败结果和关卡流程边界。
+- [Actors 模块](Assets/Docs/Systems/05-Actors模块.md)：个体基础数据、感知、决策树、状态机和自主决策生物。
+- [SlimeManager](Assets/Docs/Systems/13-SlimeManager.md)：史莱姆与史莱姆群体的关卡级生命周期管理。
+- [StatusManager](Assets/Docs/Systems/18-StatusManager.md)：生命、状态和移动相关效果的统一结算。
+- [史莱姆群体 Actor](Assets/Docs/Systems/12-SlimeGroupActor.md)：群体形成、成员、队列、阵型和群体策略。
+- [关卡目标与护送武器系统](Assets/Docs/Systems/26-ObjectiveSystem.md)：护送武器、成功/失败结果和关卡流程边界。
 - 旧的可能架构草稿已停止作为独立文档；其中可用的架构内容已整理到[项目架构](Assets/Docs/项目架构.md)和[系统设计总览](Assets/Docs/Systems/00-系统总览与命名约定.md)中。
 - [策划设计文档](Assets/Docs/SlimeBettle设计文档.docx)：游戏题材、世界观和核心玩法方向。
 
