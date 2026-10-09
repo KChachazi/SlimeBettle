@@ -39,6 +39,12 @@ namespace SlimeBattle.Core
             if (currentState == LevelState.Running) currentContext?.Tick(Time.deltaTime);
         }
 
+        private void FixedUpdate()
+        {
+            if (currentState == LevelState.Running)
+                currentContext?.FixedTick(Time.fixedDeltaTime);
+        }
+
         public void Initialize()
         {
             if (initialized || disposed)

@@ -5,6 +5,7 @@ using SlimeBattle.Actors;
 using SlimeBattle.Actors.Enemies;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
+using SlimeBattle.World.Movement;
 using UnityEngine;
 
 namespace SlimeBattle.Enemies
@@ -15,17 +16,20 @@ namespace SlimeBattle.Enemies
         private readonly ConfigRegistry configs;
         private readonly ILevelEventBus eventBus;
         private readonly EnemyActor prefab;
+        private readonly MovementSystem movementSystem;
         private Transform actorParent;
         private bool disposed;
         private bool paused;
 
         public EnemyManager(ConfigRegistry configs, ILevelEventBus eventBus,
-            EnemyActor prefab = null, Transform actorParent = null)
+            EnemyActor prefab = null, Transform actorParent = null,
+            MovementSystem movementSystem = null)
         {
             this.configs = configs ?? throw new ArgumentNullException(nameof(configs));
             this.eventBus = eventBus;
             this.prefab = prefab;
             this.actorParent = actorParent;
+            this.movementSystem = movementSystem;
         }
 
         public string LastFailureReason { get; private set; } = string.Empty;
@@ -59,6 +63,11 @@ namespace SlimeBattle.Enemies
             actor.Initialize(config, id, request.Position,
                 request.FactionId.IsValid ? request.FactionId : new FactionId("Enemy"),
                 request.TargetPolicy, request.ActivityBounds);
+            if (!TryRegisterMovement(actor, config.MoveSpeed))
+            {
+                DestroyActor(actor);
+                return Reject("MovementSystem could not register the Enemy Rigidbody2D.");
+            }
             actor.Died += OnActorDied;
             actor.ControlModeChanged += OnControlModeChanged;
             actors.Add(id, actor);
@@ -71,6 +80,7 @@ namespace SlimeBattle.Enemies
             if (disposed || !actors.TryGetValue(actorId, out var actor)) return false;
             actor.Died -= OnActorDied;
             actor.ControlModeChanged -= OnControlModeChanged;
+            movementSystem?.UnregisterActor(actorId, CancelReason.Despawn);
             DestroyActor(actor);
             actors.Remove(actorId);
             eventBus?.Publish(new EnemyDespawnedEvent(actorId, reason));
@@ -127,12 +137,18 @@ namespace SlimeBattle.Enemies
             if (disposed) return;
             disposed = true;
             foreach (var actor in actors.Values)
-            { actor.Died -= OnActorDied; actor.ControlModeChanged -= OnControlModeChanged; DestroyActor(actor); }
+            {
+                actor.Died -= OnActorDied;
+                actor.ControlModeChanged -= OnControlModeChanged;
+                movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Disposed);
+                DestroyActor(actor);
+            }
             actors.Clear();
         }
 
         private void OnActorDied(EnemyActor actor, ResolvedEffect effect)
         {
+            movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Death);
             eventBus?.Publish(new EnemyDiedEvent(actor.GetSnapshot(), effect));
         }
 
@@ -145,6 +161,17 @@ namespace SlimeBattle.Enemies
         {
             LastFailureReason = reason;
             return default(ActorId);
+        }
+
+        private bool TryRegisterMovement(EnemyActor actor, float moveSpeedPixelsPerSecond)
+        {
+            if (movementSystem == null) return true;
+            var spriteRenderer = actor.GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null || spriteRenderer.sprite == null) return false;
+            return movementSystem.RegisterActor(actor.ActorId,
+                actor.GetComponent<Rigidbody2D>(), moveSpeedPixelsPerSecond,
+                spriteRenderer.sprite.pixelsPerUnit, actor.NotifyMovementResult,
+                actor.NotifyMovementCompleted);
         }
 
         private static void DestroyActor(EnemyActor actor)
