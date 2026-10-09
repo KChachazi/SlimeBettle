@@ -22,7 +22,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
         public bool IsHuman { get; }
     }
 
-    public enum GuidanceKind { Food, Warmth }
+    public enum GuidanceKind { Food, Warmth, Wander }
 
     public readonly struct GuidanceObservation
     {

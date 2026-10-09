@@ -87,5 +87,5 @@ Hungry、Agitated、Afraid、Cold、Hot 和 Burning 等内容优先作为 Status
 
 ## 9. P0 外部接入边界
 
-MovementSystem 和 StatusManager 尚未提供可编译的正式实现。P0 使用 Actor 层的 `IActorActionPort` 输出 `ActorMovementRequest` 与 `ActorEffectRequest`，并由 `IActorPerceptionSource` 提供命中时的当前目标快照。正式适配器必须把两种请求分别转交文档中的 `MovementSystem.SubmitMovement` / `CancelMovement` 和 `StatusManager.ApplyEffect`，并把位置与带请求 ID 的移动完成结果回传 Actor；不得在正式适配器中自行扣血或写 Transform。`Assets/Game/Tests/` 的可视化场景仅为验收而移动圆形标记，不作为正式 MovementSystem。适配器尚未接入时，关卡不驱动 Actor AI。
+MovementSystem 已使用 `MovementActorActionPort` 接收 Actor 的 `ActorMovementRequest`，并将位置与带请求 ID 的完成结果回传 Actor；Actor 不直接写 Transform。StatusManager 和正式效果端口尚未接入。Level_test 绑定随机漫游感知与仅移动的行动适配，验证决策树、状态机到动态 Rigidbody2D 的移动链路，不验证攻击效果；其他关卡仍须由装配方注入有效端口后才会驱动 Actor AI。
 

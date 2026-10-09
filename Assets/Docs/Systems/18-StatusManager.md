@@ -20,6 +20,7 @@ Actor 持有自己的生命和状态运行时数据；StatusManager 持有统一
 - 管理移速、攻速、定身、冻结等影响行动的状态修正；
 - 向 MovementSystem 提供某个 Actor 的移动修正快照；
 - 校验来源、目标、存活、阵营关系和效果时机；
+- 消费 MapManager 发布的区域进入/离开事实，根据区域类型和配置申请寒冷、炙热等状态；
 - 维护状态持续时间、叠加、互斥、抵抗和过期；
 - 发布效果和状态结果事件。
 
@@ -46,6 +47,8 @@ Actor 持有自己的生命和状态运行时数据；StatusManager 持有统一
     HealthSnapshot
     MovementModifierSnapshot
     EffectApplyResult
+
+环境区域只提供触发事实和区域配置引用。区域成员关系由 MapManager 根据 Actor 的实际位置维护；StatusManager 自己拥有环境状态、互斥、持续时间和离开区域后的延迟解除计时。
 
 EffectRequest 至少包含 SourceActorId、TargetActorId、EffectType、基础数值、持续时间或方向、来源上下文和请求轮次。
 
@@ -81,6 +84,15 @@ ApplyEffect 是同步规则入口，返回值必须能区分已应用、被拒�
 
 StatusManager 可以发布 MovementModifierChangedEvent 让 MovementSystem 失效缓存，但不能直接修改位置。
 
+### 6.3 地图环境状态
+
+    MovementSystem 同步 Actor 的刚体实际位置
+      → MapManager 发布 MapAreaEnteredEvent / MapAreaExitedEvent
+      → StatusManager 根据 MapAreaSnapshot 和状态配置申请状态/效果
+      → StatusManager 维护持续时间、互斥与解除条件
+
+低温和温暖区域属于地图区域事实；MapManager 不直接调用 StatusManager，也不把状态效果写进 Actor。区域进入/离开事件只在成员关系改变时发布。图示和正文提出离开低温/炎热区域 20 秒后解除、靠近反向温度源可解除等规则，计时和来源优先级由 StatusManager 统一处理；具体互斥和重叠区域规则仍待确认。
+
 ## 7. 当前状态登记
 
 饥饿、暴躁、害怕、寒冷、炙热、冻结、燃烧和暴击等状态继续保留为策划输入。具体阈值、倍率、互斥关系、持续伤害与移动修正的优先级，必须通过配置和统一结算规则表达，不能散落在 SlimeActor、EnemyActor 或机关脚本中。
@@ -95,6 +107,7 @@ StatusManager 可以发布 MovementModifierChangedEvent 让 MovementSystem 失�
     StatusExpiredEvent
     MovementModifierChangedEvent
     ActorControlChangedEvent
+    MapAreaEnteredEvent / MapAreaExitedEvent（MapManager 发布，StatusManager 消费）
 
 ActorDiedEvent 由目标 Actor 所属 Manager 在确认死亡后发布；StatusManager 可以发布已确认的致死效果结果，但不能代替 Manager 管理 Actor 生命周期。
 
@@ -104,6 +117,7 @@ ActorDiedEvent 由目标 Actor 所属 Manager 在确认死亡后发布；StatusM
 - ConfigSystem 提供状态、效果和抗性配置；
 - ActorCore 接收已经结算的效果并更新自身数据；
 - MovementSystem 消费移动修正和控制结果；
+- MapManager 发布 Actor 进入/离开地图区域的事实，区域类型关联的效果由本系统配置解析；
 - SlimeManager、EnemyManager、GuardManager 接收死亡和状态变化事实。
 
 ## 10. 关键不变量
@@ -120,6 +134,7 @@ ActorDiedEvent 由目标 Actor 所属 Manager 在确认死亡后发布；StatusM
 - A 对自身施加治疗或伤害，TargetActorId 为 A 时流程仍然成立；
 - 机关对 B 施加效果时不需要经过攻击系统；
 - 减速状态生效后 MovementSystem 查询到新的移动修正；
+- Actor 进入低温/温暖区域时，本系统消费一次 MapAreaEnteredEvent 并按配置申请状态；离开区域后的解除计时由本系统持有；
 - 目标死亡后再次提交同一旧效果会被拒绝；
 - 重开关卡后所有持续状态、计时器和待处理效果清理。
 

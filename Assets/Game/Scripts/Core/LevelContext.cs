@@ -76,7 +76,7 @@ namespace SlimeBattle.Core
             if (slimePrefab == null || enemyPrefab == null)
                 throw new InvalidOperationException("SlimeActor and EnemyActor prefabs are required.");
 
-            MapManager = new MapManager(SceneManager.GetActiveScene());
+            MapManager = new MapManager(SceneManager.GetActiveScene(), EventBus);
             MovementSystem = new MovementSystem(MapManager, EventBus);
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
                 LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem);
@@ -89,15 +89,16 @@ namespace SlimeBattle.Core
             EventBus.Subscribe<SlimeSpawnedEvent>(_ => UpdateSlimeCount());
             EventBus.Subscribe<SlimeDiedEvent>(_ => UpdateSlimeCount());
             EventBus.Subscribe<SlimeDespawnedEvent>(_ => UpdateSlimeCount());
+            MapManager.PublishReady();
         }
 
-        // MovementSystem 接管移动请求，原行动端口继续处理效果；未绑定时不驱动 AI。
+        // MovementSystem 接管移动请求，原行动端口继续处理效果；传 null 表示仅接入移动。
         public void BindActorPorts(IActorPerceptionSource perceptionSource,
             IActorActionPort actionPort)
         {
             ThrowIfDisposed();
             perception = perceptionSource;
-            actions = actionPort == null || MovementSystem == null
+            actions = MovementSystem == null
                 ? actionPort
                 : new MovementActorActionPort(MovementSystem, actionPort);
         }

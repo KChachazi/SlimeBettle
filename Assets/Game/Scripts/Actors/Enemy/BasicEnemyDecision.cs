@@ -39,14 +39,36 @@ namespace SlimeBattle.Actors.Enemies
             }
             runtime.TargetId = nearest.ActorId;
             if (!nearest.ActorId.IsValid)
-                return context.Perception.HasDestination &&
-                    runtime.ActivityBounds.Contains(context.Perception.Destination)
-                    ? ActionIntent.Move(context.Perception.Destination, "无目标：在固定范围内游走")
-                    : ActionIntent.Wait("无目标：留在活动范围内");
+            {
+                if (context.Perception.HasDestination &&
+                    runtime.ActivityBounds.Contains(context.Perception.Destination))
+                    return ActionIntent.Move(context.Perception.Destination, "无目标：沿引导目的地移动");
+                if (TryFindWanderDestination(context, out var wander) &&
+                    runtime.ActivityBounds.Contains(wander))
+                    return ActionIntent.Move(wander, "无目标：随机游走");
+                return ActionIntent.Wait("无目标：留在活动范围内");
+            }
             return nearestDistance <= attackRange
                 ? ActionIntent.AttackTarget(new AttackIntent(context.Actor.ActorId, nearest.ActorId, abilityId),
                     "索敌：攻击最近目标")
                 : ActionIntent.Move(nearest.Position, "索敌：追击最近目标");
+        }
+
+        private static bool TryFindWanderDestination(DecisionContext context, out Vector2 position)
+        {
+            position = default(Vector2);
+            var guides = context.Perception.Guides;
+            if (guides == null) return false;
+            var nearest = float.PositiveInfinity;
+            for (var i = 0; i < guides.Count; i++)
+            {
+                if (guides[i].Kind != GuidanceKind.Wander) continue;
+                var distance = Vector2.Distance(context.Actor.Position, guides[i].Position);
+                if (distance >= nearest) continue;
+                nearest = distance;
+                position = guides[i].Position;
+            }
+            return nearest < float.PositiveInfinity;
         }
     }
 }

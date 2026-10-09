@@ -1,4 +1,4 @@
-/* 关卡场景的初始角色清单：仅向正式 Manager 提交生成请求，不自行创建 Actor。 */
+/* 场景初始角色清单；Level_test 注入随机漫游感知，Actor 生命周期仍由正式 Manager 管理。 */
 using SlimeBattle.Core;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
@@ -65,6 +65,8 @@ namespace SlimeBattle.Actors.Spawning
             var slimeCount = 0;
             var enemyCount = 0;
             var bounds = new EnemyActivityBounds(enemyBoundsMinimum, enemyBoundsMaximum);
+            context.BindActorPorts(new RandomWalkPerceptionSource(
+                context.SlimeManager, context.EnemyManager, context.MovementSystem, bounds), null);
             foreach (var point in slimeSpawnPoints)
             {
                 if (point == null) continue;

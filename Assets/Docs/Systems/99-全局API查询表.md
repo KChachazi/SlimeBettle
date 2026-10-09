@@ -29,7 +29,7 @@
 | API-CORE-009 | ObjectiveSystem | TryGetWeaponSnapshot(WeaponId, out WeaponSnapshot) | 武器 ID | 是否成功、快照 | GuardManager、UI、EnemyActor | 暂定 |
 | API-CORE-010 | ObjectiveSystem | ApplyWeaponEffect(WeaponId, ResolvedEffect) | 已结算效果 | EffectApplyResult | StatusManager | 暂定 |
 | API-CORE-011 | ObjectiveSystem | EvaluateResult() | 无 | ObjectiveResult | LevelManager、测试 | 成功条件待确认 |
-| API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器 | 无 | 关卡装配方 | P0 临时接入边界；MovementSystem 接管移动请求 |
+| API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器；效果端口可为 null | 无 | 关卡装配方 | P0 接入边界；MovementSystem 接管移动请求；效果端口为空时仅移动可用 |
 | API-CORE-013 | LevelContext | MapManager / MovementSystem | 无 | 当前关卡地图和移动服务 | 当前关卡系统 | P0：静态阻挡识别及 Rigidbody2D 移动已接入 |
 
 AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Actor 的公开 Tick/效果接收/位置回报接口及上述感知、行动端口测试通路；`FleeCheckSucceeded` 是注入的概率判定结果，效果请求只记录，不由场景扣血。
@@ -88,12 +88,12 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-WORLD-001 | MapManager | GetMapBounds() | 无 | MapBounds | CameraSystem、MovementSystem、AI | 设计已确认；实现待续 |
-| API-WORLD-002 | MapManager | CanOccupy(WorldPosition, OccupancyQuery) | 位置、条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 设计已确认；实现待续 |
-| API-WORLD-003 | MapManager | QueryCell(WorldPosition) | 世界位置 | MapCellInfo | MovementSystem、AI、机关 | 设计已确认；实现待续 |
-| API-WORLD-004 | MapManager | TryGetSpawnPoint(SpawnPointId, out WorldPosition) | 出生点 ID | 是否成功、位置 | 各 Manager | 设计已确认；实现待续 |
-| API-WORLD-005 | MapManager | TryGetTargetPoint(TargetPointId, out WorldPosition) | 目标点 ID | 是否成功、位置 | Actor、ObjectiveSystem | 暂定；实现待续 |
-| API-WORLD-006 | MapManager | TryGetWeaponPoint(WeaponPointId, out WorldPosition) | 武器点 ID | 是否成功、位置 | ObjectiveSystem、GuardActor | 暂定；实现待续 |
+| API-WORLD-001 | MapManager | TryGetMapBounds(out MapBounds) | 无 | 是否成功、地图边界 | CameraSystem、MovementSystem、AI | 已实现；场景需配置 MapBoundsAuthoring |
+| API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
+| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 已实现静态地图查询；不含动态 Actor/放置物 |
+| API-WORLD-004 | MapManager | GetMovementSpeedMultiplier(Vector2) | 世界坐标 | 地形移速修正（多个地形倍率相乘） | MovementSystem | 已实现；场景需配置地形区域 |
+| API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现；StatusManager 消费待接入 |
+| API-WORLD-006 | MapManager | TryGetMapPoint(MapPointId, out MapPointSnapshot) / GetMapPoints(MapPointKind) | 地图点 ID 或类型 | 是否成功、点位快照集合 | Actor Manager、ObjectiveSystem、未来的掉落/事件系统 | 已实现；场景需配置 MapPointAuthoring |
 | API-WORLD-007 | MovementSystem | SubmitMovement(MovementRequest) | 移动请求 | MovementRequestId | ActorStateMachine、InputSystem | P0 已实现 |
 | API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
 | API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | P0 已实现 |
@@ -145,6 +145,9 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | EnemyDiedEvent | EnemyManager | 敌人已确认死亡 | ObjectiveSystem、UI、表现 |
 | GuardDiedEvent | GuardManager | 守卫已确认死亡 | ObjectiveSystem、UI、表现 |
 | MovementBlockedEvent | MovementSystem | 移动被空间规则阻止 | ActorStateMachine、AI、UI |
+| MapReadyEvent | MapManager | 当前关卡地图资源和静态索引已完成绑定 | LevelContext、关卡服务（已发布） |
+| MapAreaEnteredEvent | MapManager | Actor 进入一个道路/地形/区域标记体 | StatusManager、MovementSystem、AI（已发布；StatusManager 未装配） |
+| MapAreaExitedEvent | MapManager | Actor 离开一个道路/地形/区域标记体 | StatusManager、MovementSystem、AI（已发布；StatusManager 未装配） |
 | EffectAppliedEvent | StatusManager | 效果已应用 | Actor Manager、UI、表现 |
 | HealthChangedEvent | StatusManager | Actor 生命已变化 | AI、ObjectiveSystem、UI |
 | StatusAddedEvent | StatusManager | 状态已添加 | AI、状态机、UI |
@@ -157,6 +160,7 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 ## 9. 不进入全局表的内容
 
 - DecisionTree 内部节点和感知实现；
+- `GuidanceKind.Wander` 是 ActorDecisionTree 感知契约中的漫游引导类型，仅由 Level_test 用于移动链路验收；
 - StateMachine 内部状态、转换和 AttackAction 私有步骤；
 - Actor 的私有字段、Manager 的集合缓存和 Unity 组件引用；
 - UI 控件刷新、动画、特效和音效播放方法；

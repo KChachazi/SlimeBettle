@@ -94,11 +94,14 @@ MechanismExhaustedEvent
 
 温暖地区、低温地区、掉落物、固定事件和随机事件可以为史莱姆提供引导或触发条件。它们的边界如下：
 
-- `MapManager` 负责地形、区域归属、可行走空间和地图查询；
+- `MapManager` 负责地形、道路、区域归属、可行走空间和地图查询；区域进入/离开是空间事实，由 MapManager 发布；
 - `MechanismSystem` 负责可交互环境元素及其引导源快照；
 - `StatusManager` 负责寒冷、炙热、燃烧、冻结等状态和持续效果；
 - `MovementSystem` 负责接触、阻挡、位置结果和移动请求；
-- 随机事件、特殊事件、陷阱和魔法的具体列表仍待确认。
+- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不创建动态对象、不做概率判定，也不结算事件效果；
+- 掉落物、固定/随机事件、陷阱和魔法的运行时系统归属及具体列表仍待确认。
+
+Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager 的区域事实并按配置申请或解除对应状态。温暖地区的吸引源快照由 MechanismSystem/Actor 感知层提供；区域归属本身不等同于吸引范围。
 
 ## 6. 依赖
 

@@ -104,6 +104,7 @@ namespace SlimeBattle.World.Movement
                 moveSpeedPixelsPerSecond / pixelsPerUnit, positionUpdated, movementCompleted);
             actors.Add(actorId, binding);
             collisionRelay.Bind(this, actorId);
+            mapManager.NotifyActorPositionChanged(actorId, body.position);
             return true;
         }
 
@@ -141,7 +142,7 @@ namespace SlimeBattle.World.Movement
             binding.Active = null;
             activeRequests.Remove(requestId);
             var position = binding.Body == null ? binding.State.Position : binding.Body.position;
-            binding.PositionUpdated?.Invoke(position);
+            NotifyPositionUpdated(binding, position);
             binding.State = new MovementState(binding.ActorId, MovementResult.Cancelled,
                 requestId, position, active.Destination, Vector2.zero,
                 cancelReason: reason);
@@ -185,7 +186,7 @@ namespace SlimeBattle.World.Movement
                 if (body == null || !body.simulated) continue;
 
                 var position = body.position;
-                binding.PositionUpdated(position);
+                NotifyPositionUpdated(binding, position);
                 if (binding.Active == null)
                 {
                     var previous = binding.State;
@@ -206,7 +207,8 @@ namespace SlimeBattle.World.Movement
                 }
 
                 var modifiers = modifierProvider(binding.ActorId);
-                var speed = binding.WorldSpeed * modifiers.SpeedMultiplier;
+                var terrainSpeedMultiplier = mapManager.GetMovementSpeedMultiplier(position);
+                var speed = binding.WorldSpeed * modifiers.SpeedMultiplier * terrainSpeedMultiplier;
                 if (modifiers.IsRooted || float.IsNaN(speed) || float.IsInfinity(speed) || speed <= 0f)
                 {
                     body.velocity = Vector2.zero;
@@ -231,7 +233,7 @@ namespace SlimeBattle.World.Movement
                 if (binding.Body == null || !binding.Body.simulated) continue;
                 var previous = binding.State;
                 var position = binding.Body.position;
-                binding.PositionUpdated(position);
+                NotifyPositionUpdated(binding, position);
                 binding.State = new MovementState(binding.ActorId, previous.Result,
                     previous.RequestId, position, previous.Destination,
                     binding.Body.velocity, previous.ContactInfo, previous.CancelReason);
@@ -263,6 +265,7 @@ namespace SlimeBattle.World.Movement
                 binding.Body.velocity = Vector2.zero;
                 binding.Body.simulated = false;
             }
+            mapManager.NotifyActorRemoved(actorId);
             actors.Remove(actorId);
         }
 
@@ -306,7 +309,7 @@ namespace SlimeBattle.World.Movement
             if (binding.Body != null) binding.Body.velocity = Vector2.zero;
             binding.Active = null;
             activeRequests.Remove(active.RequestId);
-            binding.PositionUpdated?.Invoke(position);
+            NotifyPositionUpdated(binding, position);
             binding.State = new MovementState(binding.ActorId, result,
                 active.RequestId, position, active.Destination, Vector2.zero, contactInfo);
 
@@ -316,6 +319,12 @@ namespace SlimeBattle.World.Movement
                     active.RequestId, position, contactInfo));
             }
             binding.MovementCompleted?.Invoke(active.RequestId.Value);
+        }
+
+        private void NotifyPositionUpdated(ActorBinding binding, Vector2 position)
+        {
+            binding.PositionUpdated?.Invoke(position);
+            mapManager.NotifyActorPositionChanged(binding.ActorId, position);
         }
     }
 }
