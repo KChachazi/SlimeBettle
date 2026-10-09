@@ -4,12 +4,24 @@
 
 ## 启动
 
-1. 用指定 Unity 打开项目，等待包恢复。确认 Input System 为 1.7.0，Console 没有编译错误；不要改为旧 Input Manager。
+1. 用指定 Unity 打开项目，等待包恢复。沿用最新 master 的 Input System 1.14.2，确认 Console 没有编译错误；不要改为旧 Input Manager。
 2. 退出 Play Mode，选择菜单 **SlimeBattle → Tests → Run P0 Player Checks**。成功时 Console 输出 `P0 Player Checks: PASS (14 assertions)`。异常表示检查失败，不应继续合并。
 3. 选择 **SlimeBattle → Tests → Open P0 Player Bootstrap**。菜单保留现有 Build Settings 场景顺序，只启用或追加本目录两张测试场景，然后打开 Bootstrap_P0Player。
-4. 点击 Play。测试启动脚本创建/使用现有 GameRoot，并通过 RequestEnterLevel 加载 Test_PlayerPresentation。应看到网格、青绿色 InputProbe、目标 HUD、暂停按钮和底部两个 TEST 结果按钮。
+4. 点击 Play。测试启动脚本使用场景内已配置的 GameRoot，并通过 RequestEnterLevel 加载 Test_PlayerPresentation。应看到网格、青绿色 InputProbe、目标 HUD、暂停按钮和底部两个 TEST 结果按钮。
 
-菜单修改的 `ProjectSettings/EditorBuildSettings.asset` 属于本地测试设置，验证结束后检查 diff；不要顺手提交它到本 PR。也可手动把本目录两张场景加入 Build Settings，再打开 Bootstrap_P0Player。直接打开测试场景时会通过 GameRoot 重新加载一次，以建立真实 LevelContext。
+菜单修改的 `ProjectSettings/EditorBuildSettings.asset` 属于本地测试设置，验证结束后检查 diff；不要顺手提交它到本 PR。也可手动把本目录两张场景加入 Build Settings，再打开 Bootstrap_P0Player。必须从此 Bootstrap 进入：它在 Inspector 中配置独立的测试 LevelConfig，并复用团队的配置和角色预制体引用，满足最新 LevelManager 的注册要求。不要直接运行测试关卡。
+
+## 自动 Play Mode 验证
+
+退出 Play Mode 后选择 **SlimeBattle → Tests → Run P0 Play Mode Checks**。入口先运行编辑器检查，再从隔离 Bootstrap 启动真实 Play Mode，使用虚拟键鼠检查移动/停止、攻击边沿、世界点击、UI 起始手势屏蔽、镜头拖动、真实暂停按钮、按住键恢复、Escape 暂停/恢复、晚启用 UI 的结果读取，以及连续 5 次重开后的对象唯一性。任何 Error、Exception 或断言失败均导致失败结果。
+
+检查结束后恢复原 Build Settings，移除虚拟设备并退出 Play Mode，默认在系统临时目录输出 `SlimeBattleP0-validation.json`。有图形设备时保存结算截图。可通过命令行指定输出：
+
+```text
+<Unity.exe> -projectPath <project-path> -executeMethod SlimeBattle.Tests.PlayerPresentation.Editor.P0PlayerPlayModeChecks.Run -p0ReportPath <report.json> -p0ExitAfterChecks -logFile <editor.log>
+```
+
+该入口需要有图形界面的编辑器和获得焦点的 Game 视图；不加 `-batchmode`、`-nographics` 或 `-quit`。若 MCP Setup 等编辑器浮窗抢占焦点，关闭浮窗并切回 Game 视图。`-p0ExitAfterChecks` 让命令行运行结束后退出编辑器，退出码为成功 0 / 失败 1；通过菜单启动则保留编辑器。不要在检查期间用实体键鼠操作 Game 视图。自动检查仍只验证输入/显示和 Core 流程，真机、多指、完整战斗及手动异常步骤见下文。
 
 ## 桌面操作与预期
 
@@ -28,7 +40,7 @@
 | 重开 | 暂停或结果面板点击 Restart | 重新加载当前测试场景，探针/请求次数/镜头/结果恢复初始值 |
 | 重复重开 | 连续快速点击 Restart，再重复成功/失败/重开至少 5 次 | 仅一个加载流程；没有重复 HUD、镜头、EventSystem 或成倍输入回调 |
 
-编辑器检查自动验证：投影往返、小地图居中、保留 Z、可见视口边界、缩放下限、非法边界拒绝、虚拟键盘语义移动、快照非消费读取、UI 模式屏蔽、跨模式按键释放、禁用不产生指令、无关卡重开拒绝、UI 不改变关卡状态、UI 重新绑定时查询当前状态。检查只创建临时对象与虚拟键盘，在 finally 中销毁并恢复原 Input System 更新模式。
+14 项编辑器检查验证投影往返、小地图居中、保留 Z、可见视口边界、缩放下限、非法边界拒绝、输入模式配置、非法模式拒绝、UI 模式清空快照、禁用清空快照、重新启用保留模式、无关卡重开拒绝、UI 不改变关卡状态、UI 重新绑定时查询当前状态。临时对象在 finally 中清理；真实键鼠采样和跨模式按键释放由 Play Mode 检查覆盖。
 
 ## 异常与生命周期
 
@@ -55,6 +67,16 @@
 
 ## 当前执行记录
 
-2026-10-09：开发电脑没有 Unity 编辑器；上述 Unity 检查、Play Mode、视觉与真机步骤**均未执行**。当前只完成仓库静态检查和 C# 语法检查（结果见 PR），Draft PR 在目标版本实际验收前不得合并。
+2026-10-10，指定编辑器 **2022.3.62f2c1**（`92e6e6be66dc`）：
 
-测试场景所有运行时对象由测试夹具创建，正式场景与 Build Settings 未随 PR 改动。Assets/Game/Tests/ 下脚本没有自动运行属性，只在引用它们的测试场景或主动菜单调用时执行。
+- 基于 master `e778a8f`：项目编译无 C# 错误，14 项编辑器检查通过，26 项 Play Mode 检查通过；既有 `SlimeBattle.P0.Tests` 的 23 项 Edit Mode 测试全部通过。
+- Play Mode 使用真实场景生命周期、Input System 虚拟键鼠设备和 uGUI 事件模块，覆盖键盘移动/停止、攻击边沿、世界点击、UI 屏蔽、镜头中键拖动、暂停按钮、恢复时按住键保护、Escape 切换、结算面板和连续五次重开。每次重开均只有一个 HUD、CameraSystem 和 EventSystem。
+- 运行验证发现多设备并存时指针 Value Action 按坐标幅度选错设备的问题；已改为 PassThrough，并在手势期间使用发起设备的坐标，世界点击回归通过。
+- 同步到 master `75be0db`（含地图/移动）后：编译及 14 项编辑器检查通过；既有 Edit Mode 测试 11 通过 / 12 失败。新 Actor 的 RequireComponent 包含抽象 Collider2D，但旧夹具没有先添加具体 Collider2D，导致 Actor 添加失败、Manager 生成失败及后续空引用。相关文件为 `ActorAiEditModeTests.cs`、`ActorManagerEditModeTests.cs`、`P0SystemsEditModeTests.cs`，由对应负责人修复；本 PR 未改动这些系统。
+- 最新基线的 Play Mode 回归启动后被桌面全屏浮窗遮挡，尚未完成；此前通过记录不替代这次回归。Android 真机、多指及完整战斗链路未验证。PR 保持 Draft。
+
+下图是通过的隔离测试结算画面（基线 `e778a8f`），结果由测试夹具模拟上游确认：
+
+![P0 player presentation result](P0_Result.png)
+
+测试 Bootstrap 保存已配置的 GameRoot / LevelManager；网格、探针、镜头与 HUD 由测试夹具在关卡中创建。正式场景与 Build Settings 未随 PR 改动。Play Mode 验证入口的 InitializeOnLoad 只在已主动启动验证时恢复域重载状态；导入项目不会自行启动测试或改动场景。

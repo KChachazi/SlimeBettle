@@ -9,7 +9,11 @@ namespace SlimeBattle.Tests.PlayerPresentation
         private void Start()
         {
             var root = FindObjectOfType<GameRoot>();
-            if (root == null) { root = new GameObject("GameRoot").AddComponent<GameRoot>(); }
+            if (root == null)
+            {
+                Debug.LogError("Open Bootstrap_P0Player with its configured GameRoot and LevelManager.", this);
+                return;
+            }
             root.RequestEnterLevel(new LevelId("Assets/Game/Tests/PlayerPresentation/Test_PlayerPresentation.unity"));
         }
     }

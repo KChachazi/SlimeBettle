@@ -1,0 +1,14 @@
+{
+    "name": "SlimeBattle.PlayerPresentation.Editor",
+    "rootNamespace": "SlimeBattle.Tests.PlayerPresentation",
+    "references": [
+        "SlimeBattle.Runtime",
+        "SlimeBattle.PlayerPresentation.TestFixtures",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": true
+}

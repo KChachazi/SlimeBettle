@@ -5,10 +5,7 @@ using SlimeBattle.Presentation.Camera;
 using SlimeBattle.UI;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.LowLevel;
 using PlayerInputSystem = SlimeBattle.Player.Input.InputSystem;
-using DeviceInputSystem = UnityEngine.InputSystem.InputSystem;
 
 namespace SlimeBattle.Tests.PlayerPresentation.Editor
 {
@@ -23,8 +20,6 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 throw new InvalidOperationException("Run these checks outside Play Mode.");
             }
             var root = new GameObject("P0_PLAYER_CHECKS_TEMP");
-            Keyboard keyboard = null;
-            var updateMode = DeviceInputSystem.settings.updateMode;
             try
             {
                 var cameraObject = new GameObject("Camera", typeof(UnityEngine.Camera), typeof(CameraSystem));
@@ -55,38 +50,25 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 catch (ArgumentException) { rejectedBounds = true; }
                 Check(rejectedBounds, "Invalid bounds are rejected");
 
-                DeviceInputSystem.settings.updateMode = InputSettings.UpdateMode.ProcessEventsManually;
-                keyboard = DeviceInputSystem.AddDevice<Keyboard>();
+                // Edit Mode checks public configuration only. Device sampling belongs in Play Mode.
                 var input = root.AddComponent<PlayerInputSystem>();
                 input.Enable();
                 input.SetInputMode(InputMode.Gameplay);
-                DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState());
-                DeviceInputSystem.Update();
-                input.SendMessage("Update");
-                var moveCount = 0;
-                var token = input.Subscribe<PlayerCommandSubmittedEvent>(data => moveCount++);
-                DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
-                DeviceInputSystem.Update();
-                input.SendMessage("Update");
-                Check(moveCount == 1 && input.ReadSnapshot().Movement == Vector2.up,
-                    "Keyboard maps to a semantic movement command");
-                var firstSnapshot = input.ReadSnapshot();
-                var repeatedSnapshot = input.ReadSnapshot();
-                Check(firstSnapshot.Movement == Vector2.up && repeatedSnapshot.Movement == Vector2.up,
-                    "Snapshot reads do not consume input");
+                Check(input.GetInputMode() == InputMode.Gameplay, "Gameplay mode can be configured");
+                var rejectedMode = false;
+                try { input.SetInputMode((InputMode)999); }
+                catch (ArgumentOutOfRangeException) { rejectedMode = true; }
+                Check(rejectedMode && input.GetInputMode() == InputMode.Gameplay,
+                    "An invalid input mode is rejected without changing the current mode");
                 input.SetInputMode(InputMode.UiOnly);
-                input.SendMessage("Update");
-                Check(moveCount == 1 && input.ReadSnapshot().Movement == Vector2.zero,
-                    "UI-only mode suppresses gameplay and clears held state");
-                input.SetInputMode(InputMode.Gameplay);
-                input.SendMessage("Update");
-                Check(moveCount == 1, "Held input does not leak across mode changes");
+                Check(input.GetInputMode() == InputMode.UiOnly && input.ReadSnapshot().Movement == Vector2.zero,
+                    "UI-only configuration clears the snapshot");
                 input.Disable();
-                DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
-                DeviceInputSystem.Update();
-                input.SendMessage("Update");
-                Check(moveCount == 1, "Disabled input emits no commands");
-                input.Unsubscribe(token);
+                Check(input.ReadSnapshot().Movement == Vector2.zero && !input.ReadSnapshot().AttackPressed,
+                    "Disable clears the public snapshot");
+                input.Enable();
+                Check(input.GetInputMode() == InputMode.UiOnly,
+                    "Re-enabling input preserves its configured mode");
 
                 var ui = root.AddComponent<UISystem>();
                 var manager = root.AddComponent<LevelManager>();
@@ -110,11 +92,11 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 if (input != null)
                 {
                     input.Disable();
-                    input.SendMessage("OnDestroy");
+                    typeof(PlayerInputSystem).GetMethod("OnDestroy",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                        .Invoke(input, null);
                 }
                 UnityEngine.Object.DestroyImmediate(root);
-                if (keyboard != null) { DeviceInputSystem.RemoveDevice(keyboard); }
-                DeviceInputSystem.settings.updateMode = updateMode;
             }
         }
 

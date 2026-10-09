@@ -91,10 +91,11 @@ PlayerCommandSubmittedEvent
 - `PlayerCommandSubmittedEvent.Command` 包含 `Kind`、`Movement`、`ScreenPosition`。`Kind` 为 Move / PrimaryAction / Attack。非零 Move 每帧发布，归零时再发布一次；PrimaryAction 和 Attack 只在按下边沿发布。世界位置由 CameraSystem 转换；输入不选择 Actor，不执行移动、攻击或伤害，也不假定放置含义。
 - 玩法调用方负责把语义指令交给自己的公开行动入口，并通过 `CancelInputEvent` 清除持续移动。`CancelInputEvent.IsUserRequested` 区分取消键（true）与模式、禁用、失焦造成的生命周期取消（false）；生命周期取消不能被当作暂停切换。
 - 使用 EventSystem 即时 GraphicRaycaster 查询屏蔽 UI，避免依赖上一帧 UI 命中缓存。UI 起始手势移出 UI 后也不会变成游戏点击；镜头中键手势必须从非 UI 区开始。uGUI InputField 编辑时不提交游戏指令。
+- 指针坐标使用 PassThrough 采样；主操作与中键手势保持发起设备的坐标来源，避免实体鼠标、虚拟鼠标或触点并存时按坐标数值大小选错设备。公开输入接口不变。
 - 模式切换、失焦、组件禁用清空手势；恢复后要求移动/主操作/攻击/中键全部回到中立状态，避免按住键重开或恢复时误操作。
 - `Subscribe<T>` 返回 Core 的 `SubscriptionToken`；token 只交回创建它的 InputSystem，不与 LevelEventBus 混用。消费方在禁用时 Unsubscribe，重开后重新绑定本关输入组件。
 
-依赖补齐：添加 `com.unity.inputsystem@1.7.0`（Unity 2022.3 可用版本，现有 `activeInputHandler: 1` 已选择新版输入）。manifest 与 lock 同步；仅增加已有 uielements 依赖，不升级其他包。回退时同时恢复这两个文件并移除本次输入实现，不能只删除依赖而保留引用它的代码。依据：[Unity 官方包说明](https://docs.unity.cn/Manual/com.unity.inputsystem.html)。
+依赖：同步最新 master 的 `com.unity.inputsystem@1.14.2`，现有 `activeInputHandler: 1` 已选择新版输入；本分支不另行降级包。`SlimeBattle.Runtime` 显式引用 `Unity.InputSystem` 与 `UnityEngine.UI`，隔离测试自有 Runtime / Editor 程序集。撤回本次实现时保留 master 的包配置，仅移除本分支新增的输入实现及不再需要的程序集引用。
 
 验收入口、异常场景与跨系统示例见 `Assets/Game/Tests/PlayerPresentation/README.md` 和 `Assets/Docs/P0-小宸接入说明.md`。多指、虚拟摇杆、键位重映射留待后续确认。
 

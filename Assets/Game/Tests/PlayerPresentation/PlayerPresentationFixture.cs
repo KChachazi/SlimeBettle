@@ -31,8 +31,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             levelManager = FindObjectOfType<LevelManager>();
             if (levelManager == null)
             {
-                var root = new GameObject("GameRoot").AddComponent<GameRoot>();
-                root.RequestEnterLevel(new LevelId("Assets/Game/Tests/PlayerPresentation/Test_PlayerPresentation.unity"));
+                Debug.LogError("Start this test through Bootstrap_P0Player to load its registered configuration.", this);
                 return;
             }
 

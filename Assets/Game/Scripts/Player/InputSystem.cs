@@ -21,6 +21,8 @@ namespace SlimeBattle.Player.Input
         private InputAction cancel;
         private InputAction pan;
         private InputAction scroll;
+        private Pointer primaryPointer;
+        private Pointer panPointer;
         private InputMode mode;
         private PlayerInputSnapshot snapshot;
         private Vector2 previousPosition;
@@ -78,7 +80,7 @@ namespace SlimeBattle.Player.Input
         {
             if (actions != null) { return; }
             actions = new InputActionMap("P0Player");
-            point = actions.AddAction("Point", InputActionType.Value, "<Pointer>/position");
+            point = actions.AddAction("Point", InputActionType.PassThrough, "<Pointer>/position");
             press = actions.AddAction("Primary", InputActionType.Button, "<Pointer>/press");
             move = actions.AddAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector")
@@ -99,7 +101,12 @@ namespace SlimeBattle.Player.Input
         private void Update()
         {
             if (!isRequestedEnabled || !hasFocus || mode == InputMode.Disabled) { return; }
-            var position = point.ReadValue<Vector2>();
+            if (press.WasPressedThisFrame()) { primaryPointer = press.activeControl?.device as Pointer; }
+            if (pan.WasPressedThisFrame()) { panPointer = pan.activeControl?.device as Pointer; }
+            // Position magnitudes must not choose a different mouse/touch device from the gesture.
+            var pointer = pan.IsPressed() ? panPointer :
+                press.IsPressed() || isPointerCaptured || isPointerBlocked ? primaryPointer : null;
+            var position = pointer != null ? pointer.position.ReadValue() : point.ReadValue<Vector2>();
             var delta = position - previousPosition;
             previousPosition = position;
             var didCancel = cancel.WasPressedThisFrame();
@@ -130,7 +137,7 @@ namespace SlimeBattle.Player.Input
             var isHeld = isPointerCaptured && press.IsPressed();
             if (pan.WasPressedThisFrame()) { isPanCaptured = canPlay && !isOverUi; }
             var cameraDrag = isPanCaptured && pan.IsPressed() ? delta : Vector2.zero;
-            if (pan.WasReleasedThisFrame()) { isPanCaptured = false; }
+            if (pan.WasReleasedThisFrame()) { isPanCaptured = false; panPointer = null; }
             var movement = canPlay ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
             var didAttack = canPlay && !isOverUi && !isPointerBlocked && !isHeld && attack.WasPressedThisFrame();
             snapshot = new PlayerInputSnapshot(Time.frameCount, mode, position, delta,
@@ -151,7 +158,7 @@ namespace SlimeBattle.Player.Input
                 isPointerCaptured = false;
                 inputEvents.Publish(new PointerReleasedEvent(position));
             }
-            if (press.WasReleasedThisFrame()) { isPointerBlocked = false; }
+            if (press.WasReleasedThisFrame()) { isPointerBlocked = false; primaryPointer = null; }
             if (movement != Vector2.zero || previousMovement != Vector2.zero)
             {
                 Submit(new PlayerCommand(PlayerCommandKind.Move, movement, position));
@@ -187,6 +194,8 @@ namespace SlimeBattle.Player.Input
             isPointerCaptured = false;
             isPanCaptured = false;
             isPointerBlocked = false;
+            primaryPointer = null;
+            panPointer = null;
             previousMovement = Vector2.zero;
             snapshot = default;
             shouldWaitForRelease = true;
