@@ -7,6 +7,9 @@ using SlimeBattle.Data;
 using SlimeBattle.Enemies;
 using SlimeBattle.Objectives;
 using SlimeBattle.Slimes;
+using SlimeBattle.World;
+using SlimeBattle.World.Movement;
+using UnityEngine.SceneManagement;
 
 namespace SlimeBattle.Core
 {
@@ -45,6 +48,8 @@ namespace SlimeBattle.Core
         public SlimeManager SlimeManager { get; private set; }
         public EnemyManager EnemyManager { get; private set; }
         public ObjectiveSystem ObjectiveSystem { get; private set; }
+        public MapManager MapManager { get; private set; }
+        public MovementSystem MovementSystem { get; private set; }
 
         public LevelId GetLevelId()
         {
@@ -71,9 +76,12 @@ namespace SlimeBattle.Core
             if (slimePrefab == null || enemyPrefab == null)
                 throw new InvalidOperationException("SlimeActor and EnemyActor prefabs are required.");
 
+            MapManager = new MapManager(SceneManager.GetActiveScene());
+            MovementSystem = new MovementSystem(MapManager, EventBus);
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
-                LevelConfig.MaxAliveSlimes, slimePrefab);
-            EnemyManager = new EnemyManager(ConfigRegistry, EventBus, enemyPrefab);
+                LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem);
+            EnemyManager = new EnemyManager(ConfigRegistry, EventBus, enemyPrefab,
+                movementSystem: MovementSystem);
             ObjectiveSystem = new ObjectiveSystem(ConfigRegistry, EventBus);
             if (!ObjectiveSystem.InitializeFromRegistry(
                 new ObjectiveId(LevelConfig.ObjectiveConfigId.Value), WeaponId.NewId()))
@@ -83,22 +91,32 @@ namespace SlimeBattle.Core
             EventBus.Subscribe<SlimeDespawnedEvent>(_ => UpdateSlimeCount());
         }
 
-        // 待移动/状态模块落地后绑定其公开接口适配器；未绑定时不驱动 AI。
+        // MovementSystem 接管移动请求，原行动端口继续处理效果；未绑定时不驱动 AI。
         public void BindActorPorts(IActorPerceptionSource perceptionSource,
             IActorActionPort actionPort)
         {
             ThrowIfDisposed();
             perception = perceptionSource;
-            actions = actionPort;
+            actions = actionPort == null || MovementSystem == null
+                ? actionPort
+                : new MovementActorActionPort(MovementSystem, actionPort);
         }
 
         public void Tick(float deltaTime)
         {
-            if (disposed || state != LevelState.Running || perception == null || actions == null)
+            if (disposed || state != LevelState.Running)
                 return;
+            MovementSystem?.SyncPositions();
+            if (perception == null || actions == null) return;
             var context = new LevelTickContext(deltaTime, perception, actions);
             SlimeManager?.Tick(context);
             EnemyManager?.Tick(context);
+        }
+
+        internal void FixedTick(float fixedDeltaTime)
+        {
+            if (!disposed && state == LevelState.Running)
+                MovementSystem?.FixedTick(fixedDeltaTime);
         }
 
         // 仅供当前关卡的效果结算层解析目标；调用者仍须先完成统一效果结算。
@@ -129,9 +147,11 @@ namespace SlimeBattle.Core
             {
                 SlimeManager?.Pause();
                 EnemyManager?.Pause();
+                MovementSystem?.Pause();
             }
             else if (nextState == LevelState.Running)
             {
+                MovementSystem?.Resume();
                 SlimeManager?.Resume();
                 EnemyManager?.Resume();
             }
@@ -147,6 +167,8 @@ namespace SlimeBattle.Core
 
             SlimeManager?.Dispose();
             EnemyManager?.Dispose();
+            MovementSystem?.Dispose();
+            MapManager?.Dispose();
             ObjectiveSystem?.Dispose();
             EventBus.Dispose();
             perception = null;

@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World.Movement
 建议实现目录：Assets/Game/Scripts/World/Movement/
 生命周期：当前 LevelContext 生命周期
-状态：实现待选
+状态：P0 已实现；StatusManager、寻路和其他移动方式尚未接入
 
 ## 1. 职责
 
@@ -21,12 +21,12 @@
 
     Actor / Input / AI
       → MovementSystem.SubmitMovement
-      → StatusManager.GetMovementModifiers(actorId)
-      → MapManager 查询边界和可占用
-      → 执行位置变化
-      → 发布移动结果
+      → 查询 MovementModifierSnapshot
+      → Rigidbody2D 在 FixedUpdate 驱动
+      → MapManager 识别场景静态碰撞体
+      → 完成回调 / MovementBlockedEvent
 
-StatusManager 不直接修改 Actor 的 Transform，Actor 也不绕过 MovementSystem 写入正式位置。
+ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转给 MovementSystem；效果请求仍转发给原效果端口。MovementSystem 在固定物理步中设置动态 Rigidbody2D 的速度，并把刚体位置回报给 Actor。Actor 不直接写入正式位置。
 
 ## 3. 不负责的内容
 
@@ -52,20 +52,44 @@ StatusManager 不直接修改 Actor 的 Transform，Actor 也不绕过 MovementS
     bool TryGetMovementState(ActorId actorId, out MovementState state);
     bool TryGetContactInfo(ActorId actorId, out ContactInfo contactInfo);
 
-## 6. 依赖
+提交未注册 Actor、无效目标或零速 Actor 的移动请求会返回无效 ID；ActorStateMachine 将空 ID 视为拒绝，不进入 Moving 状态。
 
-- MapManager 提供边界、可占用和区域查询；
+## 6. 对外事件
+
+- `MovementBlockedEvent`：Actor 与当前 LevelContext 绑定的静态碰撞体接触，当前移动请求已停止。
+- 成功到达通过当前 Actor 的 `NotifyMovementCompleted` 回调报告；取消由请求方发起，不作为已发生事件广播。
+
+## 7. 依赖方向
+
+- MapManager 当前提供场景静态阻挡体识别；地图边界、Cell 和可占用查询尚未实现；
 - ActorCore 提供身份和当前位置语义；
-- StatusManager 提供移动修正和控制状态；
+- StatusManager 计划提供移动修正和控制状态；当前关卡装配使用中性修正（倍率 1、非定身）；
 - PassageSystem 与 MechanismSystem 消费移动产生的事实。
 
-## 7. 实现选项
+## 8. P0 实现约定
 
-可以选择 Rigidbody2D、运动学移动或自定义空间模拟。选择依据是推挤、碰撞、窄路和移动端性能测试，不在接口层提前绑定具体实现。
+- 使用动态 Rigidbody2D、零重力、冻结旋转和连续碰撞检测；MovementSystem 在 `FixedTick` 设置刚体速度，不直接改 Transform。
+- 角色之间由二维物理碰撞产生推挤；MovementSystem 只结束与 MapManager 识别出的静态实体碰撞所对应的请求。
+- `ActorConfig.MoveSpeed` 的单位为像素/秒；世界速度为 `MoveSpeed / SpriteRenderer.sprite.pixelsPerUnit`。
+- 首版朝请求目标直线移动，不做寻路。与 MapManager 绑定的场景静态实体碰撞时停止当前请求、报告当前位置并发布 `MovementBlockedEvent`；系统不把碰撞解释为伤害或机关效果。
+- 暂停、死亡、销毁和重开会停止刚体并清理当前请求。取消会使当前速度归零；同一 Actor 只保留一个活动请求。
+- MapManager 只识别当前场景中非 Trigger 的静态 Collider2D。`Level_test` 当前没有静态地图碰撞体，因此需要场景作者添加实体碰撞体后才能观察受阻结果。
+- `TryGetContactInfo` 返回最近一次受阻请求的接触信息；重新提交请求后接触信息清空。
+- LevelContext 尚未装配 StatusManager，移动修正通过可注入提供器预留；当前不实现定身、减速或加速规则。P0 快照只含速度倍率和定身标记，正式字段与暂停/恢复语义待 StatusManager 接入时共同确认。
 
-## 8. 关键不变量
+## 9. 关键不变量
 
 1. 同一 Actor 的互斥移动请求不能同时写入位置。
 2. 取消、死亡、暂停和重开时，正在执行的移动必须可停止。
 3. 移动系统报告碰撞事实，但不自动把碰撞解释成伤害或机关效果。
+
+## 10. 待确认项
+
+- 后续是否加入绕开障碍的路径搜索；P0 首版已确认直线移动并在静态碰撞时结束请求；
+- StatusManager 的移动修正和控制状态接入时机；
+- 地图边界、可占用查询和动态地形接入后，请求的越界及受阻规则。
+
+## 11. 验收场景
+
+`Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。该场景尚未绑定 Actor 感知/行动端口且没有地图静态碰撞体，因此不能直接观察移动及受阻；接入端口并在场景中添加静态 Collider2D 后，才能在 Unity 中验收刚体位移、到达回调、取消和阻挡事件。
 

@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace SlimeBattle.Actors.Slimes
 {
-    [RequireComponent(typeof(SpriteRenderer))]
+    [RequireComponent(typeof(SpriteRenderer), typeof(Rigidbody2D), typeof(Collider2D))]
     public sealed class SlimeActor : MonoBehaviour, IEffectReceiver, IActorControlReceiver
     {
         private ActorCore core;

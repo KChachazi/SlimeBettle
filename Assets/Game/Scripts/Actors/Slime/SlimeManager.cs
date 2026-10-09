@@ -6,6 +6,7 @@ using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.SlimeGroups;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
+using SlimeBattle.World.Movement;
 using UnityEngine;
 
 namespace SlimeBattle.Slimes
@@ -19,12 +20,14 @@ namespace SlimeBattle.Slimes
         private readonly ILevelEventBus eventBus;
         private readonly int maxAliveCount;
         private readonly SlimeActor prefab;
+        private readonly MovementSystem movementSystem;
         private Transform actorParent;
         private bool disposed;
         private bool paused;
 
         public SlimeManager(ConfigRegistry configs, ILevelEventBus eventBus,
-            int maxAliveCount = 30, SlimeActor prefab = null, Transform actorParent = null)
+            int maxAliveCount = 30, SlimeActor prefab = null, Transform actorParent = null,
+            MovementSystem movementSystem = null)
         {
             if (maxAliveCount < 1 || maxAliveCount > 50)
                 throw new ArgumentOutOfRangeException(nameof(maxAliveCount));
@@ -33,6 +36,7 @@ namespace SlimeBattle.Slimes
             this.maxAliveCount = maxAliveCount;
             this.prefab = prefab;
             this.actorParent = actorParent;
+            this.movementSystem = movementSystem;
         }
 
         public string LastFailureReason { get; private set; } = string.Empty;
@@ -63,6 +67,11 @@ namespace SlimeBattle.Slimes
                 Quaternion.identity, actorParent);
             actor.Initialize(config, id, request.Position,
                 request.FactionId.IsValid ? request.FactionId : new FactionId("Slime"));
+            if (!TryRegisterMovement(actor, config.MoveSpeed))
+            {
+                DestroyActor(actor);
+                return Reject("MovementSystem could not register the Slime Rigidbody2D.");
+            }
             actor.Died += OnActorDied;
             actor.ControlModeChanged += OnControlModeChanged;
             actors.Add(id, actor);
@@ -75,6 +84,7 @@ namespace SlimeBattle.Slimes
             if (disposed || !actors.TryGetValue(actorId, out var actor)) return false;
             actor.Died -= OnActorDied;
             actor.ControlModeChanged -= OnControlModeChanged;
+            movementSystem?.UnregisterActor(actorId, CancelReason.Despawn);
             DestroyActor(actor);
             actors.Remove(actorId);
             RemoveFromGroups(actorId);
@@ -183,7 +193,12 @@ namespace SlimeBattle.Slimes
             if (disposed) return;
             disposed = true;
             foreach (var actor in actors.Values)
-            { actor.Died -= OnActorDied; actor.ControlModeChanged -= OnControlModeChanged; DestroyActor(actor); }
+            {
+                actor.Died -= OnActorDied;
+                actor.ControlModeChanged -= OnControlModeChanged;
+                movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Disposed);
+                DestroyActor(actor);
+            }
             actors.Clear();
             foreach (var group in groups.Values) group.Dispose();
             groups.Clear();
@@ -206,6 +221,7 @@ namespace SlimeBattle.Slimes
 
         private void OnActorDied(SlimeActor actor, ResolvedEffect effect)
         {
+            movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Death);
             RemoveFromGroups(actor.ActorId);
             eventBus?.Publish(new SlimeDiedEvent(actor.GetSnapshot(), effect));
         }
@@ -231,6 +247,17 @@ namespace SlimeBattle.Slimes
         {
             LastFailureReason = reason;
             return default(ActorId);
+        }
+
+        private bool TryRegisterMovement(SlimeActor actor, float moveSpeedPixelsPerSecond)
+        {
+            if (movementSystem == null) return true;
+            var spriteRenderer = actor.GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null || spriteRenderer.sprite == null) return false;
+            return movementSystem.RegisterActor(actor.ActorId,
+                actor.GetComponent<Rigidbody2D>(), moveSpeedPixelsPerSecond,
+                spriteRenderer.sprite.pixelsPerUnit, actor.NotifyMovementResult,
+                actor.NotifyMovementCompleted);
         }
 
         private static void DestroyActor(SlimeActor actor)

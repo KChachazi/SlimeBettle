@@ -29,7 +29,8 @@
 | API-CORE-009 | ObjectiveSystem | TryGetWeaponSnapshot(WeaponId, out WeaponSnapshot) | 武器 ID | 是否成功、快照 | GuardManager、UI、EnemyActor | 暂定 |
 | API-CORE-010 | ObjectiveSystem | ApplyWeaponEffect(WeaponId, ResolvedEffect) | 已结算效果 | EffectApplyResult | StatusManager | 暂定 |
 | API-CORE-011 | ObjectiveSystem | EvaluateResult() | 无 | ObjectiveResult | LevelManager、测试 | 成功条件待确认 |
-| API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器 | 无 | 关卡装配方 | P0 临时接入边界，正式系统待接入 |
+| API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器 | 无 | 关卡装配方 | P0 临时接入边界；MovementSystem 接管移动请求 |
+| API-CORE-013 | LevelContext | MapManager / MovementSystem | 无 | 当前关卡地图和移动服务 | 当前关卡系统 | P0：静态阻挡识别及 Rigidbody2D 移动已接入 |
 
 AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Actor 的公开 Tick/效果接收/位置回报接口及上述感知、行动端口测试通路；`FleeCheckSucceeded` 是注入的概率判定结果，效果请求只记录，不由场景扣血。
 
@@ -81,21 +82,22 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-ACTOR-001 | SlimeActor / EnemyActor | NotifyMovementResult(Vector2) / NotifyMovementCompleted(string) | 已执行位置、当前移动请求 ID | 完成回执是否接受 | 当前关卡移动适配层 | P0 已实现；正式 MovementSystem 接线待完成 |
+| API-ACTOR-001 | SlimeActor / EnemyActor | NotifyMovementResult(Vector2) / NotifyMovementCompleted(string) | 已执行位置、当前移动请求 ID | 完成回执是否接受 | MovementSystem | P0 已接入 |
 
 ## 5. 地图与移动 API
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-WORLD-001 | MapManager | GetMapBounds() | 无 | MapBounds | CameraSystem、MovementSystem、AI | 已确认 |
-| API-WORLD-002 | MapManager | CanOccupy(WorldPosition, OccupancyQuery) | 位置、条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 已确认 |
-| API-WORLD-003 | MapManager | QueryCell(WorldPosition) | 世界位置 | MapCellInfo | MovementSystem、AI、机关 | 已确认 |
-| API-WORLD-004 | MapManager | TryGetSpawnPoint(SpawnPointId, out WorldPosition) | 出生点 ID | 是否成功、位置 | 各 Manager | 已确认 |
-| API-WORLD-005 | MapManager | TryGetTargetPoint(TargetPointId, out WorldPosition) | 目标点 ID | 是否成功、位置 | Actor、ObjectiveSystem | 暂定 |
-| API-WORLD-006 | MapManager | TryGetWeaponPoint(WeaponPointId, out WorldPosition) | 武器点 ID | 是否成功、位置 | ObjectiveSystem、GuardActor | 暂定 |
-| API-WORLD-007 | MovementSystem | SubmitMovement(MovementRequest) | 移动请求 | MovementRequestId | ActorStateMachine、InputSystem | 已确认 |
-| API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | 已确认 |
-| API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | 暂定 |
+| API-WORLD-001 | MapManager | GetMapBounds() | 无 | MapBounds | CameraSystem、MovementSystem、AI | 设计已确认；实现待续 |
+| API-WORLD-002 | MapManager | CanOccupy(WorldPosition, OccupancyQuery) | 位置、条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 设计已确认；实现待续 |
+| API-WORLD-003 | MapManager | QueryCell(WorldPosition) | 世界位置 | MapCellInfo | MovementSystem、AI、机关 | 设计已确认；实现待续 |
+| API-WORLD-004 | MapManager | TryGetSpawnPoint(SpawnPointId, out WorldPosition) | 出生点 ID | 是否成功、位置 | 各 Manager | 设计已确认；实现待续 |
+| API-WORLD-005 | MapManager | TryGetTargetPoint(TargetPointId, out WorldPosition) | 目标点 ID | 是否成功、位置 | Actor、ObjectiveSystem | 暂定；实现待续 |
+| API-WORLD-006 | MapManager | TryGetWeaponPoint(WeaponPointId, out WorldPosition) | 武器点 ID | 是否成功、位置 | ObjectiveSystem、GuardActor | 暂定；实现待续 |
+| API-WORLD-007 | MovementSystem | SubmitMovement(MovementRequest) | 移动请求 | MovementRequestId | ActorStateMachine、InputSystem | P0 已实现 |
+| API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
+| API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | P0 已实现 |
+| API-WORLD-010 | MovementSystem | TryGetContactInfo(ActorId, out ContactInfo) | Actor ID | 是否成功、最近阻挡接触 | Actor、调试、UI | P0 已实现 |
 
 ## 6. StatusManager API
 

@@ -25,6 +25,7 @@ namespace SlimeBattle.Data
 
         public int AttackPower => attackPower;
         public int MaxHealth => maxHealth;
+        /// <summary>Pixels per second in the assigned Sprite's source pixels.</summary>
         public float MoveSpeed => moveSpeed;
         public float AttackInterval => attackInterval;
         public float AttackRange => attackRange;

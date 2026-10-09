@@ -87,6 +87,12 @@ namespace SlimeBattle.Actors.AI.StateMachine
                 case ActionIntentType.Move:
                     movementRequestId = context.Actions.SubmitMovement(
                         new ActorMovementRequest(context.Actor.ActorId, intent.Destination));
+                    if (string.IsNullOrEmpty(movementRequestId))
+                    {
+                        currentIntent = default(ActionIntent);
+                        CurrentState = StateId.Idle;
+                        return StateMachineResult.Rejected;
+                    }
                     CurrentState = StateId.Moving;
                     break;
                 case ActionIntentType.Attack:

@@ -33,7 +33,7 @@ namespace SlimeBattle.Actors.AI.StateMachine
 
     public interface IActorActionPort
     {
-        // 返回的请求 ID 由移动适配器映射到 MovementRequestId。
+        // 返回空字符串表示移动系统未接受请求；有效 ID 由适配器映射到 MovementRequestId。
         string SubmitMovement(ActorMovementRequest request);
         void CancelMovement(string requestId);
         void ApplyEffect(ActorEffectRequest request);
