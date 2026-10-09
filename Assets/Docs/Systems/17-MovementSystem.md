@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World.Movement
 建议实现目录：Assets/Game/Scripts/World/Movement/
 生命周期：当前 LevelContext 生命周期
-状态：P0 已实现；StatusManager、寻路和其他移动方式尚未接入
+状态：P0 直线移动已实现；地图地形倍率已接入；StatusManager、寻路和其他移动方式尚未接入
 
 ## 1. 职责
 
@@ -23,8 +23,10 @@
       → MovementSystem.SubmitMovement
       → 查询 MovementModifierSnapshot
       → Rigidbody2D 在 FixedUpdate 驱动
-      → MapManager 识别场景静态碰撞体
+      → MapManager 查询场景静态阻挡与当前位置地形修正
       → 完成回调 / MovementBlockedEvent
+
+固定物理步和普通位置同步都会把刚体实际位置交给 MapManager。MapManager 用它计算区域进入/离开事实；MovementSystem 不自行维护 Actor 的区域成员关系。速度计算组合 Actor 基础移速、地图地形修正和 StatusManager 提供的 Actor 状态修正。
 
 ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转给 MovementSystem；效果请求仍转发给原效果端口。MovementSystem 在固定物理步中设置动态 Rigidbody2D 的速度，并把刚体位置回报给 Actor。Actor 不直接写入正式位置。
 
@@ -61,7 +63,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 
 ## 7. 依赖方向
 
-- MapManager 当前提供场景静态阻挡体识别；地图边界、Cell 和可占用查询尚未实现；
+- MapManager 提供场景静态阻挡识别、道路/地形/区域和地图点查询、区域转移事件及地形移速倍率；
 - ActorCore 提供身份和当前位置语义；
 - StatusManager 计划提供移动修正和控制状态；当前关卡装配使用中性修正（倍率 1、非定身）；
 - PassageSystem 与 MechanismSystem 消费移动产生的事实。
@@ -72,8 +74,10 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 - 角色之间由二维物理碰撞产生推挤；MovementSystem 只结束与 MapManager 识别出的静态实体碰撞所对应的请求。
 - `ActorConfig.MoveSpeed` 的单位为像素/秒；世界速度为 `MoveSpeed / SpriteRenderer.sprite.pixelsPerUnit`。
 - 首版朝请求目标直线移动，不做寻路。与 MapManager 绑定的场景静态实体碰撞时停止当前请求、报告当前位置并发布 `MovementBlockedEvent`；系统不把碰撞解释为伤害或机关效果。
+- 地形移速修正从 MapManager 的当前位置快照读取；寒冷、炙热、减速等 Actor 状态修正由 StatusManager 提供。两类修正都只影响速度计算，MovementSystem 仍独占实际位移。
+- 地形倍率按乘法叠加到 Actor 基础移速和 StatusManager 提供的 Actor 状态倍率上。当前 `Level_test` 尚未配置语义地形区域，因此实际场景速度仍为原移速。
 - 暂停、死亡、销毁和重开会停止刚体并清理当前请求。取消会使当前速度归零；同一 Actor 只保留一个活动请求。
-- MapManager 只识别当前场景中非 Trigger 的静态 Collider2D。`Level_test` 当前没有静态地图碰撞体，因此需要场景作者添加实体碰撞体后才能观察受阻结果。
+- MapManager 的阻挡缓存只识别当前场景中非 Trigger 的静态 Collider2D；`MapAreaAuthoring` 使用 Trigger Collider2D 做地图区域查询，不会被当作物理阻挡。`Level_test` 的 `StaticMovementObstacle` 提供静态 BoxCollider2D 场景样例。
 - `TryGetContactInfo` 返回最近一次受阻请求的接触信息；重新提交请求后接触信息清空。
 - LevelContext 尚未装配 StatusManager，移动修正通过可注入提供器预留；当前不实现定身、减速或加速规则。P0 快照只含速度倍率和定身标记，正式字段与暂停/恢复语义待 StatusManager 接入时共同确认。
 
@@ -87,9 +91,10 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 
 - 后续是否加入绕开障碍的路径搜索；P0 首版已确认直线移动并在静态碰撞时结束请求；
 - StatusManager 的移动修正和控制状态接入时机；
-- 地图边界、可占用查询和动态地形接入后，请求的越界及受阻规则。
+- 动态占用查询接入后，玩家放置物/动态障碍对移动请求的影响；
+- 沼泽减速和其他地形移动修正的组合顺序，以及地形区域边界事件与物理碰撞的先后语义。
 
 ## 11. 验收场景
 
-`Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。该场景尚未绑定 Actor 感知/行动端口且没有地图静态碰撞体，因此不能直接观察移动及受阻；接入端口并在场景中添加静态 Collider2D 后，才能在 Unity 中验收刚体位移、到达回调、取消和阻挡事件。
+`Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。`LevelActorSpawner` 为本场景绑定无目标的随机漫游感知源和移动端口；BasicSlimeDecision / BasicEnemyDecision 产生 Move 意图后，经 ActorStateMachine、MovementActorActionPort 到达 MovementSystem，再由动态 Rigidbody2D 执行。MapManager 的区域边界事件与地形倍率已有运行时代码，但该场景还没有相应区域标记，因此未在场景中验收这些效果；正式目标感知、攻击效果和确定性阻挡用例尚未接入。
 
