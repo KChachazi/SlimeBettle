@@ -2,11 +2,18 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using SlimeBattle.Data;
+using SlimeBattle.Objectives;
+using SlimeBattle.Actors.Slimes;
+using SlimeBattle.Actors.Enemies;
 
 namespace SlimeBattle.Core
 {
     public sealed class LevelManager : MonoBehaviour, IDisposable
     {
+        [SerializeField] private ConfigAsset[] levelConfigs;
+        [SerializeField] private SlimeActor slimePrefab;
+        [SerializeField] private EnemyActor enemyPrefab;
         private bool initialized;
         private bool disposed;
         private Coroutine loadCoroutine;
@@ -25,6 +32,11 @@ namespace SlimeBattle.Core
         private void Awake()
         {
             Initialize();
+        }
+
+        private void Update()
+        {
+            if (currentState == LevelState.Running) currentContext?.Tick(Time.deltaTime);
         }
 
         public void Initialize()
@@ -170,6 +182,8 @@ namespace SlimeBattle.Core
             if (currentContext != null)
             {
                 SetState(LevelState.Unloading);
+                if (currentContext.ObjectiveSystem != null)
+                    currentContext.ObjectiveSystem.Failed -= OnObjectiveFailed;
                 currentContext.Dispose();
                 currentContext = null;
             }
@@ -190,6 +204,8 @@ namespace SlimeBattle.Core
             if (currentContext != null)
             {
                 SetState(LevelState.Unloading);
+                if (currentContext.ObjectiveSystem != null)
+                    currentContext.ObjectiveSystem.Failed -= OnObjectiveFailed;
                 currentContext.Dispose();
                 currentContext = null;
                 currentLevelId = default(LevelId);
@@ -219,10 +235,31 @@ namespace SlimeBattle.Core
             yield return loadOperation;
 
             currentLevelId = levelId;
-            currentContext = new LevelContext(levelId);
-            currentContext.Initialize();
-
             SetState(LevelState.Initializing);
+            var registry = new ConfigRegistry(levelConfigs);
+            var validation = registry.ValidateAll();
+            if (!validation.IsValid || !registry.TryGetLevel(levelId, out var levelConfig))
+            {
+                FailActiveLoad(levelId, !validation.IsValid
+                    ? string.Join("; ", validation.Errors)
+                    : "LevelConfig is missing.");
+                yield break;
+            }
+
+            registry.Freeze();
+
+            try
+            {
+                currentContext = new LevelContext(levelId, registry, levelConfig,
+                    slimePrefab, enemyPrefab);
+                currentContext.Initialize();
+                currentContext.ObjectiveSystem.Failed += OnObjectiveFailed;
+            }
+            catch (Exception exception)
+            {
+                FailActiveLoad(levelId, exception.Message);
+                yield break;
+            }
             SetState(LevelState.Running);
 
             loadCoroutine = null;
@@ -232,6 +269,11 @@ namespace SlimeBattle.Core
             {
                 LevelRestarted?.Invoke(new LevelRestartedEvent(levelId));
             }
+        }
+
+        private void OnObjectiveFailed(ObjectiveFailedEvent failed)
+        {
+            ReportResult(LevelResult.Failed);
         }
 
         private bool CanStartTransition()

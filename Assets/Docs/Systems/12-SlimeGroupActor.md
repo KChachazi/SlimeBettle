@@ -23,6 +23,8 @@ SlimeManager 拥有 SlimeGroupActor 的集合，并负责把个体成员事实�
 
 当前策划方案提出：同一目标行为达到 6 只时可以形成群体，最多同时存在 3 个群体，目标消失 10 秒后或成员少于 6 只时解散。数值和冲突规则仍需试玩确认。
 
+P0 只实现显式创建、成员 ID、共同目标和只读快照；上述自动成群与解散规则未启用。`GroupId` 和 `SlimeGroupActor` 使用 `SlimeBattle.Actors.SlimeGroups`。
+
 ## 3. 核心数据
 
     GroupId

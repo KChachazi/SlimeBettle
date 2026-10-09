@@ -31,6 +31,8 @@ ActorCore 是单个 Actor 的基础对象，不是全局 Actor 注册表。
 
 ActorRuntimeData 至少表达 ActorId、ConfigId、FactionId、ActorType、当前生命、最大生命、位置、IsAlive 和当前控制模式。具体角色数据由 SlimeActor、EnemyActor 或 GuardActor 扩展。
 
+P0 中 `ActorCore` 是唯一持有生命与状态 ID 的对象；所属 Actor 通过 `IEffectReceiver.ApplyResolvedEffect` 接收状态系统已结算结果，并通知自身 Manager 处理死亡。Manager 不提供对外任意扣血入口。
+
 ## 3. 公共接口
 
     ActorId GetActorId();

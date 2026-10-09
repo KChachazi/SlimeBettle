@@ -29,6 +29,9 @@
 | API-CORE-009 | ObjectiveSystem | TryGetWeaponSnapshot(WeaponId, out WeaponSnapshot) | 武器 ID | 是否成功、快照 | GuardManager、UI、EnemyActor | 暂定 |
 | API-CORE-010 | ObjectiveSystem | ApplyWeaponEffect(WeaponId, ResolvedEffect) | 已结算效果 | EffectApplyResult | StatusManager | 暂定 |
 | API-CORE-011 | ObjectiveSystem | EvaluateResult() | 无 | ObjectiveResult | LevelManager、测试 | 成功条件待确认 |
+| API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器 | 无 | 关卡装配方 | P0 临时接入边界，正式系统待接入 |
+
+AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Actor 的公开 Tick/效果接收/位置回报接口及上述感知、行动端口测试通路；`FleeCheckSucceeded` 是注入的概率判定结果，效果请求只记录，不由场景扣血。
 
 ## 3. 配置 API
 
@@ -37,6 +40,7 @@
 | API-DATA-001 | ConfigSystem | TryGet<TConfig>(ConfigId, out TConfig) | 配置 ID | 是否成功、配置 | 关卡和玩法系统 | 已确认 |
 | API-DATA-002 | ConfigSystem | TryGetLevel(LevelId, out LevelConfig) | 关卡 ID | 是否成功、配置 | LevelManager、MapManager | 已确认 |
 | API-DATA-003 | ConfigSystem | ValidateAll() | 无 | 校验报告 | 编辑器工具、启动检查 | 已确认 |
+| API-DATA-004 | ObjectiveConfig | FailWhenNoSlimes | 无 | 是否在史莱姆全灭时失败 | ObjectiveSystem | P0，默认开启；Level_test 关闭 |
 | API-DATA-004 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 暂定 |
 | API-DATA-005 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager | 暂定 |
 
@@ -51,6 +55,8 @@
 | API-LEVEL-003 | SlimeManager | GetAliveSnapshots() | 无 | 史莱姆只读快照列表 | ObjectiveSystem、UI、AI | 已确认 |
 | API-LEVEL-004 | SlimeManager | RequestDespawn(ActorId, DespawnReason) | ID、原因 | 是否成功 | LevelContext、测试 | 已确认 |
 | API-LEVEL-005 | SlimeManager | TryGetGroupSnapshot(GroupId, out SlimeGroupSnapshot) | 群体 ID | 是否成功、快照 | UI、调试、Actor | 暂定 |
+| API-LEVEL-014 | SlimeManager | TryCreateGroup(members, target, out GroupId) / TrySetGroupTarget(GroupId, target) / RequestDissolveGroup(GroupId) | 明确成员和目标 | 是否成功 | 关卡规则、测试 | P0 显式群体关系；自动规则待确认 |
+| API-LEVEL-015 | SlimeManager | TrySetSpawnParent(Transform) | 场景 SlimeRoot | 是否成功；后续生成实例的父节点 | 关卡场景装配组件 | P0 |
 
 ### 4.2 EnemyManager
 
@@ -60,6 +66,7 @@
 | API-LEVEL-007 | EnemyManager | TryGetSnapshot(ActorId, out EnemySnapshot) | 敌人 ID | 是否成功、快照 | AI、UI、表现 | 暂定 |
 | API-LEVEL-008 | EnemyManager | GetAliveSnapshots() | 无 | 敌人只读快照列表 | Actor、UI、ObjectiveSystem | 暂定 |
 | API-LEVEL-009 | EnemyManager | RequestDespawn(ActorId, DespawnReason) | ID、原因 | 是否成功 | LevelContext、测试 | 暂定 |
+| API-LEVEL-016 | EnemyManager | TrySetSpawnParent(Transform) | 场景 EnemyRoot | 是否成功；后续生成实例的父节点 | 关卡场景装配组件 | P0 |
 
 ### 4.3 GuardManager
 
@@ -71,6 +78,10 @@
 | API-LEVEL-013 | GuardManager | SubmitCommand(ActorId, GuardCommand) | ID、语义指令 | 接受/拒绝 | InputSystem、调试工具 | 调试/待确认 |
 
 Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManager 经过 LevelContext 内部 Actor 解析契约处理。
+
+| API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| API-ACTOR-001 | SlimeActor / EnemyActor | NotifyMovementResult(Vector2) / NotifyMovementCompleted(string) | 已执行位置、当前移动请求 ID | 完成回执是否接受 | 当前关卡移动适配层 | P0 已实现；正式 MovementSystem 接线待完成 |
 
 ## 5. 地图与移动 API
 

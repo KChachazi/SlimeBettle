@@ -16,6 +16,8 @@
 1. 史莱姆数量降为 0；
 2. 被护送武器被摧毁。
 
+P0 默认同时启用两项。`ObjectiveConfig.FailWhenNoSlimes` 可在关卡配置中关闭第一项；MVP `Level_test` 只在护送对象生命归零时失败，武器初始生命为 100，暂不移动或判定抵达终点。其他关卡继续采用默认失败规则。
+
 流程图还提出失败后从当前场景重新开始。由于项目已经确定重开采用重新加载场景，目标系统只发布失败结果，不直接执行场景加载。
 
 ## 2. 职责
@@ -61,7 +63,7 @@ void NotifySlimeCountChanged(int aliveCount);
 ObjectiveResult EvaluateResult();
 ```
 
-`ApplyWeaponEffect` 由 `StatusManager` 在统一效果结算后调用，武器的最终生命和摧毁状态仍由 `ObjectiveSystem` 修改。`NotifySlimeCountChanged` 只提交已发生的存活数量事实，不允许调用方直接写入目标状态。
+`ApplyWeaponEffect` 由 `StatusManager` 在统一效果结算后调用，武器的最终生命和摧毁状态仍由 `ObjectiveSystem` 修改。`NotifySlimeCountChanged` 只提交已发生的存活数量事实，不允许调用方直接写入目标状态；是否用零存活判负由当前 `ObjectiveConfig` 决定。
 
 ## 6. 对外事件
 

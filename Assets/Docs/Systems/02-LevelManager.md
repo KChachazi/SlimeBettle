@@ -72,8 +72,12 @@ LevelUnloadedEvent
 4. 加载目标场景；
 5. 创建新的 `LevelContext`；
 6. 收集当前关卡的配置资产，注册到 `ConfigRegistry` 并执行 `ValidateAll()`；校验未通过时报告错误，不进入 `Running`；
-7. 将同一份已校验的 `ConfigRegistry` 交给需要配置的系统，创建并连接 LevelContext 持有的 Manager 和其他关卡服务，再生成初始对象；
-8. 发布 `LevelStartedEvent`。
+7. 将同一份已校验的 `ConfigRegistry` 交给需要配置的系统，创建并连接 LevelContext 持有的 Manager 和其他关卡服务；
+8. 发布 `LevelStartedEvent`；`Level_test` 的场景生成组件收到该事件后向正式 Manager 提交初始对象生成请求。
+
+P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配置；必须包含与场景名对应的 `LevelConfig`、其引用的 `ObjectiveConfig` / `WeaponConfig` 及所需角色配置。缺失或校验失败时发布 `LevelLoadFailedEvent`，不进入 `Running`。`Level_test` 的初始 Actor 由场景中的 `LevelActorSpawner` 在 `LevelStartedEvent` 后调用正式 Manager 公开接口生成；其他关卡仍需自行配置初始对象来源。
+
+`LevelManager` 还在 Inspector 中持有正式 `SlimeActor` 与 `EnemyActor` 预制体引用，并传给 `LevelContext`。`LevelContext` 再注入对应 Manager；缺少预制体时不进入运行态。当前 Bootstrap 场景已绑定 `PF_Slime_Green`、`PF_Enemy_Basic` 和 `Level_test` 所需的五个配置资产。Bootstrap 中的 `BootstrapMenuLoader` 加载 MainMenu，菜单 Start 按钮通过 `GameRoot.RequestEnterLevel` 请求进入 `Level_test`。
 
 重开关卡采用重新加载当前关卡场景的方案。第一版不要求为每个请求携带本局 ID，但必须保证旧上下文、旧订阅和旧任务已经失效。
 

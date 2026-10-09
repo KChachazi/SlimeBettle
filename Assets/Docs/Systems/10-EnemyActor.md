@@ -11,6 +11,8 @@
 
 EnemyActor 表示一个敌人个体，组合通用 ActorCore、ActorDecisionTree 和 ActorStateMachine，并实现敌人自己的索敌、活动范围、移动和攻击行为。
 
+实现形式是挂在正式敌人预制体上的 MonoBehaviour。预制体不保存本局生命、状态、目标或 AI 运行态；EnemyManager 实例化后逐个初始化。
+
 - 读取 EnemyConfig 并保存本局运行时数据；
 - 在固定活动范围内感知目标；
 - 选择有效目标并产生移动或攻击意图；
@@ -18,6 +20,10 @@ EnemyActor 表示一个敌人个体，组合通用 ActorCore、ActorDecisionTree
 - 响应控制、受击、死亡和目标失效。
 
 普通敌人当前方案通常选择索敌范围内距离最近的有效目标，不主动逃跑；具体目标优先级由配置和决策树确定。
+
+P0 只支持 `NearestHostile`：在配置的活动范围内找最近可见敌对目标，进入攻击范围则产生攻击意图，否则产生移动意图；无目标时，如感知层给出范围内的游走点则移动，否则等待。`SlimeFirst` / `WeaponFirst` 暂不支持，生成时明确拒绝，不静默套用其他策略。`LastDecisionReason` 可供调试读取。巡游点如何生成由地图/感知适配器负责，Actor 不直接读地图私有数据。
+
+移动适配层通过 `NotifyMovementResult(Vector2)` 回传位置，到达时通过 `NotifyMovementCompleted(string)` 回传当前请求 ID。
 
 ## 2. 核心数据
 
@@ -32,7 +38,9 @@ EnemyActor 表示一个敌人个体，组合通用 ActorCore、ActorDecisionTree
 
 ## 3. 必须接口
 
-    void Initialize(EnemyConfig config, ActorId actorId);
+    void Initialize(EnemyConfig config, ActorId actorId, Vector2 position,
+                    FactionId factionId, EnemyTargetPolicy targetPolicy,
+                    EnemyActivityBounds activityBounds);
     void Tick(ActorContext context);
     EnemySnapshot GetSnapshot();
     void SetActivityBounds(EnemyActivityBounds bounds);

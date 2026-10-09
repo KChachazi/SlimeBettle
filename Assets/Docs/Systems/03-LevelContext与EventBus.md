@@ -13,6 +13,10 @@
 
 LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、目标和其他关卡级服务。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
 
+P0 当前落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、`ObjectiveSystem` 和 `LevelEventBus`。Guard、Map、Movement、Status 的具体服务待各自实现者提供后注入，不在本轮以临时生产实现代替。
+
+`LevelContext` 从 `LevelManager` 接收正式 SlimeActor / EnemyActor 预制体，并注入两个 Manager；运行时 Actor 是预制体实例，ActorCore 和 AI 运行时对象由实例自身初始化。Dispose 时 Manager 负责销毁这些实例。
+
 - 创建、连接和销毁当前关卡的系统；
 - 持有当前 `LevelId`、关卡状态和关卡服务引用；
 - 提供当前关卡的 EventBus；
@@ -52,6 +56,8 @@ ILevelEventBus GetEventBus();
 void Initialize();
 void Dispose();
 ```
+
+P0 增加 `BindActorPorts(IActorPerceptionSource, IActorActionPort)`：由关卡装配方传入当前关卡的感知及移动/效果公开 API 适配器；未绑定时不 Tick Actor AI，避免产生无法执行的请求。`Tick(float)` 只在 `Running` 状态驱动已绑定的 Manager。`Dispose()` 清理 Manager、Actor、目标、端口引用和全部事件订阅。
 
 EventBus 的概念接口：
 
