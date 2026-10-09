@@ -11,6 +11,8 @@
 
 SlimeActor 表示一只史莱姆的完整个体运行时行为。它组合 ActorCore、ActorDecisionTree、ActorStateMachine 和史莱姆专属的需求、感知、行动与群体上下文。
 
+实现形式是挂在正式史莱姆预制体上的 MonoBehaviour。预制体只保存静态组件和外观；生命、状态、目标与 AI 运行时数据由 Manager 实例化后在 `Initialize` 中逐个创建，不能写进预制体资产。
+
 - 保存个体配置引用和本局运行时数据；
 - 维护进食、取暖、危险和群体相关的决策输入；
 - 产生自主行动意图并执行移动、攻击、等待或离开群体；
@@ -41,9 +43,15 @@ SlimeRuntimeData 至少包含 ActorId、ConfigId、当前生命、位置、控�
 
 当前方案的基础数值和史莱姆上限由 SlimeConfig 与关卡配置表达，不写死在 SlimeActor 行为中。
 
+P0 中 `SlimeConfig` 仅提供个体静态数值，数量上限由 `LevelConfig` 唯一提供。已实现选路：害怕时走逃跑目的地；饥饿/寒冷时分别优先食物/热源；低于 50% 生命且外部逃跑判定成功时走逃避通路；否则接近或攻击最近可见敌对目标；暴躁时人类也可成为目标；无目标时跟随普通引导/群体目的地或等待。`LastDecisionReason` 可供调试读取。`NeedState` 从状态 ID 派生，不另存一份状态。
+
+这些只决定行动意图。饥饿计时、暴躁/害怕概率、状态持续/解除、进食和攻击效果必须由后续状态及互动系统提供；测试场景使用已结算效果与条件输入来验证通路，不是正式结算实现。
+
+移动适配层在收到位置结果后调用 `NotifyMovementResult(Vector2)`，到达时再用当前请求 ID 调用 `NotifyMovementCompleted(string)`；迟到或失效回执不会完成新行动。
+
 ## 4. 必须接口
 
-    void Initialize(SlimeConfig config, ActorId actorId);
+    void Initialize(SlimeConfig config, ActorId actorId, Vector2 position, FactionId factionId);
     void Tick(ActorContext context);
     SlimeSnapshot GetSnapshot();
     void SetControlMode(SlimeControlMode mode);

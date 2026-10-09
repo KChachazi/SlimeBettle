@@ -13,6 +13,8 @@ Actors 模块描述一个个体或群体级自主决策生物本身。它不负�
 
 LevelContext 持有的 SlimeManager、EnemyManager 和 GuardManager 负责生命周期与索引；这些 Manager 创建并驱动本模块中的 Actor 实例。
 
+已确认的 P0 实现形式：SlimeActor、EnemyActor 是正式角色预制体上的 MonoBehaviour；Manager 实例化预制体、调用 Initialize 并在关卡 Tick 中驱动 Actor。ActorCore、决策树和状态机仍是该组件独占的普通 C# 运行时对象，不各自挂到场景对象上。
+
 ## 2. 模块内容
 
 | 内容 | 作用 |
@@ -85,7 +87,6 @@ LevelContext 持有的 SlimeManager、EnemyManager 和 GuardManager 负责生命
 
 ## 9. 待确认项
 
-- Actor 是否使用纯 C# 运行时对象、MonoBehaviour 适配器或两者组合；
 - 感知是否由每个 Actor 独立查询，还是由关卡级空间索引提供；
 - 攻击命中采用距离查询、触发器、命中区域还是投射物；
 - SlimeGroupActor 是否需要独立的表现对象；

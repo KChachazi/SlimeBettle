@@ -11,6 +11,8 @@
 
 EnemyManager 是 LevelContext 内的敌人生命周期管理器，负责 EnemyActor 的集合、索引、生成、销毁和统一驱动。
 
+P0 使用注入的正式 `EnemyActor` 预制体实例化个体，不直接 `new EnemyActor`。没有预制体时拒绝生成并记录 `LastFailureReason`。默认预制体位于 `Assets/Game/Prefabs/Actors/PF_Enemy_Basic.prefab`，由 LevelManager 在 Inspector 引用。
+
 ## 2. 职责
 
 - 根据生成请求创建并注册 EnemyActor；
@@ -35,12 +37,15 @@ EnemyManager 是 LevelContext 内的敌人生命周期管理器，负责 EnemyAc
 
 ## 5. 公共接口
 
+    bool TrySetSpawnParent(Transform parent);
     ActorId SpawnEnemy(EnemySpawnRequest request);
     bool RequestDespawn(ActorId actorId, DespawnReason reason);
     bool TryGetSnapshot(ActorId actorId, out EnemySnapshot snapshot);
     IReadOnlyList<EnemySnapshot> GetAliveSnapshots();
     void Tick(LevelTickContext context);
     void Dispose();
+
+`Level_test` 的场景装配组件在首次生成前传入 `EnemyRoot`。该父节点只影响后续由 Manager 实例化的角色，不改变 Actor 的生命或行为数据。
 
 ## 6. 对外事件
 
@@ -64,4 +69,6 @@ EnemyManager 是 LevelContext 内的敌人生命周期管理器，负责 EnemyAc
 2. 死亡敌人不能继续被 AI Tick 或提交攻击动作。
 3. 管理器只保存索引和生命周期信息，不复制 Actor 的生命与状态。
 4. 管理器销毁时必须清理所有 EnemyActor 和待执行请求。
+
+P0 生成时若 `TargetPolicy` 不是 `NearestHostile`，或出生位置不在已指定的 `EnemyActivityBounds` 内，返回无效 `ActorId`，并通过 `LastFailureReason` 说明原因。
 

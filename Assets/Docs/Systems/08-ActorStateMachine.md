@@ -50,14 +50,17 @@ Hungry、Agitated、Afraid、Cold、Hot 和 Burning 等内容优先作为 Status
     InterruptReason
     AttackAction
 
-## 5. 公共接口
+## 5. P0 公共接口
 
-    void SetInitialState(StateId stateId);
-    void SubmitIntent(ActionIntent intent);
-    void RequestInterrupt(InterruptReason reason);
+    StateMachineResult SubmitIntent(ActionIntent intent, StateContext context);
+    bool NotifyMovementCompleted(string requestId);
+    StateMachineResult RequestInterrupt(InterruptReason reason, IActorActionPort actions);
     void Tick(StateContext context);
     StateId GetCurrentStateId();
-    void Reset();
+    void Resume();
+    void Reset(IActorActionPort actions);
+
+移动完成回执只接受当前请求 ID；已取消、暂停、死亡或旧关卡的迟到回执返回 false。若目标位置已经到达，状态机保持 Idle，不重复提交移动。
 
 ## 6. 不负责的内容
 
@@ -81,4 +84,8 @@ Hungry、Agitated、Afraid、Cold、Hot 和 Burning 等内容优先作为 Status
 2. 一次攻击最多触发一次有效命中，除非 Ability 配置明确允许多段命中。
 3. 死亡、暂停和重开时，当前动作和待执行命中必须失效。
 4. 状态机退出后不能向已销毁的 Actor 或 LevelContext 提交请求。
+
+## 9. P0 外部接入边界
+
+MovementSystem 和 StatusManager 尚未提供可编译的正式实现。P0 使用 Actor 层的 `IActorActionPort` 输出 `ActorMovementRequest` 与 `ActorEffectRequest`，并由 `IActorPerceptionSource` 提供命中时的当前目标快照。正式适配器必须把两种请求分别转交文档中的 `MovementSystem.SubmitMovement` / `CancelMovement` 和 `StatusManager.ApplyEffect`，并把位置与带请求 ID 的移动完成结果回传 Actor；不得在正式适配器中自行扣血或写 Transform。`Assets/Game/Tests/` 的可视化场景仅为验收而移动圆形标记，不作为正式 MovementSystem。适配器尚未接入时，关卡不驱动 Actor AI。
 

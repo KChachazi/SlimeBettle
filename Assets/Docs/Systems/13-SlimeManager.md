@@ -13,6 +13,8 @@ SlimeManager 是 LevelContext 内的关卡级管理器，负责所有史莱姆�
 
 LevelContext 持有一个 SlimeManager。SlimeManager 创建的每只史莱姆都是一个独立的 SlimeActor。
 
+P0 使用注入的正式 `SlimeActor` 预制体执行 `Instantiate`，随后初始化 ActorId、配置和本局运行时数据。没有预制体时拒绝生成并返回 `LastFailureReason`；销毁或关卡 Dispose 时清理实例及 AI 请求。默认预制体位于 `Assets/Game/Prefabs/Actors/PF_Slime_Green.prefab`，由 LevelManager 在 Inspector 引用。
+
 ## 2. 职责
 
 - 根据生成请求创建、初始化和注册 SlimeActor；
@@ -37,10 +39,11 @@ LevelContext 持有一个 SlimeManager。SlimeManager 创建的每只史莱姆�
     SlimeSpawnPolicy spawnPolicy
     SlimeManagerSnapshot snapshot
 
-当前方案的史莱姆数量上限、出生点和初始配置应来自 LevelConfig / SlimeConfig，不写死在管理器的行为分支中。
+同屏上限只从 `LevelConfig.MaxAliveSlimes` 注入，默认 30、可配置至 50；`SlimeConfig` 只保存单体静态数值。P0 不做 Actor 或 GameObject 对象池。
 
 ## 5. 公共接口
 
+    bool TrySetSpawnParent(Transform parent);
     ActorId SpawnSlime(SlimeSpawnRequest request);
     bool RequestDespawn(ActorId actorId, DespawnReason reason);
     bool TryGetSnapshot(ActorId actorId, out SlimeSnapshot snapshot);
@@ -48,6 +51,10 @@ LevelContext 持有一个 SlimeManager。SlimeManager 创建的每只史莱姆�
     bool TryGetGroupSnapshot(GroupId groupId, out SlimeGroupSnapshot snapshot);
     void Tick(LevelTickContext context);
     void Dispose();
+
+`Level_test` 的场景装配组件在首次生成前传入 `SlimeRoot`。该父节点只影响后续由 Manager 实例化的角色，不改变 Actor 的生命或行为数据。
+
+P0 补充：`TryCreateGroup(IReadOnlyList<ActorId> members, Vector2 target, out GroupId groupId)` 只接受显式成员集合。自动成群阈值与策略待策划确认，不在本轮推断。
 
 StatusManager 通过 LevelContext 的内部 Actor 解析契约找到目标 Actor。SlimeManager 不再对外暴露一个供其他系统直接扣血的 ApplyEffect 接口。
 

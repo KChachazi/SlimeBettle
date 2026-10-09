@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.Actors.AI.DecisionTree
 建议实现目录：Assets/Game/Scripts/Actors/AI/DecisionTree/
 生命周期：由单个 Actor 创建和销毁
-状态：核心架构，具体节点依据策划方案继续细化
+状态：P0 意图输出与史莱姆/普通敌人选路已实现；概率和状态结算待外部系统接入
 
 ## 1. 职责
 
@@ -32,16 +32,15 @@
     DecisionContext
     PerceptionSnapshot
     TargetObservation
-    DecisionResult
     ActionIntent
     AttackIntent
 
-AttackIntent 至少包含 AttackerId、TargetId 和 AbilityId。它表示行动意图，不表示攻击已经命中。
+当前 P0 的 `ActionIntent.Reason` 用于展示选中分支；尚未单独封装 `DecisionResult`。AttackIntent 至少包含 AttackerId、TargetId 和 AbilityId。它表示行动意图，不表示攻击已经命中。
 
 ## 4. 公共接口
 
     void SetRoot(DecisionNode root);
-    DecisionResult Evaluate(DecisionContext context);
+    ActionIntent Evaluate(DecisionContext context);
     void Reset();
     void Stop();
 
@@ -54,7 +53,9 @@ Evaluate 只返回决策结果。它不能在一次评估中直接调用 Movemen
 - 守卫根据护送目标、敌人战斗状态和自身控制模式决定待命、移动或攻击；
 - SlimeGroupActor 提供共同目标、队列和群体策略事实，成员 Actor 仍然可以因更高优先级需求离开群体。
 
-具体阈值、权重和随机概率仍由角色配置与策划确认决定。
+P0 感知快照可提供食物/热源、普通目的地、逃跑目的地、目标是否人类和 `FleeCheckSucceeded`。后者是一次概率判定的输入结果，不表示决策树或测试场景已经实现掷骰与状态添加。史莱姆在害怕时不响应引导，饥饿优先食物、寒冷优先热源；低血量且逃跑判定成功时走逃避路线。普通敌人无目标时可接受活动范围内的游走点。
+
+同时饥饿与寒冷时暂先处理饥饿；同类多个引导源暂取最近者。策划图示要求的随机选择、20%/50%逃跑概率及状态触发时机仍待正式状态/概率接口；测试场景只验证已给定条件下的选路。
 
 ## 6. 不负责的内容
 
