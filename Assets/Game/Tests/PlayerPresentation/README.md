@@ -72,10 +72,11 @@
 - 基于 master `e778a8f`：项目编译无 C# 错误，14 项编辑器检查通过，26 项 Play Mode 检查通过；既有 `SlimeBattle.P0.Tests` 的 23 项 Edit Mode 测试全部通过。
 - Play Mode 使用真实场景生命周期、Input System 虚拟键鼠设备和 uGUI 事件模块，覆盖键盘移动/停止、攻击边沿、世界点击、UI 屏蔽、镜头中键拖动、暂停按钮、恢复时按住键保护、Escape 切换、结算面板和连续五次重开。每次重开均只有一个 HUD、CameraSystem 和 EventSystem。
 - 运行验证发现多设备并存时指针 Value Action 按坐标幅度选错设备的问题；已改为 PassThrough，并在手势期间使用发起设备的坐标，世界点击回归通过。
-- 同步到 master `75be0db`（含地图/移动）后：编译及 14 项编辑器检查通过；既有 Edit Mode 测试 11 通过 / 12 失败。新 Actor 的 RequireComponent 包含抽象 Collider2D，但旧夹具没有先添加具体 Collider2D，导致 Actor 添加失败、Manager 生成失败及后续空引用。相关文件为 `ActorAiEditModeTests.cs`、`ActorManagerEditModeTests.cs`、`P0SystemsEditModeTests.cs`，由对应负责人修复；本 PR 未改动这些系统。
-- 最新基线的 Play Mode 回归启动后被桌面全屏浮窗遮挡，尚未完成；此前通过记录不替代这次回归。Android 真机、多指及完整战斗链路未验证。PR 保持 Draft。
+- 同步到 master `75be0db`（含地图/移动），在本分支 `80f4e5a` 上完成最后一轮：编译无 C# 错误，14 项编辑器检查与 26 项 Play Mode 检查全部通过，编辑器退出码 0；连续五次重开均保持 HUD、CameraSystem 和 EventSystem 唯一。已保存本轮 JSON 报告及结算截图。
+- 同一最新基线的既有 Edit Mode 测试仍为 11 通过 / 12 失败。新 Actor 的 RequireComponent 包含抽象 Collider2D，但旧夹具没有先添加具体 Collider2D，导致 Actor 添加失败、Manager 生成失败及后续空引用。相关文件为 `ActorAiEditModeTests.cs`、`ActorManagerEditModeTests.cs`、`P0SystemsEditModeTests.cs`，由对应负责人修复；本 PR 未改动这些系统。
+- Android 真机、多指及完整战斗链路未验证。PR 保持 Draft，待团队处理上述测试问题并完成联合验收。
 
-下图是通过的隔离测试结算画面（基线 `e778a8f`），结果由测试夹具模拟上游确认：
+下图是最后一轮通过的隔离测试结算画面（基线 `75be0db` + 本分支 `80f4e5a`），结果由测试夹具模拟上游确认：
 
 ![P0 player presentation result](P0_Result.png)
 
