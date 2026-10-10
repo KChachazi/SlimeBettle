@@ -1,0 +1,11 @@
+{
+    "name": "SlimeBattle.PlayerPresentation.TestFixtures",
+    "rootNamespace": "SlimeBattle.Tests.PlayerPresentation",
+    "references": [
+        "SlimeBattle.Runtime",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "autoReferenced": true
+}

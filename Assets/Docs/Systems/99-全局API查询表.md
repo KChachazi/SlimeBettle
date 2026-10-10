@@ -1,7 +1,7 @@
 # 99 全局 API 查询表
 
 版本：0.4 草案
-最后更新：2026-10-08
+最后更新：2026-10-09
 用途：协作时查询跨系统公共接口
 状态：架构暂定
 
@@ -125,14 +125,37 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | API-MECH-003 | PassageSystem | RequestEnter(PassageAccessRequest) | 通行请求 | 通过/等待/拒绝 | ActorStateMachine、MovementSystem | 待决定 |
 | API-MECH-004 | PassageSystem | NotifyExit(PassageId, ActorId) | 窄路、Actor ID | 是否释放 | MovementSystem、Manager | 待决定 |
 | API-PLAYER-001 | InputSystem | ReadSnapshot() | 无 | PlayerInputSnapshot | CameraSystem、PlacementSystem、GuardManager | 已确认 |
-| API-PLAYER-002 | InputSystem | SetInputMode(InputMode) | 输入模式 | 切换结果 | UI、LevelManager | 已确认 |
+| API-PLAYER-002 | InputSystem | SetInputMode(InputMode) | Disabled / Gameplay / UiOnly | void；非法值抛异常 | 场景接入、UI | P0 已实现 |
 | API-PLAYER-003 | PlacementSystem | BeginPlacement(PlacementItemId) | 物品 ID | 开始结果 | UI、InputSystem | 待确认 |
 | API-PLAYER-004 | PlacementSystem | PreviewPlacement(WorldPosition) | 世界位置 | 校验结果 | InputSystem、UI | 待确认 |
 | API-PLAYER-005 | PlacementSystem | ConfirmPlacement() | 无 | PlacementResult | UI、InputSystem | 待确认 |
-| API-PRESENT-001 | CameraSystem | ScreenToWorld(ScreenPosition) | 屏幕位置 | 世界位置 | PlacementSystem、InputSystem | 已确认 |
+| API-PRESENT-001 | CameraSystem | ScreenToWorld(Vector2) | 屏幕像素位置 | Vector3，XY 玩法平面世界位置 | 玩家操作适配、UI | P0 已实现 |
 | API-PRESENT-002 | CameraSystem | SetBounds(CameraBounds) | 镜头边界 | 无 | MapManager、LevelContext | 已确认 |
 | API-UI-001 | UISystem | Refresh(UiState) | UI 状态 | 无 | UI 内部、状态同步 | 已确认 |
-| API-UI-002 | UISystem | SubmitCommand(UiCommand) | UI 指令 | 接受/拒绝 | 按钮、面板 | 已确认 |
+| API-UI-002 | UISystem | SubmitCommand(UiCommand) | Pause / Resume / Restart | void；UiCommandSubmittedEvent.Accepted | 按钮、面板 | P0 已实现 |
+
+### 7.1 小宸 P0 补充接口（2026-10-09）
+
+既有 InputSystem / UISystem 的 void 方法保持原系统设计签名；上表输出列中的“接受/拒绝”是事件结果。镜头概念坐标类型在 P0 使用 Vector2 / Vector3，调用方接入前请审核。
+
+| API 编号 | 提供者 | 接口 | 输入 / 输出 | 调用方与生命周期 |
+| --- | --- | --- | --- | --- |
+| API-PLAYER-006 | InputSystem | GetInputMode() | InputMode | 输入使用方 |
+| API-PLAYER-007 | InputSystem | Subscribe<T>(Action<T>) / Unsubscribe(InputSubscriptionToken) | Subscribe 返回专用 InputSubscriptionToken；token 限本实例 | 未来交互适配器、UI；禁用时解绑 |
+| API-PLAYER-008 | InputSystem | Enable() / Disable() | void | 场景接入；禁用清空手势 |
+| API-PLAYER-009 | PlayerPresentationRoot | Initialize(LevelManager, CameraSystem, IUiSnapshotSource = null, BattleHudView = null) | 显式当前关卡依赖 | 关卡场景接入，详见 24 |
+| API-PRESENT-003 | CameraSystem | Initialize() | void | 场景接入，先于查询/命令 |
+| API-PRESENT-004 | CameraSystem | WorldToScreen(Vector3) / GetState() | Vector2 / CameraState | UI、调试 |
+| API-PRESENT-005 | CameraSystem | SubmitCommand(CameraCommand) | 世界 Pan / Focus、尺寸 Zoom | 输入适配、场景流程 |
+| API-UI-003 | UISystem | Initialize(LevelManager, InputSystem, IUiSnapshotSource = null, BattleHudView = null) | 必须有 LevelManager；其他可选 | 场景接入 |
+| API-UI-004 | IUiSnapshotSource | ReadSnapshot(LevelContext) | UiState 显示数据 | UISystem；初始化/阶段变化/5 Hz 查询 |
+| API-UI-005 | UISystem | OpenPanel(UiPanelId) / ClosePanel(UiPanelId) / GetState() | Hud / Pause / Result；只读 UiState | 界面调用方，不改游戏状态 |
+
+输入事件：PointerPressedEvent / PointerMovedEvent / PointerReleasedEvent / CancelInputEvent / PlayerCommandSubmittedEvent。取消的 IsUserRequested 区分用户取消与生命周期清理；消费者清除待处理交互。镜头与 UI 的状态/面板/指令事件使用组件上的 C# event，名称见所属文档。
+
+2026-10-10 反馈修订与接口通知：PrimaryAction.ScreenPosition 只表示屏幕某位置发生主要操作；不表示移动、攻击或放置，也不要求 Actor 消费。Move / Attack 仅预留或调试，WASD 默认关闭。输入使用独立 InputEventChannel，Subscribe / Unsubscribe 改用 SlimeBattle.Player.Input.InputSubscriptionToken，与 Core.SubscriptionToken 不混用。显式旧 token 声明须迁移；默认、跨实例、重复解绑无效；null 处理器/销毁后订阅分别抛 ArgumentNullException / ObjectDisposedException。
+
+模式切换、失焦和禁用始终发布生命周期取消；即使触点已松开，消费者仍须幂等清理待处理交互和测试标记。恢复要求控件先回中立状态。
 
 ## 8. 对外事件索引
 
