@@ -61,7 +61,7 @@ P0 使用注入的正式 `EnemyActor` 预制体实例化个体，不直接 `new 
 - EnemyActor 提供个体行为；
 - MapManager 与 MovementSystem 提供范围和移动事实；
 - StatusManager 处理效果和状态；
-- ObjectiveSystem 提供护送目标查询。
+- MechanismSystem 提供护送武器目标查询。
 
 ## 8. 关键不变量
 

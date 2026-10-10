@@ -61,7 +61,7 @@ P0 只支持 `NearestHostile`：在配置的活动范围内找最近可见敌对
 - MapManager 提供活动范围和空间查询；
 - MovementSystem 执行移动；
 - StatusManager 处理攻击效果和状态结果；
-- ObjectiveSystem 在敌人目标可能包含护送武器时提供目标状态查询。
+- MechanismSystem 在敌人目标可能包含护送武器时提供护送武器状态查询。
 
 ## 6. 关键不变量
 

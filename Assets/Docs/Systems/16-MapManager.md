@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World<br>
 建议实现目录：Assets/Game/Scripts/World/Map/（核心、Authoring、Events）；地图和区域数据由 Assets/Game/Scenes/ 中的关卡场景提供<br>
 生命周期：当前 LevelContext 生命周期<br>
-状态：场景区域/点位查询、边界、地形倍率和区域转移事件已实现；完整可占用规则仍待扩展
+状态：场景区域/点位查询、边界、地形倍率和区域转移事件已实现；首关固定路线查询和网格边界接入待实现
 
 ## 1. 定位
 
@@ -15,7 +15,7 @@ MapManager 是当前关卡的地图事实与空间查询服务。它绑定场景
 
 ## 2. 职责
 
-- 绑定当前场景的地图边界、Tilemap、静态碰撞体、道路/地形/区域标记和地图点；
+- 绑定当前场景的地图边界、Tilemap、静态碰撞体、道路/地形/区域标记、固定运输路线和地图点；
 - 提供世界坐标处的道路、地形、区域、可通行性及边界查询；
 - 为 Actor Manager、EnemyManager、PlacementSystem、MovementSystem、StatusManager、CameraSystem 和 AI 提供统一的地图事实；
 - 维护场景地图引用和查询索引，并在关卡销毁时释放；
@@ -28,7 +28,7 @@ MapManager 是当前关卡的地图事实与空间查询服务。它绑定场景
 ## 3. 不负责的内容
 
 - 不创建、销毁或索引 Actor、掉落物、机关、陷阱、随机事件和固定事件实例；
-- 不决定 Actor 的目标、行为、路线选择或寻路策略；
+- 不决定 Actor 的目标、行为或动态寻路策略；首关只提供策划配置的固定路线事实；
 - 不执行 Rigidbody2D 位移和物理碰撞响应；
 - 不结算伤害、状态、掉落概率、事件结果或目标结果；
 - 不把地图点误当成已经生成的动态对象；
@@ -40,13 +40,14 @@ MapManager 是当前关卡的地图事实与空间查询服务。它绑定场景
 
 | 语义层 | 图示内容 | MapManager 提供的事实 | 规则消费者 |
 | --- | --- | --- | --- |
-| 道路 | 主干道、分支道路 | 道路类型及当前位置是否位于道路区域；P0 不建立寻路图 | MovementSystem、AI、关卡设计工具 |
+| 道路 | 主干道、分支道路 | 道路类型及当前位置是否位于道路区域；P0 不建立动态寻路图 | MovementSystem、AI、关卡设计工具 |
 | 地形 | 沼泽、峡谷、城堡等 | 地形类型、地形标签和可配置的移动修正 | MovementSystem、StatusManager 或对应关卡规则 |
 | 区域 | 低温、温暖等 | 区域 ID、类型、关联的效果配置 ID，以及 Actor 的进入/离开事实 | StatusManager、AI |
-| 地图点 | 出生点、目标点、武器点、敌人点、掉落点、阻挠/陷阱点、固定/随机事件点 | 稳定点 ID、点类型和世界坐标 | 对应 Actor Manager、ObjectiveSystem、MechanismSystem、未来的掉落/事件系统 |
+| 地图点 | 出生点、目标点、武器点、敌人点 | 稳定点 ID、点类型和世界坐标 | 对应 Actor Manager、MechanismSystem、Core 结果规则组件 |
+| 固定路线 | 护送武器运输路点 | 稳定路线 ID、顺序路点和终点标识 | MechanismSystem、MovementSystem |
 | 物理空间 | 静态碰撞体、地图边界 | 静态阻挡识别、边界和占用查询 | MovementSystem、PlacementSystem、CameraSystem |
 
-道路、地形和区域是可组合查询的标签，不相互覆盖。主干道应按策划要求留出足够宽度；分支道路是否进入正式关卡由关卡设计决定。道路在 P0 只作为空间标签，直线移动不会沿道路图自动寻路。
+道路、地形和区域是可组合查询的标签，不相互覆盖。主干道应按策划要求留出足够宽度；分支道路是否进入正式关卡由关卡设计决定。道路在 P0 只作为空间标签，普通 Actor 直线移动不会沿道路图自动寻路；护送武器首关使用单独配置的固定路线点。
 
 沼泽道路的当前图示规则是移速降低 50%。地形修正作为地图移动修正提供给 MovementSystem，与 StatusManager 提供的角色状态修正分别计算；多个重叠地形倍率按乘法叠加。具体倍率保存在区域标记中，不能在 Actor 或决策树中硬编码。
 
@@ -63,8 +64,10 @@ MapTerrainKind              // Swamp, Canyon, Castle, Other
 MapRegionKind               // LowTemperature, Warm, Other
 MapAreaSnapshot
 MapPointId
-MapPointKind                // Spawn, Target, Weapon, EnemySpawn, DropSpawn, Hindrance, Trap, Event
+MapPointKind                // Spawn, Target, Weapon, EnemySpawn
 MapPointSnapshot
+MapRouteId
+MapRouteSnapshot            // 有序路点和终点信息
 MapSpatialSnapshot          // 边界、区域标签及地图修正的只读组合快照
 OccupancyQuery
 ```
@@ -81,6 +84,7 @@ float GetMovementSpeedMultiplier(Vector2 worldPosition);
 bool TryGetMapPoint(MapPointId pointId, out MapPointSnapshot point);
 IReadOnlyList<MapPointSnapshot> GetMapPoints(MapPointKind kind);
 bool TryGetMapArea(MapAreaId areaId, out MapAreaSnapshot area);
+bool TryGetRoute(MapRouteId routeId, out MapRouteSnapshot route);
 ```
 
 `Query` 返回同一位置上的道路、地形和区域标签。`GetMovementSpeedMultiplier` 返回地图地形带来的移动修正，不包含 Actor 的状态修正；当前对所有与位置重叠的地形区域直接乘算，不根据道路标签筛选。要实现图示的沼泽路段降速 50%，场景作者需在对应 `MapAreaAuthoring` 上配置 `0.5`，并让标记体覆盖受影响路段。若规则最终要求移速修正只在特定道路生效，再增加路地关系筛选。当前 `CanOccupy` 只查询可选地图边界和静态场景阻挡；动态 Actor 与玩家放置物尚未接入占用查询。
@@ -112,15 +116,15 @@ MovementSystem 查询当前地形移动修正
   → MapManager 返回地图事实
   → MovementSystem 与 StatusManager 的 Actor 修正一起计算实际速度
 
-MapManager 提供敌人点 / 掉落点 / 阻挠点 / 事件点
+MapManager 提供敌人点 / 武器点 / 目标点 / 固定路线
   → 对应系统按自身规则生成和管理动态对象
 ```
 
 - `MovementSystem` 是 Actor 位置变化的执行方，向 MapManager 报告物理位置；MapManager 不从 Actor 私有字段读取位置；
 - `StatusManager` 是状态与效果的唯一结算者，管理寒冷/炙热的持续时间、离开区域后的延迟解除和互斥；
-- `MechanismSystem` 管理可交互和玩家放置的环境元素；MapManager 只提供静态点位与空间事实；
+- `MechanismSystem` 管理可交互、玩家放置环境元素和护送武器；MapManager 只提供静态点位、固定路线与空间事实；
 - `EnemyManager` 等对象管理器可以查询地图点，但仍由自身创建、索引和销毁对象；
-- 掉落系统和事件系统的正式归属尚未确定；在归属确定前，MapManager 只提供 DropSpawn、Event、Trap、Hindrance 等标记，不实现其玩法。
+- 掉落物、事件、背包和道具不进入首关；MapManager 不为它们创建运行时对象。
 
 ## 9. 当前实现与关键不变量
 
@@ -141,7 +145,8 @@ MapManager 提供敌人点 / 掉落点 / 阻挠点 / 事件点
 - 多个温度区域重叠时状态的进入、优先级、互斥和离开计时；
 - 峡谷的层级、可通行判定、坠落 Actor 范围和销毁/掉落结果；
 - 掉落物、固定/随机事件和阻挠点的正式运行时系统归属；
-- 动态放置障碍如何注册到移动阻挡查询；
+- 动态放置障碍如何注册到移动阻挡查询；首关只保证格子边界/单格占用，路线被障碍占用后的规则待确认；
+- 固定路线点的数据格式、终点标识以及路线被阻挡后的处理；
 - 窄路是否只使用普通道路标记，还是需要 PassageSystem 的排队/限流行为；
 - 随机地图或运行时地图改造是否进入后续版本。
 
@@ -154,3 +159,4 @@ MapManager 提供敌人点 / 掉落点 / 阻挠点 / 事件点
 - 各类地图点以稳定 ID 查询成功，缺失或重复 ID 可以诊断；
 - 静态 Collider2D 阻挡识别继续兼容当前 `Level_test` 场景；
 - 地图点只提供位置，掉落、事件、敌人和陷阱对象仍由各自系统管理。
+- 首关固定路线可以按稳定顺序查询，且不会被误解释为动态寻路结果。
