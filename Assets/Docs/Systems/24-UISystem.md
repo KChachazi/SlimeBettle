@@ -100,5 +100,7 @@ void Initialize(LevelManager manager, InputSystem input,
 
 场景级组合入口 `SlimeBattle.Player.PlayerPresentationRoot.Initialize(LevelManager, CameraSystem, IUiSnapshotSource = null, BattleHudView = null)` 只组装三个系统并同步输入生命周期，不修改 Core 内部。可在场景引用中指定各组件；无引用时只在 Start 查找一次 Bootstrap 的 LevelManager 与子镜头。不调用全局静态服务。没有 EventSystem 时创建使用 InputSystemUIInputModule 的场景级对象；现有场景须使用新版 UI 模块，不能并存旧 StandaloneInputModule。
 
+未来选择面板可作为独立 uGUI 子面板或注入的 BattleHudView 扩展，由自己的显示适配器管理选中状态；GraphicRaycaster 会阻止其点击穿透地图。当前不定义 PlacementItem、消耗、地形校验、确认/取消规则，也不创建机关或调用 MapManager。
+
 验证与边界见 `Assets/Game/Tests/PlayerPresentation/README.md` 和 `Assets/Docs/P0-小宸接入说明.md`。
 

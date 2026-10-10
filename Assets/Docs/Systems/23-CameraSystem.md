@@ -87,10 +87,12 @@ void SetBounds(CameraBounds bounds);
 - CameraSystem 与 Camera 挂在同一对象上，由场景接入组件显式 Initialize。初始化为面向 XY 平面的正交相机；默认投影平面 Z=0，可在 Inspector 配置。已有合法相机 Z 保留；处在投影平面上或前方时移至平面后方 10 单位。
 - 屏幕转世界使用相机射线与玩法平面求交，不把相机位置/近裁剪面当世界 Z；无法求交抛 `InvalidOperationException`。调用方先完成初始化，输入必须为有限像素坐标。
 - `CameraCommandKind.Pan`：PositionOrDelta 为世界 XY 位移；`Focus`：世界 XY 目标；`Zoom`：ZoomDelta 为正交尺寸增量（正数缩小画面）。不改变世界对象。非法命令种类或非有限值忽略。
-- `CameraBounds(Vector2 minimum, Vector2 maximum)` 为地图世界 XY 矩形。地图负责人通过 GetMapBounds 的公开结果构造它，再调用 SetBounds。未绑定时允许自由移动；零面积、反向、NaN 或 Infinity 边界抛 `ArgumentException`，保留原边界。
+- `CameraBounds(Vector2 minimum, Vector2 maximum)` 为地图世界 XY 矩形。关卡适配层通过 MapManager.GetMapBounds 的公开结果构造它，再调用 SetBounds。未绑定时允许自由移动；零面积、反向、NaN 或 Infinity 边界抛 `ArgumentException`，保留原边界。
 - 边界按可见视口的半宽/半高约束相机中心；地图小于视口时对应轴居中，允许显示地图外背景；不为填满视口强行放大镜头。LateUpdate 在宽高比变化后重新限制位置。
 - 默认尺寸范围 2—12；仅测试绑定支持中键拖动、滚轮缩放。跟随、震动、平滑过渡、多指缩放和最终屏幕方向未纳入 P0。
 - `CameraStateChanged` / `CameraBoundsChanged` 是本组件的 C# 事件，携带只读快照；订阅方负责在禁用时移除，禁止跨场景保留旧相机。
+
+镜头不决定点击是移动、攻击还是放置，不追踪 Actor 或校验放置。触屏单指拖动与双指缩放需先确认手势规则，作为后续 CameraGesture 工作。
 
 可重复验证见 `Assets/Game/Tests/PlayerPresentation/README.md`。
 

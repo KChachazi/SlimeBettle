@@ -43,8 +43,8 @@ PlayerCommand
 void SetInputMode(InputMode mode);
 InputMode GetInputMode();
 PlayerInputSnapshot ReadSnapshot();
-SubscriptionToken Subscribe<TInputEvent>(Action<TInputEvent> handler);
-void Unsubscribe(SubscriptionToken token);
+InputSubscriptionToken Subscribe<TInputEvent>(Action<TInputEvent> handler);
+void Unsubscribe(InputSubscriptionToken token);
 void Enable();
 void Disable();
 ```
@@ -59,7 +59,7 @@ CancelInputEvent
 PlayerCommandSubmittedEvent
 ```
 
-事件只表达输入事实或语义指令，具体是放置、镜头拖动还是守卫控制由下游系统决定。
+事件只表达输入事实。PrimaryAction 表示玩家在屏幕某位置进行了主要操作；未来放置/交互适配层决定如何消费，输入层不规定操作含义。
 
 ## 6. 依赖
 
@@ -86,15 +86,16 @@ PlayerCommandSubmittedEvent
 实现：`Assets/Game/Scripts/Player/InputSystem.cs`，数据：`PlayerInputSnapshot.cs`。沿用第 4 节所有接口；`SetInputMode` 返回 `void`，非法枚举抛 `ArgumentOutOfRangeException`。新增数据类型属于首次落实既有概念接口，调用方接入前请审核此契约。
 
 - `InputMode`：`Disabled`、`Gameplay`、`UiOnly`。组件默认不接收输入，由 `PlayerPresentationRoot` 根据 LevelManager 状态启用；仅 Running 接受游戏指令，暂停和结算保留取消键与独立 uGUI 输入。
-- 已确认移动交互：触屏点一下目标位置后持续向目标移动，再次点击更换目标；桌面鼠标点击使用相同事件。`PrimaryAction.ScreenPosition` 是目标的屏幕像素位置，接入层使用 CameraSystem 转换为世界目标，再交给已确定受控 Actor 的公开行动/移动入口；InputSystem 不直接写入角色位置。
-- `P0Player` Action Map 在本组件首次 `Enable()` 时创建并在销毁时释放。`Point` / `Primary` 使用 `<Pointer>/position` 和 `<Pointer>/press`，统一鼠标、笔和主触点。WASD、方向键和手柄左摇杆仅在首次 Enable 前显式打开 Inspector 的 `Enable Directional Debug Input` 时绑定，默认关闭；Move 类型保留兼容这些调试消费者。`Attack` 的空格/手柄南键仅用于现有攻击请求调试；`Cancel` 使用 Escape 和手柄 Start；`CameraDrag` 使用鼠标中键；`Zoom` 使用滚轮。攻击触屏交互、角色选择和多指规则仍待对应系统确认。
-- `PlayerInputSnapshot` 包含帧号、模式、屏幕像素位置/位移、归一化 Movement、指针按下/保持/释放、AttackPressed、CancelPressed、CameraDrag 和 Zoom。每个 Update 采样一次；同帧多次读取不消费边沿，过期帧返回空快照。消费快照的组件应在 LateUpdate 读取，避免依赖不同组件 Update 的顺序。
-- `PlayerCommandSubmittedEvent.Command` 包含 `Kind`、`Movement`、`ScreenPosition`。`Kind` 为 Move / PrimaryAction / Attack。非零 Move 每帧发布，归零时再发布一次；PrimaryAction 和 Attack 只在按下边沿发布。世界位置由 CameraSystem 转换；输入不选择 Actor，不执行移动、攻击或伤害，也不假定放置含义。
-- 玩法调用方负责把语义指令交给自己的公开行动入口，并通过 `CancelInputEvent` 清除持续移动。`CancelInputEvent.IsUserRequested` 区分取消键（true）与模式、禁用、失焦造成的生命周期取消（false）；生命周期取消不能被当作暂停切换。
+- 2026-10-10 按反馈撤回“点击后自动移动”的契约。`PrimaryAction.ScreenPosition` 只表示主要操作发生的屏幕像素位置；一次按下仅发布一次，不选择 Actor，不表示移动、攻击或放置。未来适配层可经 CameraSystem 投影后消费；本 PR 不创建该适配层或放置规则。
+- `P0Player` Action Map 首次 Enable 时创建，销毁时释放。Point / Primary 使用 `<Pointer>/position` / `<Pointer>/press`，统一鼠标与主触点。Cancel 使用 Escape / 手柄 Start；CameraDrag 使用鼠标中键；Zoom 使用滚轮。多指与触屏镜头手势待后续确认。
+- Move / Attack 保留为预留或调试接口，当前正式玩法不使用。WASD、方向键和手柄摇杆默认不绑定，仅首次 Enable 前显式开启 Enable Directional Debug Input 时绑定；空格/手柄南键仅发布调试 Attack，不造成效果。
+- PlayerInputSnapshot 包含帧号、模式、屏幕像素位置/位移、Movement、指针边沿/保持、AttackPressed、CancelPressed、CameraDrag 和 Zoom。每个 Update 采样一次；同帧重复读取不消费边沿，过期帧为空。消费者在 LateUpdate 读取，避免依赖 Update 顺序。
+- PlayerCommandSubmittedEvent.Command 包含 Kind、Movement、ScreenPosition。PrimaryAction 与调试 Attack 在按下边沿发布；启用方向调试时非零 Move 每帧发布、归零再发布一次。
+- CancelInputEvent.IsUserRequested 区分用户取消（true）与模式、禁用、失焦的生命周期清理（false）。消费者清除待处理交互和测试标记；生命周期取消不切换暂停。
 - 使用 EventSystem 即时 GraphicRaycaster 查询屏蔽 UI，避免依赖上一帧 UI 命中缓存。UI 起始手势移出 UI 后也不会变成游戏点击；镜头中键手势必须从非 UI 区开始。uGUI InputField 编辑时不提交游戏指令。
 - 指针坐标使用 PassThrough 采样；主操作与中键手势保持发起设备的坐标来源，避免实体鼠标、虚拟鼠标或触点并存时按坐标数值大小选错设备。公开输入接口不变。
-- 模式切换、失焦、组件禁用清空手势，并始终发布生命周期 CancelInputEvent，即使发起目标移动的触点已经松开，消费者也能清理正在执行的目标。恢复后要求已绑定的移动/主操作/攻击/中键全部回到中立状态，避免按住键重开或恢复时误操作。
-- `Subscribe<T>` 返回 Core 的 `SubscriptionToken`；token 只交回创建它的 InputSystem，不与 LevelEventBus 混用。消费方在禁用时 Unsubscribe，重开后重新绑定本关输入组件。
+- 模式切换、失焦、组件禁用始终清空手势并发布生命周期取消，即使触点已松开；恢复后要求主操作、攻击调试、中键和已绑定方向回到中立状态，避免恢复/重开继承旧输入。
+- **接口变更通知（2026-10-10）**：输入使用独立 InputEventChannel，不再使用 Core 的 LevelEventBus。Subscribe 返回 `SlimeBattle.Player.Input.InputSubscriptionToken`，Unsubscribe 接受相同类型；显式声明旧 Core.SubscriptionToken 的调用方须迁移，使用 var 的调用方无需调整。token 仅对创建它的 InputSystem 有效，跨实例、默认和重复解绑无效；Subscribe(null) 抛 ArgumentNullException，销毁后订阅抛 ObjectDisposedException。禁用/销毁时解绑，重开绑定新输入实例；Core 的 token 与事件总线不受影响。
 
 依赖：同步最新 master 的 `com.unity.inputsystem@1.14.2`，现有 `activeInputHandler: 1` 已选择新版输入；本分支不另行降级包。`SlimeBattle.Runtime` 显式引用 `Unity.InputSystem` 与 `UnityEngine.UI`，隔离测试自有 Runtime / Editor 程序集。撤回本次实现时保留 master 的包配置，仅移除本分支新增的输入实现及不再需要的程序集引用。
 

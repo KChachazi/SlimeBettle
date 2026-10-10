@@ -139,7 +139,7 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | API 编号 | 提供者 | 接口 | 输入 / 输出 | 调用方与生命周期 |
 | --- | --- | --- | --- | --- |
 | API-PLAYER-006 | InputSystem | GetInputMode() | InputMode | 输入使用方 |
-| API-PLAYER-007 | InputSystem | Subscribe<T>(Action<T>) / Unsubscribe(SubscriptionToken) | 输入事实/语义事件；token 限本实例 | Actor/移动适配器、UI；禁用时解绑 |
+| API-PLAYER-007 | InputSystem | Subscribe<T>(Action<T>) / Unsubscribe(InputSubscriptionToken) | Subscribe 返回专用 InputSubscriptionToken；token 限本实例 | 未来交互适配器、UI；禁用时解绑 |
 | API-PLAYER-008 | InputSystem | Enable() / Disable() | void | 场景接入；禁用清空手势 |
 | API-PLAYER-009 | PlayerPresentationRoot | Initialize(LevelManager, CameraSystem, IUiSnapshotSource = null, BattleHudView = null) | 显式当前关卡依赖 | 关卡场景接入，详见 24 |
 | API-PRESENT-003 | CameraSystem | Initialize() | void | 场景接入，先于查询/命令 |
@@ -149,11 +149,11 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | API-UI-004 | IUiSnapshotSource | ReadSnapshot(LevelContext) | UiState 显示数据 | UISystem；初始化/阶段变化/5 Hz 查询 |
 | API-UI-005 | UISystem | OpenPanel(UiPanelId) / ClosePanel(UiPanelId) / GetState() | Hud / Pause / Result；只读 UiState | 界面调用方，不改游戏状态 |
 
-输入事件：PointerPressedEvent / PointerMovedEvent / PointerReleasedEvent / CancelInputEvent / PlayerCommandSubmittedEvent。取消的 IsUserRequested 区分用户取消与生命周期清理；玩法消费者必须清除持续移动。镜头与 UI 的状态/面板/指令事件使用组件上的 C# event，名称见所属文档。
+输入事件：PointerPressedEvent / PointerMovedEvent / PointerReleasedEvent / CancelInputEvent / PlayerCommandSubmittedEvent。取消的 IsUserRequested 区分用户取消与生命周期清理；消费者清除待处理交互。镜头与 UI 的状态/面板/指令事件使用组件上的 C# event，名称见所属文档。
 
-2026-10-10 移动交互确认：默认通过触屏/鼠标点击产生 `PrimaryAction.ScreenPosition`，由接入层投影成世界目标并提交移动请求；再次点击更换目标。WASD / 方向键 / 手柄摇杆的 Move 默认不绑定，仅由 Inspector 显式启用方向调试。方法、事件和数据签名保持不变；受控 Actor 由上层确定。
+2026-10-10 反馈修订与接口通知：PrimaryAction.ScreenPosition 只表示屏幕某位置发生主要操作；不表示移动、攻击或放置，也不要求 Actor 消费。Move / Attack 仅预留或调试，WASD 默认关闭。输入使用独立 InputEventChannel，Subscribe / Unsubscribe 改用 SlimeBattle.Player.Input.InputSubscriptionToken，与 Core.SubscriptionToken 不混用。显式旧 token 声明须迁移；默认、跨实例、重复解绑无效；null 处理器/销毁后订阅分别抛 ArgumentNullException / ObjectDisposedException。
 
-模式切换、失焦和禁用时始终发布生命周期 CancelInputEvent，已松手但仍在执行目标移动的消费者也必须清理旧目标；生命周期取消处理应幂等。
+模式切换、失焦和禁用始终发布生命周期取消；即使触点已松开，消费者仍须幂等清理待处理交互和测试标记。恢复要求控件先回中立状态。
 
 ## 8. 对外事件索引
 
