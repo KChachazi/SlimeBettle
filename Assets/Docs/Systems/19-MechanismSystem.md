@@ -5,7 +5,7 @@
 默认命名空间：`SlimeBattle.Mechanisms`  
 建议实现目录：`Assets/Game/Scripts/Mechanism/`  
 生命周期：当前关卡上下文生命周期  
-状态：核心架构，食物、熔炉、障碍和引导源边界已按当前策划确定；具体配置和特殊机关仍待确认
+状态：核心系统已实现；食物、熔炉、障碍和暖区引导源接入运行时，特殊机关规则仍待确认
 
 ## 1. 职责
 
@@ -46,6 +46,8 @@ PlacementCooldown
 
 当前核心 `MechanismKind` 为 `Food`、`Furnace` 和 `Obstacle`。陷阱、魔法、掉落物、随机事件和固定事件可以沿用本系统的运行时边界，但在规则确定前不得假设为正式实现。
 
+`MechanismConfig` 保存类型、是否允许玩家放置、吸引范围、占位半径、使用次数和激活/拆除冷却。使用次数配置为 `0` 表示不限次数；食物必须配置有限使用次数。暖区吸引半径保存在 `MapAreaAuthoring`，默认设计值为 500px。机关配置资产需纳入当前关卡的 `ConfigRegistry`，场景/预制体的 `MechanismAuthoring` 保存其 `ConfigId`。
+
 ## 4. 必须接口
 
 ```csharp
@@ -53,9 +55,15 @@ bool NotifyContact(MechanismTriggerContext context);
 bool RequestActivate(MechanismId mechanismId, MechanismActivationRequest request);
 bool TryGetSnapshot(MechanismId mechanismId, out MechanismSnapshot snapshot);
 IReadOnlyList<MechanismSnapshot> GetActiveSnapshots();
+IReadOnlyList<GuideSourceSnapshot> GetGuideSources();
+IReadOnlyList<GuideSourceSnapshot> GetGuideSourcesInRange(Vector2 actorPosition, float pixelsPerUnit);
+bool CanPlace(ConfigId configId, Vector2 position, out string failureReason);
+MechanismPlacementResult RequestPlace(MechanismPlacementRequest request);
+bool RequestRemove(MechanismId mechanismId);
+bool TryGetPlacementCooldown(ConfigId configId, out PlacementCooldown cooldown);
 ```
 
-`PlacementSystem` 需要向本系统提交已经通过玩家输入、数量上限和冷却校验的放置/拆除结果；具体的放置请求和拆除请求类型必须在实现前与全局 API 表统一，不能由 UI 直接操作本系统内部对象。
+`MechanismAuthoring` 为关卡场景和放置预制体提供稳定实例 ID、配置 ID 与碰撞适配。场景机关在 `LevelContext` 创建时自动注册；放置系统先询问 `CanPlace`，再通过 `RequestPlace` 注册已生成的预制体，并通过 `RequestRemove` 拆除。每周可用总数仍由 `PlacementSystem`/关卡库存配置管理，本系统负责同时存在上限、地图占位校验和拆除冷却。
 
 ## 5. 对外事件
 
@@ -63,6 +71,7 @@ IReadOnlyList<MechanismSnapshot> GetActiveSnapshots();
 MechanismTriggeredEvent
 MechanismStateChangedEvent
 MechanismExhaustedEvent
+MechanismPlacementCooldownChangedEvent
 ```
 
 `MechanismTriggeredEvent` 表示机关规则已经通过并产生结果，不表示仅仅发生了碰撞回调。`MechanismStateChangedEvent` 可以表达放置、拆除、消耗、冷却和可用性变化；事件只传递快照或结果，不暴露可写运行时对象。
@@ -70,7 +79,7 @@ MechanismExhaustedEvent
 ## 5.1 共同规则
 
 - 机关配置属于设计时数据，实例位置、剩余次数、冷却和消耗状态属于当前关卡运行时数据；
-- 同时存在的放置物总上限暂定为 5，由关卡或周目配置提供，不能在代码中写死；
+- 同时存在的放置物总上限从 `LevelConfig.MaximumActivePlacedMechanisms` 读取，默认关卡配置为 5；
 - 引导源快照至少需要包含类型、位置、有效范围、是否可用和所属机制 ID；
 - 多个同类引导源的随机选择、状态对应引导源优先级和战斗目标优先级由 Actor 感知/决策规则处理；
 - 机关触发产生的生命、状态、击退、移动或目标效果必须通过对应系统的公开接口结算；
@@ -82,9 +91,9 @@ MechanismExhaustedEvent
 
 | 元素 | 当前规则方向 | 暂定限制 |
 | --- | --- | --- |
-| 食物 | 吸引范围内的史莱姆；进食后消失，并通过效果请求解除饥饿；食物或其他引导源可以参与解除暴躁 | 引导范围约 300px；下一次食物放置间隔约 10 秒 |
-| 熔炉 | 吸引范围内的史莱姆；核心区域停留约 20 秒后产生炙热；可以重复使用并参与解除暴躁 | 吸引范围约 500px；核心半径约 50px；拆除后约 20 秒才能重新安装 |
-| 障碍 | 阻挡史莱姆、魔物和守卫，迫使移动系统重新寻找路线；拆除后消失且不直接复用 | 同时存在受放置上限约束；周目总数量由关卡配置提供 |
+| 食物 | 由 `StatusManager.NotifyGuideReached(Food)` 结算喂食，成功后消耗配置的使用次数；耗尽时隐藏实例，玩家放置食物会启动配置的再次放置冷却并销毁实例 | 引导范围由配置提供，设计初值约 300px；放置冷却由配置提供，设计初值约 10 秒 |
+| 熔炉 | 核心触发区通知 `StatusManager` 开始/结束暴露计时；到时由状态配置结算炙热；进入核心时可解除寒冷/暴躁 | 引导范围由配置提供，设计初值约 500px；核心碰撞范围由场景 Collider2D 配置，设计初值约 50px；拆除冷却由配置提供，设计初值约 20 秒 |
+| 障碍 | 静态碰撞体由 `MapManager` 阻挡查询识别；放置障碍由 `MechanismSystem` 注册/注销为移动阻挡体 | 同时存在上限来自关卡配置；周目总数量仍由 PlacementSystem/关卡库存配置提供 |
 
 障碍数量当前按周目暂定为：一周目 8 个、二周目 5 个、三周目 3 个。这里的“周目总可用数量”和“同时存在上限”是两个不同配置字段，不能混为一个计数。
 
@@ -94,20 +103,20 @@ MechanismExhaustedEvent
 
 温暖地区、低温地区、掉落物、固定事件和随机事件可以为史莱姆提供引导或触发条件。它们的边界如下：
 
-- `MapManager` 负责地形、道路、区域归属、可行走空间和地图查询；区域进入/离开是空间事实，由 MapManager 发布；
+- `MapManager` 负责地形、道路、区域归属、可行走空间和地图查询；区域进入/离开是空间事实，由 MapManager 发布；MechanismSystem 从暖区快照生成暖源，并用 MapManager 校验放置位置、注册运行时障碍；
 - `MechanismSystem` 负责可交互环境元素及其引导源快照；
 - `StatusManager` 负责寒冷、炙热、燃烧、冻结等状态和持续效果；
 - `MovementSystem` 负责接触、阻挡、位置结果和移动请求；
-- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不创建动态对象、不做概率判定，也不结算事件效果；
+- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不创建动态对象、不做概率判定，也不结算事件效果；本系统不会把这些地图点自动实例化为机关；
 - 掉落物、固定/随机事件、陷阱和魔法的运行时系统归属及具体列表仍待确认。
 
-Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager 的区域事实并按配置申请或解除对应状态。温暖地区的吸引源快照由 MechanismSystem/Actor 感知层提供；区域归属本身不等同于吸引范围。
+Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager 的区域事实并按配置申请或解除对应状态。暖区的吸引源快照由 MechanismSystem 从 MapManager 的区域边界和配置范围生成；区域归属本身不等同于吸引范围。`GetGuideSourcesInRange` 将像素半径按 Actor 精灵的 `pixelsPerUnit` 转换为世界距离，供感知层选择。
 
 ## 6. 依赖
 
 - `ConfigSystem`；
 - `MapManager`；
-- `MovementSystem` 提供的接触事实；
+- `MechanismAuthoring` 提供的 2D 触发接触事实；移动阻挡由 `MapManager` 向 `MovementSystem` 暴露；
 - `StatusManager` 处理效果；
 - `PassageSystem` 处理窄路相关规则。
 - `PlacementSystem` 提交玩家确认的环境元素放置结果。
@@ -124,10 +133,9 @@ Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager �
 
 ## 8. 待确认项
 
-- 放置请求和拆除请求的最终公开接口，以及与 `PlacementSystem` 的 API 表登记；
-- 食物进食、熔炉接触和暴躁解除的最终效果映射；
-- 食物、障碍和熔炉的精确范围、持续时间、重复使用和销毁条件；
-- 障碍“同时存在上限”和“周目总可用数量”的最终配置字段；
+- `PlacementSystem` 与 `CanPlace`/`RequestPlace`/`RequestRemove`/`TryGetPlacementCooldown` 的调用时序及库存结算接口登记；
+- 食物、熔炉当前吸引范围及拆除冷却的最终平衡数值；熔炉炙热持续暴露时间由 `Hot` 状态配置提供；
+- 障碍“同时存在上限”和“周目总可用数量”的最终库存配置格式；同时存在上限已由 `LevelConfig` 提供；
 - 放置物与地形、群体、敌人和守卫的组合互动；
 - 随机事件、固定事件、陷阱、魔法、掉落物和不可放置场景机关的完整列表；
 - 机关与 `PassageSystem` 的窄路职责边界；

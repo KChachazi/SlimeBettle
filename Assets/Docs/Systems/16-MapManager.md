@@ -81,9 +81,13 @@ float GetMovementSpeedMultiplier(Vector2 worldPosition);
 bool TryGetMapPoint(MapPointId pointId, out MapPointSnapshot point);
 IReadOnlyList<MapPointSnapshot> GetMapPoints(MapPointKind kind);
 bool TryGetMapArea(MapAreaId areaId, out MapAreaSnapshot area);
+IReadOnlyList<MapAreaSnapshot> GetMapAreaSnapshots();
+bool TryGetMapAreaCenter(MapAreaId areaId, out Vector2 center);
+bool RegisterMovementBlocker(Collider2D collider);
+bool UnregisterMovementBlocker(Collider2D collider);
 ```
 
-`Query` 返回同一位置上的道路、地形和区域标签。`GetMovementSpeedMultiplier` 返回地图地形带来的移动修正，不包含 Actor 的状态修正；当前对所有与位置重叠的地形区域直接乘算，不根据道路标签筛选。要实现图示的沼泽路段降速 50%，场景作者需在对应 `MapAreaAuthoring` 上配置 `0.5`，并让标记体覆盖受影响路段。若规则最终要求移速修正只在特定道路生效，再增加路地关系筛选。当前 `CanOccupy` 只查询可选地图边界和静态场景阻挡；动态 Actor 与玩家放置物尚未接入占用查询。
+`Query` 返回同一位置上的道路、地形和区域标签。`GetMovementSpeedMultiplier` 返回地图地形带来的移动修正，不包含 Actor 的状态修正；当前对所有与位置重叠的地形区域直接乘算，不根据道路标签筛选。要实现图示的沼泽路段降速 50%，场景作者需在对应 `MapAreaAuthoring` 上配置 `0.5`，并让标记体覆盖受影响路段。若规则最终要求移速修正只在特定道路生效，再增加路地关系筛选。`CanOccupy` 查询可选地图边界、场景静态阻挡和其他系统显式注册的移动阻挡体（当前用于放置障碍）；Actor 与非阻挡环境物不纳入占位查询。`RegisterMovementBlocker` 只接受当前场景内的非 Trigger 静态碰撞体；调用方需在对象移除时注销。
 
 MovementSystem 在 Actor 注册、物理位置同步和注销时，向 MapManager 提交位置变化/离场通知。它们是关卡内部的协作接口，不进入跨系统全局 API 表。MapManager 用位置查询维护区域成员关系，不保存 Actor 的位置副本；每次只在成员集合发生变化时发布边界事件。
 
@@ -118,13 +122,13 @@ MapManager 提供敌人点 / 掉落点 / 阻挠点 / 事件点
 
 - `MovementSystem` 是 Actor 位置变化的执行方，向 MapManager 报告物理位置；MapManager 不从 Actor 私有字段读取位置；
 - `StatusManager` 是状态与效果的唯一结算者，管理寒冷/炙热的持续时间、离开区域后的延迟解除和互斥；
-- `MechanismSystem` 管理可交互和玩家放置的环境元素；MapManager 只提供静态点位与空间事实；
+- `MechanismSystem` 管理可交互和玩家放置的环境元素；通过注册/注销移动阻挡体接入障碍查询，并读取暖区快照及其中心；
 - `EnemyManager` 等对象管理器可以查询地图点，但仍由自身创建、索引和销毁对象；
 - 掉落系统和事件系统的正式归属尚未确定；在归属确定前，MapManager 只提供 DropSpawn、Event、Trap、Hindrance 等标记，不实现其玩法。
 
 ## 9. 当前实现与关键不变量
 
-当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring` 和可选的 `MapBoundsAuthoring`。MovementSystem 已查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。`Level_test` 当前尚未布置语义区域、地图点、边界标记或 StatusConfig 资产，因此没有场景环境状态效果。完整的动态占用与峡谷结果仍未实现。
+当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring` 和可选的 `MapBoundsAuthoring`。MovementSystem 已查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。MechanismSystem 可额外注册玩家放置的静态障碍碰撞体，供 `CanOccupy` 和 MovementSystem 查询。完整的动态 Actor 占用与峡谷结果仍未实现。
 
 1. 同一 LevelContext 内所有系统使用相同的世界坐标和地图索引。
 2. MapManager 不拥有任何 Actor、掉落物、机关或事件实例的生命周期。
@@ -141,7 +145,7 @@ MapManager 提供敌人点 / 掉落点 / 阻挠点 / 事件点
 - 多个温度区域重叠时状态的进入、优先级、互斥和离开计时；
 - 峡谷的层级、可通行判定、坠落 Actor 范围和销毁/掉落结果；
 - 掉落物、固定/随机事件和阻挠点的正式运行时系统归属；
-- 动态放置障碍如何注册到移动阻挡查询；
+- 动态 Actor 是否需要纳入放置位置占位查询；
 - 窄路是否只使用普通道路标记，还是需要 PassageSystem 的排队/限流行为；
 - 随机地图或运行时地图改造是否进入后续版本。
 

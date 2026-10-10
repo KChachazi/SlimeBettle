@@ -1,7 +1,7 @@
 # 99 全局 API 查询表
 
 版本：0.4 草案
-最后更新：2026-10-09
+最后更新：2026-10-10
 用途：协作时查询跨系统公共接口
 状态：架构暂定
 
@@ -93,7 +93,7 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | --- | --- | --- | --- | --- | --- | --- |
 | API-WORLD-001 | MapManager | TryGetMapBounds(out MapBounds) | 无 | 是否成功、地图边界 | CameraSystem、MovementSystem、AI | 已实现；场景需配置 MapBoundsAuthoring |
 | API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
-| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 已实现静态地图查询；不含动态 Actor/放置物 |
+| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI、MechanismSystem | 已实现静态地图查询及已注册的放置障碍；不含动态 Actor |
 | API-WORLD-004 | MapManager | GetMovementSpeedMultiplier(Vector2) | 世界坐标 | 地形移速修正（多个地形倍率相乘） | MovementSystem | 已实现；场景需配置地形区域 |
 | API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现 |
 | API-WORLD-006 | MapManager | TryGetMapPoint(MapPointId, out MapPointSnapshot) / GetMapPoints(MapPointKind) | 地图点 ID 或类型 | 是否成功、点位快照集合 | Actor Manager、ObjectiveSystem、未来的掉落/事件系统 | 已实现；场景需配置 MapPointAuthoring |
@@ -101,6 +101,8 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
 | API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | P0 已实现 |
 | API-WORLD-010 | MovementSystem | TryGetContactInfo(ActorId, out ContactInfo) | Actor ID | 是否成功、最近阻挡接触 | Actor、调试、UI | P0 已实现 |
+| API-WORLD-011 | MapManager | GetMapAreaSnapshots() / TryGetMapAreaCenter(MapAreaId, out Vector2) | 区域 ID（可选） | 区域快照集合或区域中心 | MechanismSystem | 已实现 |
+| API-WORLD-012 | MapManager | RegisterMovementBlocker(Collider2D) / UnregisterMovementBlocker(Collider2D) | 当前场景静态碰撞体 | 是否注册/注销 | MechanismSystem | 已实现；放置障碍加入 CanOccupy 查询 |
 
 ## 6. StatusManager API
 
@@ -127,10 +129,14 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-MECH-001 | MechanismSystem | NotifyContact(MechanismTriggerContext) | 接触事实 | 是否受理 | MovementSystem | 待决定 |
-| API-MECH-002 | MechanismSystem | RequestActivate(MechanismId, MechanismActivationRequest) | 机关 ID、请求 | 激活结果 | PlacementSystem、测试 | 待决定 |
-| API-MECH-003 | PassageSystem | RequestEnter(PassageAccessRequest) | 通行请求 | 通过/等待/拒绝 | ActorStateMachine、MovementSystem | 待决定 |
-| API-MECH-004 | PassageSystem | NotifyExit(PassageId, ActorId) | 窄路、Actor ID | 是否释放 | MovementSystem、Manager | 待决定 |
+| API-MECH-001 | MechanismSystem | NotifyContact(MechanismTriggerContext) | 接触事实 | 是否受理 | MechanismAuthoring | 已实现；场景/预制体触发适配器提交 |
+| API-MECH-002 | MechanismSystem | RequestActivate(MechanismId, MechanismActivationRequest) | 机关 ID、请求 | 是否受理 | 机关触发适配器、玩法规则 | 已实现；StatusManager 负责状态结算 |
+| API-MECH-003 | MechanismSystem | TryGetSnapshot(MechanismId, out MechanismSnapshot) / GetActiveSnapshots() | 机关 ID | 单个或活动机关快照 | SlimeManager、PlacementSystem、调试 | 已实现 |
+| API-MECH-004 | MechanismSystem | GetGuideSources() / GetGuideSourcesInRange(Vector2, float) | 可选 Actor 位置与像素换算率 | 食物、熔炉和暖区引导源 | Actor 感知/决策 | 已实现；决策选择归 Actor 层 |
+| API-MECH-005 | MechanismSystem | CanPlace(ConfigId, Vector2, out string) / RequestPlace(MechanismPlacementRequest) / RequestRemove(MechanismId) | 配置、位置、预制实例或机关 ID | 校验原因、放置结果或是否拆除 | PlacementSystem | 已实现；库存总量由 PlacementSystem 管理 |
+| API-MECH-006 | MechanismSystem | TryGetPlacementCooldown(ConfigId, out PlacementCooldown) | 机关配置 ID | 是否成功、剩余冷却 | PlacementSystem、UI | 已实现 |
+| API-PASSAGE-001 | PassageSystem | RequestEnter(PassageAccessRequest) | 通行请求 | 通过/等待/拒绝 | ActorStateMachine、MovementSystem | 待决定 |
+| API-PASSAGE-002 | PassageSystem | NotifyExit(PassageId, ActorId) | 窄路、Actor ID | 是否释放 | MovementSystem、Manager | 待决定 |
 | API-PLAYER-001 | InputSystem | ReadSnapshot() | 无 | PlayerInputSnapshot | CameraSystem、PlacementSystem、GuardManager | 已确认 |
 | API-PLAYER-002 | InputSystem | SetInputMode(InputMode) | Disabled / Gameplay / UiOnly | void；非法值抛异常 | 场景接入、UI | P0 已实现 |
 | API-PLAYER-003 | PlacementSystem | BeginPlacement(PlacementItemId) | 物品 ID | 开始结果 | UI、InputSystem | 待确认 |
