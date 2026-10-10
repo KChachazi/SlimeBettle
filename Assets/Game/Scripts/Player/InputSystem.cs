@@ -11,6 +11,7 @@ namespace SlimeBattle.Player.Input
     /// <summary>Device facts only. Consumers own actor selection and gameplay requests.</summary>
     public sealed class InputSystem : MonoBehaviour
     {
+        [SerializeField] private bool enableDirectionalDebugInput;
         private readonly LevelEventBus inputEvents = new LevelEventBus();
         private readonly List<RaycastResult> uiHits = new List<RaycastResult>();
         private InputActionMap actions;
@@ -83,13 +84,16 @@ namespace SlimeBattle.Player.Input
             point = actions.AddAction("Point", InputActionType.PassThrough, "<Pointer>/position");
             press = actions.AddAction("Primary", InputActionType.Button, "<Pointer>/press");
             move = actions.AddAction("Move", InputActionType.Value);
-            move.AddCompositeBinding("2DVector")
-                .With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
-                .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
-            move.AddCompositeBinding("2DVector")
-                .With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow")
-                .With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
-            move.AddBinding("<Gamepad>/leftStick");
+            if (enableDirectionalDebugInput)
+            {
+                move.AddCompositeBinding("2DVector")
+                    .With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s")
+                    .With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
+                move.AddCompositeBinding("2DVector")
+                    .With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow")
+                    .With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
+                move.AddBinding("<Gamepad>/leftStick");
+            }
             attack = actions.AddAction("Attack", InputActionType.Button, "<Keyboard>/space");
             attack.AddBinding("<Gamepad>/buttonSouth");
             cancel = actions.AddAction("Cancel", InputActionType.Button, "<Keyboard>/escape");
@@ -190,7 +194,6 @@ namespace SlimeBattle.Player.Input
 
         private void ResetGesture(bool notify = true)
         {
-            var hadGesture = isPointerCaptured || isPanCaptured || previousMovement != Vector2.zero;
             isPointerCaptured = false;
             isPanCaptured = false;
             isPointerBlocked = false;
@@ -199,7 +202,8 @@ namespace SlimeBattle.Player.Input
             previousMovement = Vector2.zero;
             snapshot = default;
             shouldWaitForRelease = true;
-            if (notify && hadGesture) { inputEvents.Publish(new CancelInputEvent()); }
+            // A consumer may still be travelling to a target after the initiating tap ended.
+            if (notify) { inputEvents.Publish(new CancelInputEvent()); }
         }
 
         private void OnEnable()

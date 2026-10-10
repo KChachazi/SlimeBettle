@@ -93,7 +93,7 @@ PlayerCommandSubmittedEvent
 - 玩法调用方负责把语义指令交给自己的公开行动入口，并通过 `CancelInputEvent` 清除持续移动。`CancelInputEvent.IsUserRequested` 区分取消键（true）与模式、禁用、失焦造成的生命周期取消（false）；生命周期取消不能被当作暂停切换。
 - 使用 EventSystem 即时 GraphicRaycaster 查询屏蔽 UI，避免依赖上一帧 UI 命中缓存。UI 起始手势移出 UI 后也不会变成游戏点击；镜头中键手势必须从非 UI 区开始。uGUI InputField 编辑时不提交游戏指令。
 - 指针坐标使用 PassThrough 采样；主操作与中键手势保持发起设备的坐标来源，避免实体鼠标、虚拟鼠标或触点并存时按坐标数值大小选错设备。公开输入接口不变。
-- 模式切换、失焦、组件禁用清空手势；恢复后要求移动/主操作/攻击/中键全部回到中立状态，避免按住键重开或恢复时误操作。
+- 模式切换、失焦、组件禁用清空手势，并始终发布生命周期 CancelInputEvent，即使发起目标移动的触点已经松开，消费者也能清理正在执行的目标。恢复后要求已绑定的移动/主操作/攻击/中键全部回到中立状态，避免按住键重开或恢复时误操作。
 - `Subscribe<T>` 返回 Core 的 `SubscriptionToken`；token 只交回创建它的 InputSystem，不与 LevelEventBus 混用。消费方在禁用时 Unsubscribe，重开后重新绑定本关输入组件。
 
 依赖：同步最新 master 的 `com.unity.inputsystem@1.14.2`，现有 `activeInputHandler: 1` 已选择新版输入；本分支不另行降级包。`SlimeBattle.Runtime` 显式引用 `Unity.InputSystem` 与 `UnityEngine.UI`，隔离测试自有 Runtime / Editor 程序集。撤回本次实现时保留 master 的包配置，仅移除本分支新增的输入实现及不再需要的程序集引用。

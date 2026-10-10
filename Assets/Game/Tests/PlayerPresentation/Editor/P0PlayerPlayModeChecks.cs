@@ -15,6 +15,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.UI;
 using DeviceInputSystem = UnityEngine.InputSystem.InputSystem;
+using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 using PlayerInputSystem = SlimeBattle.Player.Input.InputSystem;
 
 namespace SlimeBattle.Tests.PlayerPresentation.Editor
@@ -149,6 +150,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
 
             var keyboard = DeviceInputSystem.AddDevice<Keyboard>();
             var mouse = DeviceInputSystem.AddDevice<Mouse>();
+            var touchscreen = DeviceInputSystem.AddDevice<Touchscreen>();
             var attackCount = 0;
             var primaryCount = 0;
             var token = input.Subscribe<PlayerCommandSubmittedEvent>(data =>
@@ -167,28 +169,47 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var before = probe.position;
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
                 yield return Frames(5);
-                Check(probe.position.y > before.y, "Keyboard input reaches the test movement consumer",
-                    "focused=" + Application.isFocused + ", keyboardEnabled=" + keyboard.enabled +
-                    ", W=" + keyboard.wKey.ReadValue() + ", mode=" + input.GetInputMode() +
-                    ", snapshot=" + input.ReadSnapshot().Movement + ", frame=" + Time.frameCount);
-                Check(input.ReadSnapshot().Movement == Vector2.up && input.ReadSnapshot().Movement == Vector2.up,
-                    "Repeated snapshot reads preserve the current movement input");
+                Check(Vector3.Distance(probe.position, before) < 0.001f && input.ReadSnapshot().Movement == Vector2.zero,
+                    "Default touch controls do not move the probe when WASD is pressed");
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState());
                 yield return Frames(3);
-                before = probe.position;
-                yield return Frames(3);
-                Check(Vector3.Distance(probe.position, before) < 0.001f, "Releasing movement stops the consumer");
 
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
                 yield return Frames(4);
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState());
                 yield return Frames(3);
                 Check(attackCount == 1, "A held attack key submits one attack edge");
-                yield return Click(mouse, worldPixel);
-                Check(primaryCount == 1 && Vector3.Distance(probe.position, camera.ScreenToWorld(worldPixel)) < 0.01f,
-                    "World click produces one semantic action on the gameplay plane",
-                    "commands=" + primaryCount + ", actual=" + probe.position +
-                    ", expected=" + camera.ScreenToWorld(worldPixel));
+                var destination = new Vector3(6f, -1f, 0f);
+                worldPixel = camera.WorldToScreen(destination);
+                before = probe.position;
+                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel }.WithButton(MouseButton.Left));
+                yield return Frames(3);
+                Check(input.ReadSnapshot().PointerHeld && input.ReadSnapshot().PointerHeld,
+                    "Repeated snapshot reads preserve the held pointer fact");
+                Check(primaryCount == 1 && Vector3.Distance(probe.position, destination) > 0.1f &&
+                    Vector3.Distance(probe.position, destination) < Vector3.Distance(before, destination),
+                    "A mouse click starts movement toward the projected target without teleporting");
+                yield return Frames(4);
+                Check(primaryCount == 1, "Holding the pointer submits only one target request");
+                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel });
+                yield return Frames(3);
+                before = probe.position;
+                yield return Frames(4);
+                Check(Vector3.Distance(probe.position, destination) < Vector3.Distance(before, destination),
+                    "Target movement continues after releasing the mouse");
+                yield return WaitForProbe(probe, destination);
+                before = probe.position;
+                yield return Frames(4);
+                Check(Vector3.Distance(probe.position, destination) < 0.01f && Vector3.Distance(probe.position, before) < 0.001f,
+                    "The probe arrives at the target and stops without overshooting");
+
+                yield return Click(mouse, camera.WorldToScreen(new Vector3(-6f, -1f, 0f)));
+                destination = new Vector3(2f, -2f, 0f);
+                yield return Tap(touchscreen, camera.WorldToScreen(destination));
+                Check(primaryCount == 3, "Touch and mouse share one primary action per tap while both devices exist");
+                yield return WaitForProbe(probe, destination);
+                Check(Vector3.Distance(probe.position, destination) < 0.01f,
+                    "A touchscreen tap replaces an active target and reaches the new projected position");
 
                 var headerPixel = new Vector2(Screen.width * 0.3f, Screen.height - 35f);
                 DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = headerPixel }.WithButton(MouseButton.Left));
@@ -197,7 +218,15 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 yield return Frames(3);
                 DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel });
                 yield return Frames(3);
-                Check(primaryCount == 1, "A UI-origin drag never turns into a gameplay click");
+                Check(primaryCount == 3, "A UI-origin mouse drag never turns into a gameplay click");
+                QueueTouch(touchscreen, InputTouchPhase.Began, headerPixel);
+                yield return Frames(3);
+                QueueTouch(touchscreen, InputTouchPhase.Moved, worldPixel);
+                yield return Frames(3);
+                QueueTouch(touchscreen, InputTouchPhase.Ended, worldPixel);
+                yield return Frames(3);
+                Check(primaryCount == 3 && Vector3.Distance(probe.position, destination) < 0.01f,
+                    "A UI-origin touch gesture never starts or replaces target movement");
 
                 before = probe.position;
                 var cameraBefore = camera.GetState();
@@ -210,23 +239,33 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 Check(Vector3.Distance(camera.GetState().Position, cameraBefore.Position) > 0.01f &&
                     Vector3.Distance(probe.position, before) < 0.001f, "Camera drag changes presentation without moving the probe");
 
+                // Pause while travelling after the initiating click has already ended.
+                yield return Click(mouse, camera.WorldToScreen(new Vector3(6f, 0f, 0f)));
                 var pauseButton = GameObject.Find("PauseButton").GetComponent<RectTransform>();
                 var pausePixel = RectTransformUtility.WorldToScreenPoint(null, pauseButton.position);
                 yield return Click(mouse, pausePixel);
                 Check(manager.GetLevelState() == LevelState.Paused && input.GetInputMode() == InputMode.UiOnly,
                     "The real uGUI Pause button pauses Core and suppresses gameplay input");
                 before = probe.position;
+                var beforePauseCount = primaryCount;
                 DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel });
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W, Key.Space));
+                QueueTouch(touchscreen, InputTouchPhase.Began, worldPixel);
                 yield return Frames(4);
-                Check(Vector3.Distance(probe.position, before) < 0.001f && attackCount == 1,
-                    "Paused movement and attack produce no gameplay behavior");
+                Check(Vector3.Distance(probe.position, before) < 0.001f && attackCount == 1 && primaryCount == beforePauseCount,
+                    "Pause stops the previous target and blocks new touch and attack requests");
                 ui.SubmitCommand(UiCommand.Resume);
                 yield return Frames(4);
-                Check(Vector3.Distance(probe.position, before) < 0.001f && attackCount == 1,
-                    "Resume does not inherit held movement or attack");
+                Check(Vector3.Distance(probe.position, before) < 0.001f && attackCount == 1 && primaryCount == beforePauseCount,
+                    "Resume does not inherit the old target, held touch or attack");
+                QueueTouch(touchscreen, InputTouchPhase.Ended, worldPixel);
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState());
                 yield return Frames(3);
+                destination = new Vector3(0f, -2f, 0f);
+                yield return Tap(touchscreen, camera.WorldToScreen(destination));
+                yield return WaitForProbe(probe, destination);
+                Check(primaryCount == beforePauseCount + 1 && Vector3.Distance(probe.position, destination) < 0.01f,
+                    "A fresh touch after resume starts target movement normally");
                 DeviceInputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape));
                 yield return Frames(3);
                 Check(manager.GetLevelState() == LevelState.Paused, "Escape produces a single pause transition");
@@ -245,6 +284,10 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 Check(ui.GetState().LevelState == LevelState.Succeeded && GameObject.Find("ResultPanel") != null,
                     "Late-enabled UI reconstructs the result and opens its panel");
                 Check(input.GetInputMode() == InputMode.UiOnly, "Completed levels block gameplay input");
+                var beforeResultCount = primaryCount;
+                yield return Tap(touchscreen, worldPixel);
+                Check(primaryCount == beforeResultCount && Vector3.Distance(probe.position, destination) < 0.01f,
+                    "Tapping the completed level cannot submit a movement target");
                 if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null)
                 {
                     var imagePath = Path.ChangeExtension(SessionState.GetString(OutputKey, string.Empty), ".png");
@@ -253,6 +296,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 }
 
                 input.Unsubscribe(token);
+                QueueTouch(touchscreen, InputTouchPhase.Began, worldPixel);
+                yield return Frames(3);
                 for (var iteration = 0; iteration < 5; iteration++)
                 {
                     var previous = manager.GetCurrentContext();
@@ -266,6 +311,20 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                         UnityEngine.Object.FindObjectsOfType<EventSystem>().Length == 1 &&
                         input.GetInputMode() == InputMode.Gameplay,
                         "Restart " + (iteration + 1) + " creates one clean HUD, camera and EventSystem");
+                    if (iteration == 0)
+                    {
+                        probe = GameObject.Find("InputProbe_NotAnActor").transform;
+                        Check(Vector3.Distance(probe.position, Vector3.zero) < 0.001f && !input.ReadSnapshot().PointerHeld,
+                            "Restart discards the previous target and waits for a held finger to release");
+                        QueueTouch(touchscreen, InputTouchPhase.Ended, worldPixel);
+                        yield return Frames(3);
+                        camera = UnityEngine.Object.FindObjectOfType<CameraSystem>();
+                        destination = new Vector3(2f, -1f, 0f);
+                        yield return Tap(touchscreen, camera.WorldToScreen(destination));
+                        yield return WaitForProbe(probe, destination);
+                        Check(Vector3.Distance(probe.position, destination) < 0.01f,
+                            "Touch target movement works again after a restart");
+                    }
                     if (iteration < 4)
                     {
                         var result = iteration % 2 == 0 ? LevelResult.Failed : LevelResult.Succeeded;
@@ -279,6 +338,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 if (subscribedInput != null) { subscribedInput.Unsubscribe(token); }
                 DeviceInputSystem.RemoveDevice(keyboard);
                 DeviceInputSystem.RemoveDevice(mouse);
+                DeviceInputSystem.RemoveDevice(touchscreen);
             }
         }
 
@@ -296,6 +356,30 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         private static IEnumerator Frames(int count)
         {
             for (var index = 0; index < count; index++) { yield return null; }
+        }
+
+        private static IEnumerator WaitForProbe(Transform probe, Vector3 destination)
+        {
+            var limit = Time.realtimeSinceStartup + 5f;
+            while (Vector3.Distance(probe.position, destination) > 0.01f)
+            {
+                if (Time.realtimeSinceStartup > limit) { throw new TimeoutException("The probe did not reach its click target."); }
+                yield return null;
+            }
+            yield return Frames(2);
+        }
+
+        private static void QueueTouch(Touchscreen touchscreen, InputTouchPhase phase, Vector2 position)
+        {
+            DeviceInputSystem.QueueStateEvent(touchscreen, new TouchState { touchId = 1, phase = phase, position = position });
+        }
+
+        private static IEnumerator Tap(Touchscreen touchscreen, Vector2 position)
+        {
+            QueueTouch(touchscreen, InputTouchPhase.Began, position);
+            yield return Frames(3);
+            QueueTouch(touchscreen, InputTouchPhase.Ended, position);
+            yield return Frames(3);
         }
 
         private static IEnumerator Click(Mouse mouse, Vector2 position)

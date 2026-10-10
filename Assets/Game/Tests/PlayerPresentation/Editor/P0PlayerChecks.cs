@@ -88,6 +88,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             finally
             {
                 // Edit Mode does not guarantee runtime MonoBehaviour destroy callbacks.
+                root.SetActive(false);
                 var input = root.GetComponent<PlayerInputSystem>();
                 if (input != null)
                 {

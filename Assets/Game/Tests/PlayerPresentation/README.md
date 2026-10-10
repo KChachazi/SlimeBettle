@@ -13,7 +13,7 @@
 
 ## 自动 Play Mode 验证
 
-退出 Play Mode 后选择 **SlimeBattle → Tests → Run P0 Play Mode Checks**。入口先运行编辑器检查，再从隔离 Bootstrap 启动真实 Play Mode，使用虚拟键鼠检查移动/停止、攻击边沿、世界点击、UI 起始手势屏蔽、镜头拖动、真实暂停按钮、按住键恢复、Escape 暂停/恢复、晚启用 UI 的结果读取，以及连续 5 次重开后的对象唯一性。任何 Error、Exception 或断言失败均导致失败结果。
+退出 Play Mode 后选择 **SlimeBattle → Tests → Run P0 Play Mode Checks**。入口先运行编辑器检查，再从隔离 Bootstrap 启动真实 Play Mode，使用虚拟鼠标、触屏和键盘检查默认 WASD 不移动、点击后持续走向目标、到达停止、触屏更换目标、UI 起始手势屏蔽、镜头拖动、暂停清理旧目标、恢复时按住触点保护、Escape 暂停/恢复、晚启用 UI 的结果读取，以及连续 5 次重开后的对象唯一性。任何 Error、Exception 或断言失败均导致失败结果。
 
 检查结束后恢复原 Build Settings，移除虚拟设备并退出 Play Mode，默认在系统临时目录输出 `SlimeBattleP0-validation.json`。有图形设备时保存结算截图。可通过命令行指定输出：
 
@@ -27,14 +27,15 @@
 
 | 步骤 | 操作 | 预期 |
 | --- | --- | --- |
-| 基础输入 | 按 WASD / 方向键，松开 | 青色输入探针移动并停止；这是测试适配器，不是正式 Actor |
-| 主操作 | 点击网格 | 输入探针移动到投影位置，Z=0 |
-| 攻击请求 | 按一次空格 | 探针闪橙色，HUD 的 attack request 次数增加 1；不模拟伤害 |
+| 默认移动 | 单指轻触 / 鼠标点击空白网格，然后松开 | 青色输入探针持续走向目标标记，到达后停止，Z=0；不是瞬移，也不是正式 Actor |
+| 更换目标 | 移动途中点击另一处 | 放弃原目标，改为走向新目标 |
+| 方向键 | 按 WASD / 方向键 | 默认不移动；仅首次 Enable 前在 Inspector 显式开启 Enable Directional Debug Input 时启用方向调试 |
+| 攻击调试请求 | 按一次空格 | 探针闪橙色，HUD 的攻击请求次数增加 1；触屏攻击交互仍待确定，不模拟伤害 |
 | UI 屏蔽 | 在 HUD 或 TEST 按钮上按下，再拖到网格释放 | 不产生世界点击，不移动探针；UI 起始手势不会转成玩法手势 |
 | 镜头 | 网格上按中键拖动；滚轮缩放 | 镜头移动/缩放，探针世界位置不变 |
 | 镜头边界 | 持续向边缘拖动、缩放并改变 Game 视图宽高比 | 按视口尺寸限制边界；视口比地图大时地图居中，无 NaN 或反向夹取 |
-| 暂停 | 按 Esc 或点击 Pause | 显示暂停面板；探针停止，方向/空格/点击不提交游戏请求 |
-| 恢复 | 按 Esc 或点击 Resume | 回到 Running；暂停前按住的方向需要先松开再按，不应自动恢复旧移动 |
+| 暂停 | 移动途中按 Esc 或点击 Pause | 显示暂停面板；清除旧目标，探针停止，空格/点击不提交游戏请求 |
+| 恢复 | 按 Esc 或点击 Resume | 回到 Running；需重新点击目标，按住的触点必须先松开，不应继承旧目标或触摸 |
 | 成功 | Running 时点击 TEST: SUCCESS | Core 进入 Succeeded，显示结果和 Restart；禁止游戏输入 |
 | 失败 | 重开后点击 TEST: FAILURE | Core 进入 Failed，显示结果和 Restart；禁止游戏输入 |
 | 重开 | 暂停或结果面板点击 Restart | 重新加载当前测试场景，探针/请求次数/镜头/结果恢复初始值 |
@@ -44,8 +45,8 @@
 
 ## 异常与生命周期
 
-1. **失焦**：持续移动时切换到另一窗口，再切回。探针不应继续旧方向；按键回中立后才能继续。
-2. **按住键重开**：保持移动或空格时，通过 UI 重开。新关卡不应继承旧按下状态。
+1. **失焦**：点击目标、松开后，在移动途中切换到另一窗口，再切回。探针不应继续旧目标；需要重新点击才能继续。
+2. **按住触点重开**：保持触点或调试攻击按键时，通过公开重开入口重开。新关卡不应继承旧目标或按下状态；松开后重新点击应正常移动。
 3. **晚启用 UI**：Play 中禁用 Systems 上的 UISystem，点击 TEST 结果按钮，再启用。它应查询当前 Core 阶段并显示相应结果，不需要重放事件历史。
 4. **UI 缺失**：Play 中禁用 BattleHUD；输入探针仍可处理玩法输入，底部测试按钮仍可向 Core 提交模拟结果。恢复 BattleHUD 后按钮监听应恢复。
 5. **缺失快照源**：在独立接入场景不传 IUiSnapshotSource；应显示 Waiting for objective data 与 `--` 数量，禁止把未接入当作零存活。
@@ -54,13 +55,13 @@
 
 ## 触摸与手柄
 
-- 在真实触屏或 Unity Input Debugger / Device Simulator 中单指点击空白网格，确认主触点与鼠标使用相同的 PrimaryAction 事件；从 UI 区开始的手势不能穿透。
-- 如有手柄，左摇杆产生 Move，南键产生 Attack，Start 切换暂停；UI 使用 InputSystemUIInputModule 默认导航。
+- 自动检查已使用虚拟 Touchscreen 验证主触点输入路径；仍需在真实触屏或 Device Simulator 中重复单指点击、换目标、暂停和重开，编辑器虚拟设备不代表 Android 真机通过。从 UI 区开始的手势不能穿透。
+- 如有手柄，只有显式开启方向调试后左摇杆才产生 Move；南键为调试 Attack，Start 切换暂停；UI 使用 InputSystemUIInputModule 默认导航。
 - 本次没有虚拟移动摇杆、多指缩放与正式 Android 屏幕方向；编辑器鼠标通过不能代替触屏和真机验证。
 
 ## 团队集成验收
 
-1. 把输入事件接到 Actor / MovementSystem 的公开入口，把 Attack 请求接到团队确定的公开攻击意图入口。
+1. 把 PrimaryAction 的屏幕目标通过 CameraSystem 投影后接到已确定受控 Actor / MovementSystem 的公开入口；再次点击更换目标。把 Attack 请求接到团队确定的公开攻击意图入口。
 2. 把地图公开边界转为 CameraBounds；由 IUiSnapshotSource 适配 ObjectiveSystem / Manager 的公开快照。
 3. 从团队正式 Bootstrap 进入包含真实史莱姆/敌人的测试关卡，确认攻击和状态结算后由目标系统确认结果，UI 显示原因并请求重开。
 4. 检查重开后真实 Actor ID、伤害计时器、旧事件和输入指令失效。此项属于各系统联合验收，不由本目录的探针和模拟结果宣称完成。
@@ -72,11 +73,12 @@
 - 基于 master `e778a8f`：项目编译无 C# 错误，14 项编辑器检查通过，26 项 Play Mode 检查通过；既有 `SlimeBattle.P0.Tests` 的 23 项 Edit Mode 测试全部通过。
 - Play Mode 使用真实场景生命周期、Input System 虚拟键鼠设备和 uGUI 事件模块，覆盖键盘移动/停止、攻击边沿、世界点击、UI 屏蔽、镜头中键拖动、暂停按钮、恢复时按住键保护、Escape 切换、结算面板和连续五次重开。每次重开均只有一个 HUD、CameraSystem 和 EventSystem。
 - 运行验证发现多设备并存时指针 Value Action 按坐标幅度选错设备的问题；已改为 PassThrough，并在手势期间使用发起设备的坐标，世界点击回归通过。
-- 同步到 master `75be0db`（含地图/移动），在本分支 `80f4e5a` 上完成最后一轮：编译无 C# 错误，14 项编辑器检查与 26 项 Play Mode 检查全部通过，编辑器退出码 0；连续五次重开均保持 HUD、CameraSystem 和 EventSystem 唯一。已保存本轮 JSON 报告及结算截图。
+- 同步到 master `75be0db`（含地图/移动），本分支 `80f4e5a` 的方向调试版本曾通过 14 项编辑器检查与 26 项 Play Mode 检查，编辑器退出码 0。
+- 按小宸确认的触屏点击目标方式修订后：编译无 C# 错误，14 项编辑器检查与 35 项 Play Mode 检查全部通过，编辑器退出码 0。新增默认 WASD 不移动、鼠标点击后持续移动/到达停止、虚拟触屏中途换目标、触摸 UI 屏蔽、暂停清理已松手的旧目标、按住触点恢复保护、结果屏蔽，以及重开后清除旧目标/触点并接受新点击。连续五次重开均保持 HUD、CameraSystem 和 EventSystem 唯一。已保存本轮 JSON 报告及结算截图。
 - 同一最新基线的既有 Edit Mode 测试仍为 11 通过 / 12 失败。新 Actor 的 RequireComponent 包含抽象 Collider2D，但旧夹具没有先添加具体 Collider2D，导致 Actor 添加失败、Manager 生成失败及后续空引用。相关文件为 `ActorAiEditModeTests.cs`、`ActorManagerEditModeTests.cs`、`P0SystemsEditModeTests.cs`，由对应负责人修复；本 PR 未改动这些系统。
-- Android 真机、多指及完整战斗链路未验证。PR 保持 Draft，待团队处理上述测试问题并完成联合验收。
+- Android 真机、多指及完整战斗链路未验证。团队完整战斗链路另行联合验收；个人 PR 是否可合并，由审核人按本 PR 范围及受影响测试判断。
 
-下图是最后一轮通过的隔离测试结算画面（基线 `75be0db` + 本分支 `80f4e5a`），结果由测试夹具模拟上游确认：
+下图是触屏点击修订版通过的隔离测试结算画面（master 基线 `75be0db`），结果由测试夹具模拟上游确认：
 
 ![P0 player presentation result](P0_Result.png)
 
