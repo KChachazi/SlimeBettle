@@ -75,10 +75,12 @@
 - 运行验证发现多设备并存时指针 Value Action 按坐标幅度选错设备的问题；已改为 PassThrough，并在手势期间使用发起设备的坐标，世界点击回归通过。
 - 同步到 master `75be0db`（含地图/移动），本分支 `80f4e5a` 的方向调试版本曾通过 14 项编辑器检查与 26 项 Play Mode 检查，编辑器退出码 0。
 - 按小宸确认的触屏点击目标方式修订后：编译无 C# 错误，14 项编辑器检查与 35 项 Play Mode 检查全部通过，编辑器退出码 0。新增默认 WASD 不移动、鼠标点击后持续移动/到达停止、虚拟触屏中途换目标、触摸 UI 屏蔽、暂停清理已松手的旧目标、按住触点恢复保护、结果屏蔽，以及重开后清除旧目标/触点并接受新点击。连续五次重开均保持 HUD、CameraSystem 和 EventSystem 唯一。已保存本轮 JSON 报告及结算截图。
-- 同一最新基线的既有 Edit Mode 测试仍为 11 通过 / 12 失败。新 Actor 的 RequireComponent 包含抽象 Collider2D，但旧夹具没有先添加具体 Collider2D，导致 Actor 添加失败、Manager 生成失败及后续空引用。相关文件为 `ActorAiEditModeTests.cs`、`ActorManagerEditModeTests.cs`、`P0SystemsEditModeTests.cs`，由对应负责人修复；本 PR 未改动这些系统。
+- `75be0db` 基线的既有 Edit Mode 测试为 11 通过 / 12 失败。旧 Actor 夹具没有先添加具体 Collider2D，导致 Actor 添加失败、Manager 生成失败及后续空引用；另有 LevelContext 夹具未提供必需角色 Prefab。相关文件为 `ActorAiEditModeTests.cs`、`ActorManagerEditModeTests.cs`、`P0SystemsEditModeTests.cs`，由对应负责人修复；本 PR 未改动这些系统。
+- 同步 master `e0011d1`（StatusManager P0）后：个人分支通过 rebase 保留原六个开发提交，无冲突。指定编辑器下重新通过编译、14 项编辑器检查与 35 项 Play Mode 检查，退出码 0；既有 Edit Mode 仍为 11 通过 / 12 失败，失败用例集合与同步前完全相同，没有新增失败。
+- 同步后的首次运行在触屏到达目标时超时；确认 Game 视图焦点、关闭 MCP Setup 浮窗后重跑通过。测试入口已补充超时的位置、目标标记、焦点、输入模式与 timeScale 诊断，没有放宽断言或修改输入逻辑。首次失败报告与本轮通过报告均保留在本机验证目录。
 - Android 真机、多指及完整战斗链路未验证。团队完整战斗链路另行联合验收；个人 PR 是否可合并，由审核人按本 PR 范围及受影响测试判断。
 
-下图是触屏点击修订版通过的隔离测试结算画面（master 基线 `75be0db`），结果由测试夹具模拟上游确认：
+下图是同步 master `e0011d1` 后通过的隔离测试结算画面，结果由测试夹具模拟上游确认：
 
 ![P0 player presentation result](P0_Result.png)
 

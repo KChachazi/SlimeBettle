@@ -363,7 +363,16 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var limit = Time.realtimeSinceStartup + 5f;
             while (Vector3.Distance(probe.position, destination) > 0.01f)
             {
-                if (Time.realtimeSinceStartup > limit) { throw new TimeoutException("The probe did not reach its click target."); }
+                if (Time.realtimeSinceStartup > limit)
+                {
+                    var target = probe.parent.Find("ClickTarget");
+                    var input = UnityEngine.Object.FindObjectOfType<PlayerInputSystem>();
+                    throw new TimeoutException("The probe did not reach its click target. Position=" +
+                        probe.position + "; expected=" + destination + "; marker=" +
+                        (target == null ? "missing" : target.position + ", active=" + target.gameObject.activeSelf) +
+                        "; focused=" + Application.isFocused + "; inputMode=" +
+                        (input == null ? "missing" : input.GetInputMode().ToString()) + "; timeScale=" + Time.timeScale);
+                }
                 yield return null;
             }
             yield return Frames(2);
