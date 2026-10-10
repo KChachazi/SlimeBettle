@@ -15,3 +15,4 @@ MonoBehaviour:
   configId: Level_test
   maxAliveSlimes: 30
   objectiveConfigId: mvp_objective
+  maximumActivePlacedMechanisms: 5
