@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using SlimeBattle.Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -8,11 +7,11 @@ using UnityEngine.UI;
 
 namespace SlimeBattle.Player.Input
 {
-    /// <summary>Device facts only. Consumers own actor selection and gameplay requests.</summary>
+    /// <summary>Device facts only. PrimaryAction reports a screen position without gameplay rules.</summary>
     public sealed class InputSystem : MonoBehaviour
     {
         [SerializeField] private bool enableDirectionalDebugInput;
-        private readonly LevelEventBus inputEvents = new LevelEventBus();
+        private readonly InputEventChannel inputEvents = new InputEventChannel();
         private readonly List<RaycastResult> uiHits = new List<RaycastResult>();
         private InputActionMap actions;
         private InputAction point;
@@ -70,12 +69,12 @@ namespace SlimeBattle.Player.Input
             return snapshot.Frame == Time.frameCount ? snapshot : default;
         }
 
-        public SubscriptionToken Subscribe<TInputEvent>(Action<TInputEvent> handler)
+        public InputSubscriptionToken Subscribe<TInputEvent>(Action<TInputEvent> handler)
         {
             return inputEvents.Subscribe(handler);
         }
 
-        public void Unsubscribe(SubscriptionToken token) { inputEvents.Unsubscribe(token); }
+        public void Unsubscribe(InputSubscriptionToken token) { inputEvents.Unsubscribe(token); }
 
         private void EnsureActions()
         {
@@ -202,7 +201,7 @@ namespace SlimeBattle.Player.Input
             previousMovement = Vector2.zero;
             snapshot = default;
             shouldWaitForRelease = true;
-            // A consumer may still be travelling to a target after the initiating tap ended.
+            // Clear pending interactions even when the initiating pointer has already released.
             if (notify) { inputEvents.Publish(new CancelInputEvent()); }
         }
 

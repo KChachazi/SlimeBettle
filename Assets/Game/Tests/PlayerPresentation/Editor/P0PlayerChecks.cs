@@ -12,6 +12,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
     /// <summary>Explicit editor checks; no changes to production scenes or test assemblies.</summary>
     public static class P0PlayerChecks
     {
+        private static int assertionCount;
         [MenuItem("SlimeBattle/Tests/Run P0 Player Checks")]
         public static void Run()
         {
@@ -20,6 +21,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 throw new InvalidOperationException("Run these checks outside Play Mode.");
             }
             var root = new GameObject("P0_PLAYER_CHECKS_TEMP");
+            assertionCount = 0;
             try
             {
                 var cameraObject = new GameObject("Camera", typeof(UnityEngine.Camera), typeof(CameraSystem));
@@ -70,6 +72,46 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 Check(input.GetInputMode() == InputMode.UiOnly,
                     "Re-enabling input preserves its configured mode");
 
+                var otherObject = new GameObject("OtherInput", typeof(PlayerInputSystem));
+                otherObject.transform.SetParent(root.transform);
+                var otherInput = otherObject.GetComponent<PlayerInputSystem>();
+                var firstCount = 0;
+                var otherCount = 0;
+                var firstToken = input.Subscribe<CancelInputEvent>(_ => firstCount++);
+                var otherToken = otherInput.Subscribe<CancelInputEvent>(_ => otherCount++);
+                Check(firstToken.IsValid && otherToken.IsValid && firstToken != otherToken &&
+                    !default(InputSubscriptionToken).IsValid, "Input tokens identify their owning channel");
+                input.Unsubscribe(otherToken);
+                otherInput.Unsubscribe(firstToken);
+                input.Disable();
+                otherInput.Disable();
+                Check(firstCount == 1 && otherCount == 1, "Foreign input tokens cannot remove another channel's subscription");
+                input.Unsubscribe(firstToken);
+                input.Unsubscribe(firstToken);
+                input.Disable();
+                Check(firstCount == 1, "Input unsubscription is idempotent");
+                var rejectedHandler = false;
+                try { input.Subscribe<CancelInputEvent>(null); }
+                catch (ArgumentNullException) { rejectedHandler = true; }
+                Check(rejectedHandler, "Null input handlers are rejected");
+                var removedCalls = 0;
+                var laterCalls = 0;
+                InputSubscriptionToken removedToken = default;
+                InputSubscriptionToken laterToken = default;
+                var dispatchToken = input.Subscribe<CancelInputEvent>(_ =>
+                {
+                    input.Unsubscribe(removedToken);
+                    if (!laterToken.IsValid) { laterToken = input.Subscribe<CancelInputEvent>(__ => laterCalls++); }
+                });
+                removedToken = input.Subscribe<CancelInputEvent>(_ => removedCalls++);
+                input.Disable();
+                Check(removedCalls == 0 && laterCalls == 0, "Dispatch skips removed handlers and defers new subscriptions");
+                input.Disable();
+                Check(laterCalls == 1, "New subscriptions receive the following input event");
+                input.Unsubscribe(dispatchToken);
+                input.Unsubscribe(laterToken);
+                otherInput.Unsubscribe(otherToken);
+
                 var ui = root.AddComponent<UISystem>();
                 var manager = root.AddComponent<LevelManager>();
                 manager.Initialize();
@@ -83,14 +125,13 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                     manager.GetLevelState() == LevelState.Unloaded, "UI display never changes authoritative level state");
                 ui.Initialize(manager, input);
                 Check(ui.GetState().LevelState == LevelState.Unloaded, "Rebinding UI queries fresh state");
-                Debug.Log("P0 Player Checks: PASS (14 assertions). Play Mode, touch and restart still require the test scene.");
+                Debug.Log("P0 Player Checks: PASS (" + assertionCount + " assertions). Device sampling is checked in Play Mode.");
             }
             finally
             {
                 // Edit Mode does not guarantee runtime MonoBehaviour destroy callbacks.
                 root.SetActive(false);
-                var input = root.GetComponent<PlayerInputSystem>();
-                if (input != null)
+                foreach (var input in root.GetComponentsInChildren<PlayerInputSystem>(true))
                 {
                     input.Disable();
                     typeof(PlayerInputSystem).GetMethod("OnDestroy",
@@ -104,6 +145,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         private static void Check(bool condition, string message)
         {
             if (!condition) { throw new InvalidOperationException("P0 check failed: " + message); }
+            assertionCount++;
         }
     }
 }

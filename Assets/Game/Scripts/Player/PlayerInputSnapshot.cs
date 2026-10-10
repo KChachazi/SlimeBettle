@@ -11,8 +11,11 @@ namespace SlimeBattle.Player.Input
 
     public enum PlayerCommandKind
     {
+        /// <summary>Reserved directional debug input; unused by current gameplay.</summary>
         Move,
+        /// <summary>A primary action occurred at ScreenPosition; consumers decide its meaning.</summary>
         PrimaryAction,
+        /// <summary>Reserved/debug request only; never applies combat effects.</summary>
         Attack
     }
 

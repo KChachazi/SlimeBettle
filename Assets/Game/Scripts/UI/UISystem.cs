@@ -15,7 +15,7 @@ namespace SlimeBattle.UI
         private PlayerInputSystem inputSystem;
         private IUiSnapshotSource snapshotSource;
         private UiState state;
-        private SubscriptionToken cancelToken;
+        private InputSubscriptionToken cancelToken;
         private float nextRefreshTime;
         private bool isBound;
         private bool isRestartPending;

@@ -21,11 +21,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
         private SpriteRenderer probe;
         private SpriteRenderer targetMarker;
         private Sprite sprite;
-        private Vector2 movement;
-        private Vector3 destination;
-        private bool hasDestination;
-        private SubscriptionToken commandToken;
-        private SubscriptionToken cancelToken;
+        private InputSubscriptionToken commandToken;
+        private InputSubscriptionToken cancelToken;
         private float flashUntil;
         private int attackRequests;
 
@@ -64,8 +61,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
         public UiState ReadSnapshot(LevelContext context)
         {
             return new UiState(context.GetLevelId(), context.GetLevelState(),
-                "TEST: tap to move, camera, pause, result and restart", hint:
-                "Tap / click: move to target | Tap again: change target | Space (debug): attack (" + attackRequests +
+                "TEST: click coordinates, camera, pause, result and restart", hint:
+                "Tap / click: TEST marker only | Probe stays still | Space (debug): request (" + attackRequests +
                 ") | Middle drag / wheel: camera | Esc: pause", resultText:
                 "Simulated upstream result. Restart reloads this test scene.");
         }
@@ -74,15 +71,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
         {
             switch (eventData.Command.Kind)
             {
-                case PlayerCommandKind.Move:
-                    movement = eventData.Command.Movement;
-                    if (movement != Vector2.zero) { ClearTarget(); }
-                    break;
                 case PlayerCommandKind.PrimaryAction:
-                    movement = Vector2.zero;
-                    destination = cameraSystem.ScreenToWorld(eventData.Command.ScreenPosition);
-                    hasDestination = true;
-                    targetMarker.transform.position = destination + Vector3.forward * 0.1f;
+                    targetMarker.transform.position = cameraSystem.ScreenToWorld(eventData.Command.ScreenPosition);
                     targetMarker.gameObject.SetActive(true);
                     break;
                 case PlayerCommandKind.Attack:
@@ -94,13 +84,11 @@ namespace SlimeBattle.Tests.PlayerPresentation
 
         private void OnCancel(CancelInputEvent eventData)
         {
-            movement = Vector2.zero;
-            ClearTarget();
+            ClearMarker();
         }
 
-        private void ClearTarget()
+        private void ClearMarker()
         {
-            hasDestination = false;
             if (targetMarker != null) { targetMarker.gameObject.SetActive(false); }
         }
 
@@ -116,8 +104,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
 
         private void OnDisable()
         {
-            movement = Vector2.zero;
-            ClearTarget();
+            ClearMarker();
             if (inputSystem == null) { return; }
             inputSystem.Unsubscribe(commandToken);
             inputSystem.Unsubscribe(cancelToken);
@@ -126,17 +113,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         private void Update()
         {
             if (probe == null || levelManager == null) { return; }
-            if (levelManager.GetLevelState() == LevelState.Running)
-            {
-                if (hasDestination)
-                {
-                    probe.transform.position = Vector3.MoveTowards(probe.transform.position,
-                        destination, 4f * Time.deltaTime);
-                    if (Vector3.Distance(probe.transform.position, destination) < 0.001f) { ClearTarget(); }
-                }
-                else { probe.transform.position += (Vector3)(movement * (4f * Time.deltaTime)); }
-            }
-            else { movement = Vector2.zero; ClearTarget(); }
+            if (levelManager.GetLevelState() != LevelState.Running) { ClearMarker(); }
             probe.color = Time.unscaledTime < flashUntil ? new Color(1f, 0.55f, 0.32f) : new Color(0.4f, 0.94f, 0.77f);
         }
 
@@ -154,8 +131,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 Tile("GridY", world.transform, new Vector3(0f, y, 1f), new Vector2(36f, 0.025f), new Color(0.12f, 0.18f, 0.23f));
             }
             probe = Tile("InputProbe_NotAnActor", world.transform, Vector3.zero, Vector2.one, new Color(0.4f, 0.94f, 0.77f));
-            targetMarker = Tile("ClickTarget", world.transform, Vector3.zero, Vector2.one * 0.3f,
+            targetMarker = Tile("TEST_ONLY_ClickMarker", world.transform, Vector3.zero, Vector2.one * 0.3f,
                 new Color(1f, 0.8f, 0.3f));
+            targetMarker.sortingOrder = 1;
             targetMarker.gameObject.SetActive(false);
         }
 
