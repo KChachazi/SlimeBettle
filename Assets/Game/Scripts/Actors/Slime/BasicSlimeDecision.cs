@@ -1,6 +1,7 @@
 /* 史莱姆本能决策：状态优先级与目标选择留在正式代码，场景只提供感知事实。 */
 using SlimeBattle.Actors.AI.DecisionTree;
 using SlimeBattle.Data;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Actors.Slimes
@@ -25,7 +26,9 @@ namespace SlimeBattle.Actors.Slimes
                 runtime.TargetId = default(ActorId);
                 return context.Perception.HasEscapeDestination
                     ? ActionIntent.Move(context.Perception.EscapeDestination, "害怕：离开危险，不响应引导源")
-                    : ActionIntent.Wait("害怕：等待可用逃跑路线");
+                    : TryFindGuide(context, GuidanceKind.Wander, out var fearWander)
+                        ? ActionIntent.Move(fearWander, "Afraid: ignore guides and wander")
+                        : ActionIntent.Wait("害怕：等待可用逃跑路线");
             }
 
             // 同时饥饿和寒冷时先满足饥饿；策划尚未规定二者的相互优先级。
@@ -43,6 +46,10 @@ namespace SlimeBattle.Actors.Slimes
             }
 
             var agitated = SlimeStatusIds.Contains(statuses, SlimeStatusIds.Agitated);
+            var mayAttackHumans = agitated && context.StatusQuery != null &&
+                context.StatusQuery.TryGetStatus(context.Actor.ActorId,
+                    new StatusId(SlimeStatusIds.Agitated), out var rage) &&
+                rage.ElapsedDurationSeconds >= rage.HumanAttackDelaySeconds;
             var targets = context.Perception.Targets;
             var nearestDistance = float.PositiveInfinity;
             ActorSnapshot nearest = default(ActorSnapshot);
@@ -52,7 +59,8 @@ namespace SlimeBattle.Actors.Slimes
                 foreach (var observation in targets)
                 {
                     if (!observation.IsVisible || !observation.Actor.IsAlive ||
-                        !(observation.IsHostile || (agitated && observation.IsHuman))) continue;
+                        (observation.IsHuman && !mayAttackHumans) ||
+                        !(observation.IsHostile || (mayAttackHumans && observation.IsHuman))) continue;
                     var distance = Vector2.Distance(context.Actor.Position, observation.Actor.Position);
                     if (distance < nearestDistance)
                     {
@@ -69,7 +77,8 @@ namespace SlimeBattle.Actors.Slimes
                 var healthRatio = context.Actor.CurrentHealth / context.Actor.MaxHealth;
                 if (healthRatio < .5f && context.Perception.FleeCheckSucceeded &&
                     context.Perception.HasEscapeDestination)
-                    return ActionIntent.Move(context.Perception.EscapeDestination,
+                    return ActionIntent.MoveAndApplyStatus(context.Perception.EscapeDestination,
+                        new StatusId(SlimeStatusIds.Afraid), 10f,
                         healthRatio < .3f ? "生命低于30%：逃离战斗" : "生命低于50%：逃离战斗");
                 return nearestDistance <= attackRange
                     ? ActionIntent.AttackTarget(new AttackIntent(context.Actor.ActorId, nearest.ActorId, abilityId),

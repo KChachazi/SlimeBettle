@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be19f2e497b01b14885fb751ca86c786, type: 3}
+  m_Name: CFG_Status_Cold
+  m_EditorClassIdentifier:
+  configId: status_cold
+  statusId: Cold
+  durationSeconds: 0
+  areaExitGraceSeconds: 20
+  movementSpeedMultiplier: 0.8
+  attackSpeedMultiplier: 0.8
+  damageDealtMultiplier: 1
+  damageTakenMultiplier: 1
+  maximumHealthMultiplier: 1
+  isRooted: 0
+  controlMode: 0
+  statusKind: 4
+  stackingPolicy: 1
+  maximumStacks: 1
+  counteractsStatusId: Hot
+  immuneActorTypes:
+  - 2
+  - 3
+  periodicEffectType: 0
+  periodicAmount: 0
+  periodicIntervalSeconds: 0
+  periodicAmountMode: 0
+  onHitStatusId: Frozen
+  onHitStatusDurationSeconds: 1
+  hungerTriggerSeconds: 0
+  rageRollIntervalSeconds: 0
+  hungerRageChance: 0
+  humanBloodRageChance: 0
+  humanBloodSmellRadiusPixels: 0
+  companionDeathRageChance: 0
+  companionDeathFearChance: 0
+  rageHumanAttackDelaySeconds: 0
+  fleeHealthThreshold: 0.5
+  fleeChance: 0.2
+  criticalFleeHealthThreshold: 0.3
+  criticalFleeChance: 0.5
+  deathBurstDamageFraction: 0
+  deathBurstRadiusPixels: 0
+  furnaceExposureSeconds: 0

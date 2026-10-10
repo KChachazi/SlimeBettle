@@ -1,18 +1,22 @@
 /* 决策树只读取 Actor 和感知快照并返回一个行动意图。 */
 using System;
+using SlimeBattle.Status;
 
 namespace SlimeBattle.Actors.AI.DecisionTree
 {
     public readonly struct DecisionContext
     {
-        public DecisionContext(ActorSnapshot actor, PerceptionSnapshot perception)
+        public DecisionContext(ActorSnapshot actor, PerceptionSnapshot perception,
+            IActorStatusQuery statusQuery = null)
         {
             Actor = actor;
             Perception = perception;
+            StatusQuery = statusQuery;
         }
 
         public ActorSnapshot Actor { get; }
         public PerceptionSnapshot Perception { get; }
+        public IActorStatusQuery StatusQuery { get; }
     }
 
     public abstract class DecisionNode
