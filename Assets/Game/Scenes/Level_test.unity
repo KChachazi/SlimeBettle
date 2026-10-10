@@ -1232,7 +1232,7 @@ GameObject:
   m_Component:
   - component: {fileID: 826322573}
   m_Layer: 0
-  m_Name: EnvironmentRoot
+  m_Name: MapRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
