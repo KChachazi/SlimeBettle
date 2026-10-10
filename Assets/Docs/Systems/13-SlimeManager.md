@@ -20,7 +20,7 @@ P0 使用注入的正式 `SlimeActor` 预制体执行 `Instantiate`，随后初�
 - 根据生成请求创建、初始化和注册 SlimeActor；
 - 维护当前关卡史莱姆 ActorId 索引和数量限制；
 - 创建、驱动和销毁 SlimeGroupActor；
-- 为 LevelContext、ObjectiveSystem、UI 和测试提供只读快照；
+- 为 LevelContext、Core 结果规则组件、UI 和测试提供只读快照；
 - 驱动史莱姆的感知、决策树和状态机 Tick；
 - 处理史莱姆死亡、销毁、控制变化和群体关系变化的生命周期结果。
 
@@ -39,7 +39,7 @@ P0 使用注入的正式 `SlimeActor` 预制体执行 `Instantiate`，随后初�
     SlimeSpawnPolicy spawnPolicy
     SlimeManagerSnapshot snapshot
 
-同屏上限只从 `LevelConfig.MaxAliveSlimes` 注入，默认 30、可配置至 50；`SlimeConfig` 只保存单体静态数值。P0 不做 Actor 或 GameObject 对象池。
+同屏上限只从 `LevelConfig.MaxAliveSlimes` 注入，首关确认上限为 20；`SlimeConfig` 只保存单体静态数值。P0 不做 Actor 或 GameObject 对象池。
 
 ## 5. 公共接口
 
@@ -66,6 +66,7 @@ StatusManager 通过 LevelContext 的内部 Actor 解析契约找到目标 Actor
     SlimeControlChangedEvent
     SlimeGroupCreatedEvent
     SlimeGroupDissolvedEvent
+    SlimeDepletedEvent
 
 事件表示生命周期结果已经发生，不能被调用方当作可写数据源。
 
@@ -76,20 +77,20 @@ StatusManager 通过 LevelContext 的内部 Actor 解析契约找到目标 Actor
 - StatusManager 提供效果与状态结果；
 - MovementSystem 与 MapManager 提供移动和空间事实；
 - SlimeActor / SlimeGroupActor 提供个体与群体行为；
-- ObjectiveSystem 读取史莱姆存活结果。
+- Core 结果规则组件监听 `SlimeDepletedEvent`，不直接读取或修改 SlimeManager 的私有集合。
 
 ## 8. 关键不变量
 
 1. 每个存活史莱姆只注册在一个 SlimeManager 中。
 2. SlimeManager 是史莱姆生成和销毁的唯一关卡级入口。
-3. 史莱姆死亡后必须从可行动集合移除，但死亡事件先于最终清理结果发布。
+3. 史莱姆死亡后必须从可行动集合移除；最后一只史莱姆确认死亡后发布一次 `SlimeDepletedEvent`，且该事件先于最终清理结果失效。
 4. 管理器销毁时必须停止所有 Actor AI、群体计时器和事件订阅。
 5. 管理器不保存生命和状态的第二份可写副本。
 
 ## 9. 验收场景
 
-- 达到关卡配置的史莱姆上限时，生成请求返回可诊断的拒绝结果；
+- 达到首关确认的 20 只或关卡配置上限时，生成请求返回可诊断的拒绝结果；
 - 生成两只史莱姆后能分别查询快照和行为结果；
-- 史莱姆死亡后不再被 Tick，且 ObjectiveSystem 能收到存活数量变化；
+- 史莱姆死亡后不再被 Tick，且 Core 结果规则组件能收到一次 `SlimeDepletedEvent`；
 - 重开关卡后旧 SlimeManager、Actor、群体和事件订阅全部失效。
 

@@ -37,16 +37,16 @@ GuardConfig
 MechanismConfig
 PassageConfig
 StatusEffectConfig
-PlacementItemConfig
-ObjectiveConfig
-WeaponConfig
+PlacementMechanismConfig
+LevelResultConfig
+EscortWeaponConfig
 ```
 
 每个配置资产必须拥有稳定的 `ConfigId`。显示名称不能作为跨系统唯一键。
 
 `ActorConfig.DetectionRange` 是目标感知半径（世界单位），必须大于 `AttackRange`。当前测试资产暂填攻击半径 1.2、感知半径 1.5；这是通路测试值，不是策划最终数值，也不含墙体遮挡判定。
 
-当前 `ObjectiveConfig` 包含 `FailWhenNoSlimes` 关卡规则开关：默认开启，保持“史莱姆全灭失败”；`Level_test` 的配置关闭它，仅保留护送对象生命归零失败。它是静态设计值，不保存本局史莱姆数量或武器生命。
+当前结果规则配置包含 `FailWhenNoSlimes` 关卡规则开关：默认开启，保持“史莱姆全灭失败”；`Level_test` 的配置关闭它，仅保留护送对象生命归零失败。它只保存静态胜负规则，不保存本局史莱姆数量、武器生命或其他运行时数据。旧 `ObjectiveConfig` 仅作为迁移期间的历史类型。
 
 ## 3.1 当前策划提出的初始数值
 
@@ -58,9 +58,9 @@ WeaponConfig
 | `GuardConfig` | 100 | 1000 | 300 | 1.2 秒 | 初始数量待确认 |
 | 普通 `EnemyConfig` | 70 | 800 | 300 | 1 秒 | 后续场景强度约提升 15%—20%，待确认 |
 
-史莱姆的饥饿、暴躁、害怕、寒冷、炙热、冻结、燃烧和暴击规则由 `StatusEffectConfig` 或相关规则配置承载。图示和正文存在饥饿计时规则差异，统一前不得假设只有一套最终数据。
+史莱姆的饥饿、暴躁、害怕、寒冷、炙热、冻结、燃烧和暴击规则由 `StatusEffectConfig` 或相关规则配置承载。首关暂不启用寒冷和炙热；守卫不受食物、温暖或史莱姆状态影响。图示和正文存在饥饿计时规则差异，统一前不得假设只有一套最终数据。
 
-2026-10-09 确认：`LevelConfig.MaxAliveSlimes` 默认 30，合法范围 1—50，表示同屏同时存活数量；不限制本局累计生成量。此数值不由 `SlimeConfig` 再维护第二份。P0 不做对象池，后续只在真机性能数据表明有必要时考虑。
+2026-10-10 确认：`LevelConfig.MaxAliveSlimes` 默认 20，合法范围 1–20，表示同屏同时存活数量；不限制本局累计生成量。此数值不由 `SlimeConfig` 再维护第二份。P0 不做对象池，后续只在真机性能数据表明有必要时考虑。
 
 ## 4. 必须接口
 
@@ -69,8 +69,8 @@ bool TryGet<TConfig>(ConfigId configId, out TConfig config);
 bool TryGetLevel(LevelId levelId, out LevelConfig config);
 bool TryGetActor(ConfigId configId, out ActorConfig config);
 bool TryGetMechanism(ConfigId configId, out MechanismConfig config);
-bool TryGetObjective(ObjectiveId objectiveId, out ObjectiveConfig config);
-bool TryGetWeapon(ConfigId configId, out WeaponConfig config);
+bool TryGetLevelResult(LevelId levelId, out LevelResultConfig config);
+bool TryGetEscortWeapon(ConfigId configId, out EscortWeaponConfig config);
 ConfigValidationReport ValidateAll();
 ```
 

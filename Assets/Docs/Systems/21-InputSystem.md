@@ -5,7 +5,7 @@
 默认命名空间：`SlimeBattle.Player.Input`  
 建议实现目录：`Assets/Game/Scripts/Player/`  
 生命周期：应用级输入设备存在，关卡级语义输入由当前上下文接收  
-状态：核心架构，Action Map 待确认
+状态：核心架构，Action Map 待确认；首关放置模式由上层适配接入
 
 P0 实现更新：2026-10-10；负责人：小宸。本文的系统编号已由旧分工中的 17 调整为 21，按系统名称对应职责。
 
@@ -22,7 +22,7 @@ P0 实现更新：2026-10-10；负责人：小宸。本文的系统编号已由�
 - 不直接移动角色；
 - 不直接创建或销毁机关；
 - 不直接修改 UI 数值和游戏状态；
-- 不在输入层决定放置是否合法；
+- 不在输入层决定放置是否合法；放置合法性由 `PlacementSystem` 根据 Grid、边界和占用事实判断；
 - 不在输入层实现守卫或史莱姆的行为规则。
 
 ## 3. 核心数据
@@ -59,7 +59,7 @@ CancelInputEvent
 PlayerCommandSubmittedEvent
 ```
 
-事件只表达输入事实。PrimaryAction 表示玩家在屏幕某位置进行了主要操作；未来放置/交互适配层决定如何消费，输入层不规定操作含义。
+事件只表达输入事实。PrimaryAction 表示玩家在屏幕某位置进行了主要操作；进入放置模式后由放置适配层把它转交给 `PlacementSystem`，输入层仍不规定放置类型、格子是否合法或机关效果。未进入放置模式时不能把 PrimaryAction 解释为直接控制 Actor。
 
 ## 6. 依赖
 
@@ -86,8 +86,8 @@ PlayerCommandSubmittedEvent
 实现：`Assets/Game/Scripts/Player/InputSystem.cs`，数据：`PlayerInputSnapshot.cs`。沿用第 4 节所有接口；`SetInputMode` 返回 `void`，非法枚举抛 `ArgumentOutOfRangeException`。新增数据类型属于首次落实既有概念接口，调用方接入前请审核此契约。
 
 - `InputMode`：`Disabled`、`Gameplay`、`UiOnly`。组件默认不接收输入，由 `PlayerPresentationRoot` 根据 LevelManager 状态启用；仅 Running 接受游戏指令，暂停和结算保留取消键与独立 uGUI 输入。
-- 2026-10-10 按反馈撤回“点击后自动移动”的契约。`PrimaryAction.ScreenPosition` 只表示主要操作发生的屏幕像素位置；一次按下仅发布一次，不选择 Actor，不表示移动、攻击或放置。未来适配层可经 CameraSystem 投影后消费；本 PR 不创建该适配层或放置规则。
-- `P0Player` Action Map 首次 Enable 时创建，销毁时释放。Point / Primary 使用 `<Pointer>/position` / `<Pointer>/press`，统一鼠标与主触点。Cancel 使用 Escape / 手柄 Start；CameraDrag 使用鼠标中键；Zoom 使用滚轮。多指与触屏镜头手势待后续确认。
+- 2026-10-10 按反馈撤回“点击后自动移动”的契约。`PrimaryAction.ScreenPosition` 只表示主要操作发生的屏幕像素位置；一次按下仅发布一次，不选择 Actor，不直接表示移动、攻击或放置。首关放置适配层可在放置模式下经 CameraSystem 投影后调用 PlacementSystem；输入系统本身不创建机关或更新网格占用。
+- `P0Player` Action Map 首次 Enable 时创建，销毁时释放。Point / Primary 使用 `<Pointer>/position` / `<Pointer>/press`，统一鼠标与主触点。Cancel 使用 Escape / 手柄 Start；CameraDrag 使用鼠标中键；Zoom 使用滚轮。放置模式使用同一套指针事实，不额外复制一套设备输入。多指与触屏镜头手势待后续确认。
 - Move / Attack 保留为预留或调试接口，当前正式玩法不使用。WASD、方向键和手柄摇杆默认不绑定，仅首次 Enable 前显式开启 Enable Directional Debug Input 时绑定；空格/手柄南键仅发布调试 Attack，不造成效果。
 - PlayerInputSnapshot 包含帧号、模式、屏幕像素位置/位移、Movement、指针边沿/保持、AttackPressed、CancelPressed、CameraDrag 和 Zoom。每个 Update 采样一次；同帧重复读取不消费边沿，过期帧为空。消费者在 LateUpdate 读取，避免依赖 Update 顺序。
 - PlayerCommandSubmittedEvent.Command 包含 Kind、Movement、ScreenPosition。PrimaryAction 与调试 Attack 在按下边沿发布；启用方向调试时非零 Move 每帧发布、归零再发布一次。
