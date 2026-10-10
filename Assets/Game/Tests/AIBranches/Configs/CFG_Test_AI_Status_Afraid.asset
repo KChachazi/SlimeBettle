@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be19f2e497b01b14885fb751ca86c786, type: 3}
+  m_Name: CFG_Test_AI_Status_Afraid
+  m_EditorClassIdentifier:
+  configId: test_ai_status_afraid
+  statusId: Afraid
+  durationSeconds: 0
+  areaExitGraceSeconds: 0
+  movementSpeedMultiplier: 1
+  attackSpeedMultiplier: 1
+  damageDealtMultiplier: 1
+  damageTakenMultiplier: 1
+  isRooted: 0
+  controlMode: 0
+  stackingPolicy: 1
+  maximumStacks: 1
+  counteractsStatusId:
+  immuneActorTypes: []
+  periodicEffectType: 0
+  periodicAmount: 0
+  periodicIntervalSeconds: 0

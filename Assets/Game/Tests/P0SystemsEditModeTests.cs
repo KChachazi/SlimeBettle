@@ -2,12 +2,18 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using SlimeBattle.Actors;
+using SlimeBattle.Actors.AI.DecisionTree;
+using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.Enemies;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
+using SlimeBattle.Enemies;
 using SlimeBattle.Objectives;
 using SlimeBattle.Slimes;
+using SlimeBattle.Status;
+using SlimeBattle.World.Movement;
+using UnityEditor;
 using UnityEngine;
 
 namespace SlimeBattle.Tests
@@ -62,6 +68,62 @@ namespace SlimeBattle.Tests
             var config = New<SlimeConfig>("slime");
             config.SetAttackRange(float.NaN);
             Assert.IsFalse(new ConfigRegistry(new ConfigAsset[] { config }).ValidateAll().IsValid);
+        }
+
+        [Test]
+        public void StatusPreconditionsAndAttackUseFormalActorEffectPath()
+        {
+            var level = New<LevelConfig>("level");
+            var slime = New<SlimeConfig>("slime");
+            var enemy = New<EnemyConfig>("enemy");
+            var objective = New<ObjectiveConfig>("objective");
+            var weapon = New<WeaponConfig>("weapon");
+            var hungry = New<StatusConfig>("hungry");
+            var authoredStatus = new SerializedObject(hungry);
+            authoredStatus.FindProperty("statusId").stringValue = SlimeStatusIds.Hungry;
+            authoredStatus.ApplyModifiedPropertiesWithoutUndo();
+            level.SetObjectiveConfigId(objective.ConfigId);
+            objective.ConfigureWeapon(weapon.ConfigId);
+            slime.ConfigureStats(5, 20, 100f, 1f);
+            slime.SetAttackRange(1.2f);
+            enemy.ConfigureStats(1, 20, 100f, 1f);
+            var registry = new ConfigRegistry(new ConfigAsset[]
+                { level, slime, enemy, objective, weapon, hungry });
+            Assert.IsTrue(registry.ValidateAll().IsValid);
+
+            var context = new LevelContext(new LevelId("level"), registry, level,
+                NewSlimePrefab(), NewEnemyPrefab());
+            try
+            {
+                context.Initialize();
+                var slimeId = context.SlimeManager.SpawnSlime(
+                    new SlimeSpawnRequest(slime.ConfigId, Vector2.zero));
+                var enemyId = context.EnemyManager.SpawnEnemy(
+                    new EnemySpawnRequest(enemy.ConfigId, Vector2.right));
+                Assert.IsTrue(slimeId.IsValid && enemyId.IsValid);
+                Assert.IsTrue(context.StatusManager.ApplyStatus(new StatusApplicationRequest(
+                    default(ActorId), slimeId, new StatusId(SlimeStatusIds.Hungry))));
+                Assert.IsTrue(context.StatusManager.TryGetStatusSnapshot(slimeId, out var status));
+                Assert.AreEqual(new StatusId(SlimeStatusIds.Hungry), status.Statuses[0].StatusId);
+
+                var healthChanges = 0;
+                context.EventBus.Subscribe<HealthChangedEvent>(_ => healthChanges++);
+                var targets = new ActorTargetPerceptionSource(
+                    context.SlimeManager, context.EnemyManager, registry);
+                Assert.IsTrue(targets.TryGetActorSnapshot(slimeId, out var attacker));
+                var actions = new MovementActorActionPort(context.MovementSystem, null,
+                    context.StatusManager);
+                Assert.IsTrue(new AttackAction().ExecuteHit(
+                    new AttackIntent(slimeId, enemyId, slime.ConfigId), attacker,
+                    slime.AttackRange, slime.AttackPower, targets, actions));
+                Assert.IsTrue(context.StatusManager.TryGetHealthSnapshot(enemyId, out var health));
+                Assert.AreEqual(15f, health.CurrentHealth);
+                Assert.AreEqual(1, healthChanges);
+            }
+            finally
+            {
+                context.Dispose();
+            }
         }
 
         [Test]
@@ -184,14 +246,31 @@ namespace SlimeBattle.Tests
         {
             var actorObject = new GameObject("Test Slime Prefab");
             assets.Add(actorObject);
-            return actorObject.AddComponent<SlimeActor>();
+            actorObject.AddComponent<CircleCollider2D>();
+            var actor = actorObject.AddComponent<SlimeActor>();
+            actorObject.GetComponent<SpriteRenderer>().sprite = NewTestSprite();
+            return actor;
         }
 
         private EnemyActor NewEnemyPrefab()
         {
             var actorObject = new GameObject("Test Enemy Prefab");
             assets.Add(actorObject);
-            return actorObject.AddComponent<EnemyActor>();
+            actorObject.AddComponent<CircleCollider2D>();
+            var actor = actorObject.AddComponent<EnemyActor>();
+            actorObject.GetComponent<SpriteRenderer>().sprite = NewTestSprite();
+            return actor;
+        }
+
+        private Sprite NewTestSprite()
+        {
+            var texture = new Texture2D(2, 2);
+            texture.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white });
+            texture.Apply();
+            assets.Add(texture);
+            var sprite = Sprite.Create(texture, new Rect(0, 0, 2, 2), Vector2.one * .5f);
+            assets.Add(sprite);
+            return sprite;
         }
     }
 }

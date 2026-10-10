@@ -189,6 +189,8 @@ namespace SlimeBattle.World.Movement
                 NotifyPositionUpdated(binding, position);
                 if (binding.Active == null)
                 {
+                    // 碰撞可能为没有移动请求的动态刚体带来速度；空闲 Actor 不应因此持续漂移。
+                    body.velocity = Vector2.zero;
                     var previous = binding.State;
                     binding.State = new MovementState(binding.ActorId, previous.Result,
                         previous.RequestId, position, previous.Destination, body.velocity,

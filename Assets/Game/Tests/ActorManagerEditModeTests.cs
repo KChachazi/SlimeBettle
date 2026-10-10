@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using SlimeBattle.Actors;
+using SlimeBattle.Actors.AI.DecisionTree;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.Enemies;
 using SlimeBattle.Core;
@@ -21,6 +22,53 @@ namespace SlimeBattle.Tests
         {
             foreach (var asset in assets) if (asset != null) Object.DestroyImmediate(asset);
             assets.Clear();
+        }
+
+        [Test]
+        public void DetectionRangeMustExceedAttackRange()
+        {
+            var config = New<SlimeConfig>("slime");
+            config.SetAttackRange(1f);
+            config.SetDetectionRange(1f);
+            var report = new ConfigRegistry(new ConfigAsset[] { config }).ValidateAll();
+            Assert.IsFalse(report.IsValid);
+            config.SetDetectionRange(1.5f);
+            Assert.IsTrue(new ConfigRegistry(new ConfigAsset[] { config }).ValidateAll().IsValid);
+        }
+
+        [Test]
+        public void TargetPerceptionUsesManagerSnapshotsFactionAndConfiguredRadius()
+        {
+            var slimeConfig = New<SlimeConfig>("slime");
+            var enemyConfig = New<EnemyConfig>("enemy");
+            slimeConfig.SetDetectionRange(1.5f);
+            enemyConfig.SetDetectionRange(1.5f);
+            var registry = new ConfigRegistry(new ConfigAsset[] { slimeConfig, enemyConfig });
+            var slimes = new SlimeManager(registry, null, 3, NewSlimePrefab());
+            var enemies = new EnemyManager(registry, null, NewEnemyPrefab());
+            try
+            {
+                var self = slimes.SpawnSlime(new SlimeSpawnRequest(slimeConfig.ConfigId, Vector2.zero));
+                var friend = slimes.SpawnSlime(new SlimeSpawnRequest(slimeConfig.ConfigId, Vector2.right));
+                var near = enemies.SpawnEnemy(new EnemySpawnRequest(enemyConfig.ConfigId,
+                    new Vector2(1.2f, 0f)));
+                var far = enemies.SpawnEnemy(new EnemySpawnRequest(enemyConfig.ConfigId,
+                    new Vector2(2f, 0f)));
+                var source = new ActorTargetPerceptionSource(slimes, enemies, registry);
+                var seen = source.GetPerception(self);
+                Assert.AreEqual(1, seen.Targets.Count);
+                Assert.AreEqual(near, seen.Targets[0].Actor.ActorId);
+                Assert.IsTrue(seen.Targets[0].IsHostile);
+                Assert.AreNotEqual(friend, seen.Targets[0].Actor.ActorId);
+                Assert.AreNotEqual(far, seen.Targets[0].Actor.ActorId);
+                Assert.IsTrue(source.TryGetActorSnapshot(near, out var snapshot));
+                Assert.IsTrue(snapshot.IsAlive);
+                Assert.IsTrue(enemies.RequestDespawn(near, DespawnReason.Removed));
+                Assert.AreEqual(0, source.GetPerception(self).Targets.Count);
+                slimeConfig.SetDetectionRange(2.5f);
+                Assert.AreEqual(far, source.GetPerception(self).Targets[0].Actor.ActorId);
+            }
+            finally { slimes.Dispose(); enemies.Dispose(); }
         }
 
         [Test]
@@ -189,6 +237,7 @@ namespace SlimeBattle.Tests
         {
             var actorObject = new GameObject("Test Slime Prefab");
             assets.Add(actorObject);
+            actorObject.AddComponent<CircleCollider2D>();
             return actorObject.AddComponent<SlimeActor>();
         }
 
@@ -196,6 +245,7 @@ namespace SlimeBattle.Tests
         {
             var actorObject = new GameObject("Test Enemy Prefab");
             assets.Add(actorObject);
+            actorObject.AddComponent<CircleCollider2D>();
             return actorObject.AddComponent<EnemyActor>();
         }
     }

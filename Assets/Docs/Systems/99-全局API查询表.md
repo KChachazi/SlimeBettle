@@ -34,6 +34,8 @@
 
 AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Actor 的公开 Tick/效果接收/位置回报接口及上述感知、行动端口测试通路；`FleeCheckSucceeded` 是注入的概率判定结果，效果请求只记录，不由场景扣血。
 
+新一轮独立分支场景位于 `Assets/Game/Tests/AIBranches/Scenes/`：由正式 GameRoot/LevelManager/LevelContext 装配，ActorTargetPerceptionSource 负责正式敌我感知，MovementSystem 执行移动，StatusManager 结算已注册 Actor 的攻击和测试前置状态；测试代码补食物、热源、逃跑判定和未注册的人类目标。食物等引导坐标目前写死在测试感知中，视觉圆点不是感知源，移动圆点不会更新 AI 目标；“首个分支通过”只检查选路关键词。旧 `AIPathScene` 不作为正式移动验收依据。
+
 ## 3. 配置 API
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |

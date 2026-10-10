@@ -59,6 +59,8 @@ P0 感知快照可提供食物/热源、普通目的地、逃跑目的地、目�
 
 同时饥饿与寒冷时暂先处理饥饿；同类多个引导源暂取最近者。策划图示要求的随机选择、20%/50%逃跑概率及状态触发时机仍待正式状态/概率接口；测试场景只验证已给定条件下的选路。
 
+`ActorTargetPerceptionSource` 从当前关卡的 SlimeManager/EnemyManager 公开快照构造敌我目标事实；按自身 `ActorConfig.DetectionRange` 过滤死亡、同阵营和半径外 Actor，暂不判断视线遮挡。Level_test 原有随机漫游感知保持不变。`Assets/Game/Tests/AIBranches/` 的独立场景在正式目标感知之外只补尚未接入的食物、热源、逃跑判定和测试用人类目标。
+
 ## 6. 不负责的内容
 
 - 不写入生命、状态或 Transform；
