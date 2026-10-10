@@ -7,7 +7,7 @@
 生命周期：应用级输入设备存在，关卡级语义输入由当前上下文接收  
 状态：核心架构，Action Map 待确认
 
-P0 实现更新：2026-10-09；负责人：小宸。本文的系统编号已由旧分工中的 17 调整为 21，按系统名称对应职责。
+P0 实现更新：2026-10-10；负责人：小宸。本文的系统编号已由旧分工中的 17 调整为 21，按系统名称对应职责。
 
 ## 1. 职责
 
@@ -86,7 +86,8 @@ PlayerCommandSubmittedEvent
 实现：`Assets/Game/Scripts/Player/InputSystem.cs`，数据：`PlayerInputSnapshot.cs`。沿用第 4 节所有接口；`SetInputMode` 返回 `void`，非法枚举抛 `ArgumentOutOfRangeException`。新增数据类型属于首次落实既有概念接口，调用方接入前请审核此契约。
 
 - `InputMode`：`Disabled`、`Gameplay`、`UiOnly`。组件默认不接收输入，由 `PlayerPresentationRoot` 根据 LevelManager 状态启用；仅 Running 接受游戏指令，暂停和结算保留取消键与独立 uGUI 输入。
-- `P0Player` Action Map 在本组件首次 `Enable()` 时创建并在销毁时释放。`Point` / `Primary` 使用 `<Pointer>/position` 和 `<Pointer>/press`，统一鼠标、笔和主触点；`Move` 使用 WASD、方向键和手柄左摇杆；`Attack` 使用空格和手柄南键；`Cancel` 使用 Escape 和手柄 Start；`CameraDrag` 使用鼠标中键；`Zoom` 使用滚轮。绑定是本次测试用默认值，不代表最终移动端控制方案。
+- 已确认移动交互：触屏点一下目标位置后持续向目标移动，再次点击更换目标；桌面鼠标点击使用相同事件。`PrimaryAction.ScreenPosition` 是目标的屏幕像素位置，接入层使用 CameraSystem 转换为世界目标，再交给已确定受控 Actor 的公开行动/移动入口；InputSystem 不直接写入角色位置。
+- `P0Player` Action Map 在本组件首次 `Enable()` 时创建并在销毁时释放。`Point` / `Primary` 使用 `<Pointer>/position` 和 `<Pointer>/press`，统一鼠标、笔和主触点。WASD、方向键和手柄左摇杆仅在首次 Enable 前显式打开 Inspector 的 `Enable Directional Debug Input` 时绑定，默认关闭；Move 类型保留兼容这些调试消费者。`Attack` 的空格/手柄南键仅用于现有攻击请求调试；`Cancel` 使用 Escape 和手柄 Start；`CameraDrag` 使用鼠标中键；`Zoom` 使用滚轮。攻击触屏交互、角色选择和多指规则仍待对应系统确认。
 - `PlayerInputSnapshot` 包含帧号、模式、屏幕像素位置/位移、归一化 Movement、指针按下/保持/释放、AttackPressed、CancelPressed、CameraDrag 和 Zoom。每个 Update 采样一次；同帧多次读取不消费边沿，过期帧返回空快照。消费快照的组件应在 LateUpdate 读取，避免依赖不同组件 Update 的顺序。
 - `PlayerCommandSubmittedEvent.Command` 包含 `Kind`、`Movement`、`ScreenPosition`。`Kind` 为 Move / PrimaryAction / Attack。非零 Move 每帧发布，归零时再发布一次；PrimaryAction 和 Attack 只在按下边沿发布。世界位置由 CameraSystem 转换；输入不选择 Actor，不执行移动、攻击或伤害，也不假定放置含义。
 - 玩法调用方负责把语义指令交给自己的公开行动入口，并通过 `CancelInputEvent` 清除持续移动。`CancelInputEvent.IsUserRequested` 区分取消键（true）与模式、禁用、失焦造成的生命周期取消（false）；生命周期取消不能被当作暂停切换。

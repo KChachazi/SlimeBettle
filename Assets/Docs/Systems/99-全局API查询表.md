@@ -151,6 +151,8 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 
 输入事件：PointerPressedEvent / PointerMovedEvent / PointerReleasedEvent / CancelInputEvent / PlayerCommandSubmittedEvent。取消的 IsUserRequested 区分用户取消与生命周期清理；玩法消费者必须清除持续移动。镜头与 UI 的状态/面板/指令事件使用组件上的 C# event，名称见所属文档。
 
+2026-10-10 移动交互确认：默认通过触屏/鼠标点击产生 `PrimaryAction.ScreenPosition`，由接入层投影成世界目标并提交移动请求；再次点击更换目标。WASD / 方向键 / 手柄摇杆的 Move 默认不绑定，仅由 Inspector 显式启用方向调试。方法、事件和数据签名保持不变；受控 Actor 由上层确定。
+
 ## 8. 对外事件索引
 
 | 事件 | 发布者 | 含义 | 主要观察者 |
