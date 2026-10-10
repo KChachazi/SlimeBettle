@@ -3,7 +3,7 @@
 系统编号：LEVEL-04<br>
 系统名称：MapManager<br>
 默认命名空间：SlimeBattle.World<br>
-建议实现目录：Assets/Game/Scripts/World/；地图和区域数据由 Assets/Game/Scenes/ 中的关卡场景提供<br>
+建议实现目录：Assets/Game/Scripts/World/Map/（核心、Authoring、Events）；地图和区域数据由 Assets/Game/Scenes/ 中的关卡场景提供<br>
 生命周期：当前 LevelContext 生命周期<br>
 状态：场景区域/点位查询、边界、地形倍率和区域转移事件已实现；完整可占用规则仍待扩展
 
@@ -124,7 +124,7 @@ MapManager 提供敌人点 / 掉落点 / 阻挠点 / 事件点
 
 ## 9. 当前实现与关键不变量
 
-当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring` 和可选的 `MapBoundsAuthoring`。MovementSystem 已查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus。`Level_test` 当前尚未布置这些语义区域、地图点或边界标记；StatusManager 尚未实现，因此环境区域事件目前没有状态效果消费者。完整的动态占用与峡谷结果仍未实现。
+当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring` 和可选的 `MapBoundsAuthoring`。MovementSystem 已查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。`Level_test` 当前尚未布置语义区域、地图点、边界标记或 StatusConfig 资产，因此没有场景环境状态效果。完整的动态占用与峡谷结果仍未实现。
 
 1. 同一 LevelContext 内所有系统使用相同的世界坐标和地图索引。
 2. MapManager 不拥有任何 Actor、掉落物、机关或事件实例的生命周期。

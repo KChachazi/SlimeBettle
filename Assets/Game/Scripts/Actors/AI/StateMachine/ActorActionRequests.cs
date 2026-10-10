@@ -1,5 +1,6 @@
 /* Actor 行动层的输出边界：适配器将请求转交 MovementSystem / StatusManager 的公开入口。 */
 using SlimeBattle.Data;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Actors.AI.StateMachine
@@ -18,13 +19,15 @@ namespace SlimeBattle.Actors.AI.StateMachine
     public readonly struct ActorEffectRequest
     {
         public ActorEffectRequest(ActorId sourceActorId, ActorId targetActorId,
-            ConfigId abilityId, float baseAmount)
+            ConfigId abilityId, float baseAmount, EffectRequestId requestId = default(EffectRequestId))
         {
+            RequestId = requestId.IsValid ? requestId : EffectRequestId.NewId();
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
             AbilityId = abilityId;
             BaseAmount = baseAmount;
         }
+        public EffectRequestId RequestId { get; }
         public ActorId SourceActorId { get; }
         public ActorId TargetActorId { get; }
         public ConfigId AbilityId { get; }

@@ -67,14 +67,15 @@ namespace SlimeBattle.Slimes
                 Quaternion.identity, actorParent);
             actor.Initialize(config, id, request.Position,
                 request.FactionId.IsValid ? request.FactionId : new FactionId("Slime"));
+            actors.Add(id, actor);
             if (!TryRegisterMovement(actor, config.MoveSpeed))
             {
+                actors.Remove(id);
                 DestroyActor(actor);
                 return Reject("MovementSystem could not register the Slime Rigidbody2D.");
             }
             actor.Died += OnActorDied;
             actor.ControlModeChanged += OnControlModeChanged;
-            actors.Add(id, actor);
             eventBus?.Publish(new SlimeSpawnedEvent(actor.GetSnapshot()));
             return id;
         }

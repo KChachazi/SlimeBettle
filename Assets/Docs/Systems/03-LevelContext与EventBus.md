@@ -13,7 +13,7 @@
 
 LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、目标和其他关卡级服务。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
 
-P0 当前落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、`ObjectiveSystem`、`MapManager`、`MovementSystem` 和 `LevelEventBus`。MovementSystem 使用动态 `Rigidbody2D` 执行直线移动；StatusManager 尚未实现，当前移动修正使用中性值。
+P0 当前落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、`ObjectiveSystem`、`MapManager`、`MovementSystem`、`StatusManager` 和 `LevelEventBus`。MovementSystem 使用动态 `Rigidbody2D` 执行直线移动，并查询 StatusManager 的移速/定身修正；StatusManager 结算 Actor 生命与状态，消费 MapManager 区域事件。
 
 `LevelContext` 从 `LevelManager` 接收正式 SlimeActor / EnemyActor 预制体，并注入两个 Manager；运行时 Actor 是预制体实例，ActorCore 和 AI 运行时对象由实例自身初始化。Dispose 时 Manager 负责销毁这些实例。
 
@@ -84,7 +84,7 @@ void Clear();
 
 1. 创建上下文和 EventBus；
 2. 由 `LevelManager` 收集并注册本关配置、调用 `ValidateAll()`，再创建地图查询服务；
-3. 创建 MapManager、SlimeManager、EnemyManager、GuardManager、MovementSystem、StatusManager 和 ObjectiveSystem；
+3. 创建 MapManager、StatusManager、MovementSystem、SlimeManager、EnemyManager 和 ObjectiveSystem；StatusManager 订阅区域事件，MovementSystem 接收其移动修正查询；
 4. 创建输入、放置、镜头、UI、表现及已确认的机关适配；
 5. 由 `LevelManager` 向需要配置的系统传入同一份已校验的 `ConfigRegistry`，并注入其他明确引用；
 6. 让各系统执行自身初始化；

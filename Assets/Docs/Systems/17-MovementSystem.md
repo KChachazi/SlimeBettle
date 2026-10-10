@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World.Movement
 建议实现目录：Assets/Game/Scripts/World/Movement/
 生命周期：当前 LevelContext 生命周期
-状态：P0 直线移动已实现；地图地形倍率已接入；StatusManager、寻路和其他移动方式尚未接入
+状态：P0 直线移动、地图地形倍率和 StatusManager 移动修正已接入；寻路和其他移动方式尚未接入
 
 ## 1. 职责
 
@@ -28,7 +28,7 @@
 
 固定物理步和普通位置同步都会把刚体实际位置交给 MapManager。MapManager 用它计算区域进入/离开事实；MovementSystem 不自行维护 Actor 的区域成员关系。速度计算组合 Actor 基础移速、地图地形修正和 StatusManager 提供的 Actor 状态修正。
 
-ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转给 MovementSystem；效果请求仍转发给原效果端口。MovementSystem 在固定物理步中设置动态 Rigidbody2D 的速度，并把刚体位置回报给 Actor。Actor 不直接写入正式位置。
+ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转给 MovementSystem；攻击效果请求由同一适配器转交 StatusManager，并向状态机提供攻速倍率。MovementSystem 在固定物理步中设置动态 Rigidbody2D 的速度，并把刚体位置回报给 Actor。Actor 不直接写入正式位置。
 
 ## 3. 不负责的内容
 
@@ -65,7 +65,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 
 - MapManager 提供场景静态阻挡识别、道路/地形/区域和地图点查询、区域转移事件及地形移速倍率；
 - ActorCore 提供身份和当前位置语义；
-- StatusManager 计划提供移动修正和控制状态；当前关卡装配使用中性修正（倍率 1、非定身）；
+- StatusManager 提供状态移速倍率和定身标记；当前关卡装配已注入该查询，未配置状态时使用中性修正（倍率 1、非定身）；
 - PassageSystem 与 MechanismSystem 消费移动产生的事实。
 
 ## 8. P0 实现约定
@@ -79,7 +79,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 - 暂停、死亡、销毁和重开会停止刚体并清理当前请求。取消会使当前速度归零；同一 Actor 只保留一个活动请求。
 - MapManager 的阻挡缓存只识别当前场景中非 Trigger 的静态 Collider2D；`MapAreaAuthoring` 使用 Trigger Collider2D 做地图区域查询，不会被当作物理阻挡。`Level_test` 的 `StaticMovementObstacle` 提供静态 BoxCollider2D 场景样例。
 - `TryGetContactInfo` 返回最近一次受阻请求的接触信息；重新提交请求后接触信息清空。
-- LevelContext 尚未装配 StatusManager，移动修正通过可注入提供器预留；当前不实现定身、减速或加速规则。P0 快照只含速度倍率和定身标记，正式字段与暂停/恢复语义待 StatusManager 接入时共同确认。
+- LevelContext 已装配 StatusManager 并注入移动修正提供器；状态计时随关卡暂停/恢复冻结。状态倍率及具体寒冷、炙热等效果由 StatusConfig 配置。
 
 ## 9. 关键不变量
 
@@ -90,11 +90,10 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 ## 10. 待确认项
 
 - 后续是否加入绕开障碍的路径搜索；P0 首版已确认直线移动并在静态碰撞时结束请求；
-- StatusManager 的移动修正和控制状态接入时机；
 - 动态占用查询接入后，玩家放置物/动态障碍对移动请求的影响；
 - 沼泽减速和其他地形移动修正的组合顺序，以及地形区域边界事件与物理碰撞的先后语义。
 
 ## 11. 验收场景
 
-`Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。`LevelActorSpawner` 为本场景绑定无目标的随机漫游感知源和移动端口；BasicSlimeDecision / BasicEnemyDecision 产生 Move 意图后，经 ActorStateMachine、MovementActorActionPort 到达 MovementSystem，再由动态 Rigidbody2D 执行。MapManager 的区域边界事件与地形倍率已有运行时代码，但该场景还没有相应区域标记，因此未在场景中验收这些效果；正式目标感知、攻击效果和确定性阻挡用例尚未接入。
+`Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。`LevelActorSpawner` 为本场景绑定无目标的随机漫游感知源和移动端口；BasicSlimeDecision / BasicEnemyDecision 产生 Move 意图后，经 ActorStateMachine、MovementActorActionPort 到达 MovementSystem，再由动态 Rigidbody2D 执行。MapManager 区域事件、地形倍率和 StatusManager 移动修正已有运行时代码，但该场景还没有相应状态配置和区域标记，因此未在场景中验收这些效果；正式目标感知和确定性阻挡用例尚未接入。
 

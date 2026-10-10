@@ -7,6 +7,7 @@ using SlimeBattle.Data;
 using SlimeBattle.Enemies;
 using SlimeBattle.Objectives;
 using SlimeBattle.Slimes;
+using SlimeBattle.Status;
 using SlimeBattle.World;
 using SlimeBattle.World.Movement;
 using UnityEngine.SceneManagement;
@@ -49,6 +50,7 @@ namespace SlimeBattle.Core
         public EnemyManager EnemyManager { get; private set; }
         public ObjectiveSystem ObjectiveSystem { get; private set; }
         public MapManager MapManager { get; private set; }
+        public StatusManager StatusManager { get; private set; }
         public MovementSystem MovementSystem { get; private set; }
 
         public LevelId GetLevelId()
@@ -77,7 +79,9 @@ namespace SlimeBattle.Core
                 throw new InvalidOperationException("SlimeActor and EnemyActor prefabs are required.");
 
             MapManager = new MapManager(SceneManager.GetActiveScene(), EventBus);
-            MovementSystem = new MovementSystem(MapManager, EventBus);
+            StatusManager = new StatusManager(ConfigRegistry, EventBus, ResolveActor);
+            MovementSystem = new MovementSystem(MapManager, EventBus,
+                StatusManager.GetMovementModifiers);
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
                 LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem);
             EnemyManager = new EnemyManager(ConfigRegistry, EventBus, enemyPrefab,
@@ -100,13 +104,14 @@ namespace SlimeBattle.Core
             perception = perceptionSource;
             actions = MovementSystem == null
                 ? actionPort
-                : new MovementActorActionPort(MovementSystem, actionPort);
+                : new MovementActorActionPort(MovementSystem, actionPort, StatusManager);
         }
 
         public void Tick(float deltaTime)
         {
             if (disposed || state != LevelState.Running)
                 return;
+            StatusManager?.Tick(new StatusTickContext(deltaTime));
             MovementSystem?.SyncPositions();
             if (perception == null || actions == null) return;
             var context = new LevelTickContext(deltaTime, perception, actions);
@@ -132,6 +137,11 @@ namespace SlimeBattle.Core
             return false;
         }
 
+        private IEffectReceiver ResolveActor(ActorId actorId)
+        {
+            return TryResolveActor(actorId, out var receiver) ? receiver : null;
+        }
+
         internal void SetState(LevelState nextState)
         {
             ThrowIfDisposed();
@@ -148,11 +158,13 @@ namespace SlimeBattle.Core
             {
                 SlimeManager?.Pause();
                 EnemyManager?.Pause();
+                StatusManager?.Pause();
                 MovementSystem?.Pause();
             }
             else if (nextState == LevelState.Running)
             {
                 MovementSystem?.Resume();
+                StatusManager?.Resume();
                 SlimeManager?.Resume();
                 EnemyManager?.Resume();
             }
@@ -166,6 +178,7 @@ namespace SlimeBattle.Core
                 return;
             }
 
+            StatusManager?.Dispose();
             SlimeManager?.Dispose();
             EnemyManager?.Dispose();
             MovementSystem?.Dispose();

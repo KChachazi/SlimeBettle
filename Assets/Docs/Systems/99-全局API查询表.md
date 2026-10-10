@@ -42,8 +42,8 @@ AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Acto
 | API-DATA-002 | ConfigSystem | TryGetLevel(LevelId, out LevelConfig) | 关卡 ID | 是否成功、配置 | LevelManager、MapManager | 已确认 |
 | API-DATA-003 | ConfigSystem | ValidateAll() | 无 | 校验报告 | 编辑器工具、启动检查 | 已确认 |
 | API-DATA-004 | ObjectiveConfig | FailWhenNoSlimes | 无 | 是否在史莱姆全灭时失败 | ObjectiveSystem | P0，默认开启；Level_test 关闭 |
-| API-DATA-004 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 暂定 |
-| API-DATA-005 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager | 暂定 |
+| API-DATA-005 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 已实现 |
+| API-DATA-006 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager、MapManager 区域适配 | 已实现；重复 StatusId 拒绝 |
 
 ## 4. LevelContext Manager API
 
@@ -92,7 +92,7 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
 | API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 已实现静态地图查询；不含动态 Actor/放置物 |
 | API-WORLD-004 | MapManager | GetMovementSpeedMultiplier(Vector2) | 世界坐标 | 地形移速修正（多个地形倍率相乘） | MovementSystem | 已实现；场景需配置地形区域 |
-| API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现；StatusManager 消费待接入 |
+| API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现 |
 | API-WORLD-006 | MapManager | TryGetMapPoint(MapPointId, out MapPointSnapshot) / GetMapPoints(MapPointKind) | 地图点 ID 或类型 | 是否成功、点位快照集合 | Actor Manager、ObjectiveSystem、未来的掉落/事件系统 | 已实现；场景需配置 MapPointAuthoring |
 | API-WORLD-007 | MovementSystem | SubmitMovement(MovementRequest) | 移动请求 | MovementRequestId | ActorStateMachine、InputSystem | P0 已实现 |
 | API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
@@ -103,12 +103,14 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-STATUS-001 | StatusManager | ApplyEffect(EffectRequest) | 来源、目标、效果 | EffectApplyResult | ActorAction、机关、环境、ObjectiveSystem | 已确认 |
-| API-STATUS-002 | StatusManager | ApplyStatus(StatusApplicationRequest) | 状态申请 | 是否成功 | Actor、机关、环境 | 已确认 |
-| API-STATUS-003 | StatusManager | RemoveStatus(ActorId, StatusId, StatusRemoveReason) | Actor、状态、原因 | 是否成功 | Actor、关卡规则 | 暂定 |
-| API-STATUS-004 | StatusManager | TryGetHealthSnapshot(ActorId, out HealthSnapshot) | Actor ID | 是否成功、生命快照 | AI、UI、ObjectiveSystem | 已确认 |
-| API-STATUS-005 | StatusManager | TryGetStatusSnapshot(ActorId, out StatusSnapshot) | Actor ID | 是否成功、状态快照 | AI、UI、状态机 | 已确认 |
-| API-STATUS-006 | StatusManager | GetMovementModifiers(ActorId) | Actor ID | MovementModifierSnapshot | MovementSystem | 已确认 |
+| API-STATUS-001 | StatusManager | ApplyEffect(EffectRequest) | 带唯一请求 ID 的来源、目标、效果 | EffectApplyResult | ActorAction、环境、玩法适配器 | 已实现；当前目标为 Actor |
+| API-STATUS-002 | StatusManager | ApplyStatus(StatusApplicationRequest) | 状态申请 | 是否成功 | Actor、机关、环境 | 已实现 |
+| API-STATUS-003 | StatusManager | RemoveStatus(ActorId, StatusId, StatusRemoveReason) | Actor、状态、原因 | 是否成功 | Actor、关卡规则 | 已实现 |
+| API-STATUS-004 | StatusManager | TryGetHealthSnapshot(ActorId, out HealthSnapshot) | Actor ID | 是否成功、生命快照 | AI、UI、ObjectiveSystem | 已实现 |
+| API-STATUS-005 | StatusManager | TryGetStatusSnapshot(ActorId, out StatusSnapshot) | Actor ID | 是否成功、状态快照 | AI、UI、状态机 | 已实现 |
+| API-STATUS-006 | StatusManager | GetMovementModifiers(ActorId) | Actor ID | MovementModifierSnapshot | MovementSystem | 已实现 |
+| API-STATUS-007 | StatusManager | GetAttackSpeedMultiplier(ActorId) | Actor ID | 攻击速度倍率 | ActorStateMachine 行动端口 | 已实现 |
+| API-STATUS-008 | StatusManager | Tick(StatusTickContext) | 当前帧间隔 | 更新状态计时与周期效果 | LevelContext | 已实现 |
 
 ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果。AttackAction 在命中时机使用 API-STATUS-001。
 
@@ -146,12 +148,17 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | GuardDiedEvent | GuardManager | 守卫已确认死亡 | ObjectiveSystem、UI、表现 |
 | MovementBlockedEvent | MovementSystem | 移动被空间规则阻止 | ActorStateMachine、AI、UI |
 | MapReadyEvent | MapManager | 当前关卡地图资源和静态索引已完成绑定 | LevelContext、关卡服务（已发布） |
-| MapAreaEnteredEvent | MapManager | Actor 进入一个道路/地形/区域标记体 | StatusManager、MovementSystem、AI（已发布；StatusManager 未装配） |
-| MapAreaExitedEvent | MapManager | Actor 离开一个道路/地形/区域标记体 | StatusManager、MovementSystem、AI（已发布；StatusManager 未装配） |
+| MapAreaEnteredEvent | MapManager | Actor 进入一个道路/地形/区域标记体 | StatusManager、MovementSystem、AI |
+| MapAreaExitedEvent | MapManager | Actor 离开一个道路/地形/区域标记体 | StatusManager、MovementSystem、AI |
 | EffectAppliedEvent | StatusManager | 效果已应用 | Actor Manager、UI、表现 |
+| EffectRejectedEvent | StatusManager | 效果请求被拒绝、免疫或重复提交 | Actor Manager、UI、调试 |
 | HealthChangedEvent | StatusManager | Actor 生命已变化 | AI、ObjectiveSystem、UI |
 | StatusAddedEvent | StatusManager | 状态已添加 | AI、状态机、UI |
+| StatusChangedEvent | StatusManager | 状态来源、时长或叠层已变化 | AI、状态机、UI |
 | StatusRemovedEvent | StatusManager | 状态已移除 | AI、状态机、UI |
+| StatusExpiredEvent | StatusManager | 状态因计时到期或区域宽限结束 | AI、状态机、UI |
+| MovementModifierChangedEvent | StatusManager | Actor 移速或定身修正已变化 | MovementSystem、表现、UI |
+| ActorControlChangedEvent | StatusManager | Actor 控制模式已变化 | Actor Manager、AI、表现 |
 | PlacementConfirmedEvent | PlacementSystem | 放置已确认 | 机关、UI、表现 |
 | WeaponDamagedEvent | ObjectiveSystem | 护送武器受到已结算效果 | GuardManager、UI、表现 |
 | WeaponDestroyedEvent | ObjectiveSystem | 护送武器已被摧毁 | LevelManager、GuardManager、UI |

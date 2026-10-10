@@ -57,8 +57,11 @@ namespace SlimeBattle.Actors.Enemies
             var perception = context.Perception.GetPerception(ActorId);
             var intent = decisionTree.Evaluate(new DecisionContext(snapshot, perception));
             LastDecisionReason = intent.Reason;
+            var modifierProvider = context.Actions as IActorModifierProvider;
+            var attackSpeedMultiplier = modifierProvider == null ? 1f
+                : modifierProvider.GetAttackSpeedMultiplier(ActorId);
             var stateContext = new StateContext(context.DeltaTime, snapshot,
-                context.Perception, context.Actions);
+                context.Perception, context.Actions, attackSpeedMultiplier);
             if (intent.IsValid) stateMachine.SubmitIntent(intent, stateContext);
             stateMachine.Tick(stateContext);
         }
@@ -83,7 +86,7 @@ namespace SlimeBattle.Actors.Enemies
 
         public bool RemoveResolvedStatus(string statusId)
         {
-            return IsAlive && core.RemoveResolvedStatus(statusId);
+            return !disposed && core != null && core.RemoveResolvedStatus(statusId);
         }
 
         public void SetControlMode(ActorControlMode mode)
