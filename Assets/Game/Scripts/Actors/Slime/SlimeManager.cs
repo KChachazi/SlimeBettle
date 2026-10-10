@@ -189,6 +189,15 @@ namespace SlimeBattle.Slimes
             return !disposed && actors.TryGetValue(actorId, out actor);
         }
 
+        internal IReadOnlyList<IEffectReceiver> GetAliveEffectReceivers()
+        {
+            var result = new List<IEffectReceiver>();
+            if (!disposed)
+                foreach (var actor in actors.Values)
+                    if (actor.IsAlive) result.Add(actor);
+            return result.AsReadOnly();
+        }
+
         public void Dispose()
         {
             if (disposed) return;

@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using SlimeBattle.Actors;
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.Enemies;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.Objectives;
 using SlimeBattle.Slimes;
 using SlimeBattle.Status;
@@ -51,6 +53,7 @@ namespace SlimeBattle.Core
         public ObjectiveSystem ObjectiveSystem { get; private set; }
         public MapManager MapManager { get; private set; }
         public StatusManager StatusManager { get; private set; }
+        public MechanismSystem MechanismSystem { get; private set; }
         public MovementSystem MovementSystem { get; private set; }
 
         public LevelId GetLevelId()
@@ -79,7 +82,8 @@ namespace SlimeBattle.Core
                 throw new InvalidOperationException("SlimeActor and EnemyActor prefabs are required.");
 
             MapManager = new MapManager(SceneManager.GetActiveScene(), EventBus);
-            StatusManager = new StatusManager(ConfigRegistry, EventBus, ResolveActor);
+            StatusManager = new StatusManager(ConfigRegistry, EventBus, ResolveActor,
+                EnumerateAliveActors);
             MovementSystem = new MovementSystem(MapManager, EventBus,
                 StatusManager.GetMovementModifiers);
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
@@ -90,6 +94,9 @@ namespace SlimeBattle.Core
             if (!ObjectiveSystem.InitializeFromRegistry(
                 new ObjectiveId(LevelConfig.ObjectiveConfigId.Value), WeaponId.NewId()))
                 throw new InvalidOperationException("Objective or weapon config is missing.");
+            MechanismSystem = new MechanismSystem(ConfigRegistry,
+                LevelConfig.MaximumActivePlacedMechanisms, MapManager, StatusManager,
+                EventBus, SceneManager.GetActiveScene());
             EventBus.Subscribe<SlimeSpawnedEvent>(_ => UpdateSlimeCount());
             EventBus.Subscribe<SlimeDiedEvent>(_ => UpdateSlimeCount());
             EventBus.Subscribe<SlimeDespawnedEvent>(_ => UpdateSlimeCount());
@@ -112,6 +119,7 @@ namespace SlimeBattle.Core
             if (disposed || state != LevelState.Running)
                 return;
             StatusManager?.Tick(new StatusTickContext(deltaTime));
+            MechanismSystem?.Tick(deltaTime);
             MovementSystem?.SyncPositions();
             if (perception == null || actions == null) return;
             var context = new LevelTickContext(deltaTime, perception, actions);
@@ -142,6 +150,14 @@ namespace SlimeBattle.Core
             return TryResolveActor(actorId, out var receiver) ? receiver : null;
         }
 
+        private IEnumerable<IEffectReceiver> EnumerateAliveActors()
+        {
+            if (SlimeManager != null)
+                foreach (var actor in SlimeManager.GetAliveEffectReceivers()) yield return actor;
+            if (EnemyManager != null)
+                foreach (var actor in EnemyManager.GetAliveEffectReceivers()) yield return actor;
+        }
+
         internal void SetState(LevelState nextState)
         {
             ThrowIfDisposed();
@@ -159,12 +175,14 @@ namespace SlimeBattle.Core
                 SlimeManager?.Pause();
                 EnemyManager?.Pause();
                 StatusManager?.Pause();
+                MechanismSystem?.Pause();
                 MovementSystem?.Pause();
             }
             else if (nextState == LevelState.Running)
             {
                 MovementSystem?.Resume();
                 StatusManager?.Resume();
+                MechanismSystem?.Resume();
                 SlimeManager?.Resume();
                 EnemyManager?.Resume();
             }
@@ -178,12 +196,14 @@ namespace SlimeBattle.Core
                 return;
             }
 
+            MechanismSystem?.Dispose();
             StatusManager?.Dispose();
             SlimeManager?.Dispose();
             EnemyManager?.Dispose();
             MovementSystem?.Dispose();
             MapManager?.Dispose();
             ObjectiveSystem?.Dispose();
+            MechanismSystem = null;
             EventBus.Dispose();
             perception = null;
             actions = null;

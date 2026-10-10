@@ -13,6 +13,15 @@ namespace SlimeBattle.Status
             Effect = effect;
         }
 
+        public HealthChangedEvent(HealthSnapshot before, HealthSnapshot after, StatusId causeStatusId)
+        {
+            RequestId = default(EffectRequestId);
+            Before = before;
+            After = after;
+            Effect = new ResolvedEffect(EffectType.Status, 0f, default(ActorId),
+                causeStatusId.Value);
+        }
+
         public EffectRequestId RequestId { get; }
         public HealthSnapshot Before { get; }
         public HealthSnapshot After { get; }

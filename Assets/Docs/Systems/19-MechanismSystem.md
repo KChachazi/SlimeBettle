@@ -52,6 +52,8 @@ PlacementCooldown
 
 当前首关核心 `MechanismKind` 为 `Food`、`Furnace`、`Obstacle` 和 `EscortWeapon`。宠物、掉落物、背包、独立玩法事件、道具系统以及陷阱/魔法不进入本轮闭环；后续若重新启用，必须重新确认归属和接口。`LevelEventBus` 及武器/史莱姆结果事实事件不属于被放弃的玩法内容，仍用于跨系统通信。
 
+`MechanismConfig` 保存类型、是否允许玩家放置、吸引范围、占位半径、使用次数和激活/拆除冷却。使用次数配置为 `0` 表示不限次数；食物必须配置有限使用次数。暖区吸引半径保存在 `MapAreaAuthoring`，默认设计值为 500px。机关配置资产需纳入当前关卡的 `ConfigRegistry`，场景/预制体的 `MechanismAuthoring` 保存其 `ConfigId`。
+
 ## 4. 必须接口
 
 ```csharp
@@ -62,7 +64,7 @@ IReadOnlyList<MechanismSnapshot> GetActiveSnapshots();
 bool TryGetWeaponSnapshot(WeaponId weaponId, out WeaponSnapshot snapshot);
 ```
 
-`PlacementSystem` 需要向本系统提交已经通过玩家输入、数量上限和冷却校验的放置/拆除结果；具体的放置请求和拆除请求类型必须在实现前与全局 API 表统一，不能由 UI 直接操作本系统内部对象。
+`MechanismAuthoring` 为关卡场景和放置预制体提供稳定实例 ID、配置 ID 与碰撞适配。场景机关在 `LevelContext` 创建时自动注册；放置系统先询问 `CanPlace`，再通过 `RequestPlace` 注册已生成的预制体，并通过 `RequestRemove` 拆除。每周可用总数仍由 `PlacementSystem`/关卡库存配置管理，本系统负责同时存在上限、地图占位校验和拆除冷却。
 
 `TryGetWeaponSnapshot` 只读返回武器状态。武器受伤、销毁和到达终点的请求入口及其最终参数仍需在代码迁移前登记到 99 API 表，不能继续由 `ObjectiveSystem` 私有字段承载。
 
@@ -82,7 +84,7 @@ WeaponReachedGoalEvent
 ## 5.1 共同规则
 
 - 机关配置属于设计时数据，实例位置、剩余次数、冷却和消耗状态属于当前关卡运行时数据；
-- 同时存在的放置物总上限暂定为 5，由关卡或周目配置提供，不能在代码中写死；
+- 同时存在的放置物总上限从 `LevelConfig.MaximumActivePlacedMechanisms` 读取，默认关卡配置为 5；
 - 引导源快照至少需要包含类型、位置、有效范围、是否可用和所属机制 ID；
 - 多个同类引导源的随机选择、状态对应引导源优先级和战斗目标优先级由 Actor 感知/决策规则处理；
 - 机关触发产生的生命、状态、击退、移动或目标效果必须通过对应系统的公开接口结算；
@@ -115,20 +117,20 @@ WeaponReachedGoalEvent
 
 温暖地区、低温地区、掉落物、固定事件和随机事件可以为史莱姆提供引导或触发条件。它们的边界如下：
 
-- `MapManager` 负责地形、道路、区域归属、可行走空间和地图查询；区域进入/离开是空间事实，由 MapManager 发布；
+- `MapManager` 负责地形、道路、区域归属、可行走空间和地图查询；区域进入/离开是空间事实，由 MapManager 发布；MechanismSystem 从暖区快照生成暖源，并用 MapManager 校验放置位置、注册运行时障碍；
 - `MechanismSystem` 负责可交互环境元素及其引导源快照；
 - `StatusManager` 负责寒冷、炙热、燃烧、冻结等状态和持续效果；
 - `MovementSystem` 负责接触、阻挡、位置结果和移动请求；
-- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不创建动态对象、不做概率判定，也不结算事件效果；
+- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不创建动态对象、不做概率判定，也不结算事件效果；本系统不会把这些地图点自动实例化为机关；
 - 掉落物、固定/随机事件、陷阱和魔法的运行时系统归属及具体列表仍待确认。
 
-Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager 的区域事实并按配置申请或解除对应状态。温暖地区的吸引源快照由 MechanismSystem/Actor 感知层提供；区域归属本身不等同于吸引范围。
+Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager 的区域事实并按配置申请或解除对应状态。暖区的吸引源快照由 MechanismSystem 从 MapManager 的区域边界和配置范围生成；区域归属本身不等同于吸引范围。`GetGuideSourcesInRange` 将像素半径按 Actor 精灵的 `pixelsPerUnit` 转换为世界距离，供感知层选择。
 
 ## 6. 依赖
 
 - `ConfigSystem`；
 - `MapManager`；
-- `MovementSystem` 提供的接触事实；
+- `MechanismAuthoring` 提供的 2D 触发接触事实；移动阻挡由 `MapManager` 向 `MovementSystem` 暴露；
 - `StatusManager` 处理效果；
 - `PassageSystem` 处理窄路相关规则。
 - `PlacementSystem` 提交玩家确认的环境元素放置结果。

@@ -87,7 +87,7 @@ bool TryGetMapArea(MapAreaId areaId, out MapAreaSnapshot area);
 bool TryGetRoute(MapRouteId routeId, out MapRouteSnapshot route);
 ```
 
-`Query` 返回同一位置上的道路、地形和区域标签。`GetMovementSpeedMultiplier` 返回地图地形带来的移动修正，不包含 Actor 的状态修正；当前对所有与位置重叠的地形区域直接乘算，不根据道路标签筛选。要实现图示的沼泽路段降速 50%，场景作者需在对应 `MapAreaAuthoring` 上配置 `0.5`，并让标记体覆盖受影响路段。若规则最终要求移速修正只在特定道路生效，再增加路地关系筛选。当前 `CanOccupy` 只查询可选地图边界和静态场景阻挡；动态 Actor 与玩家放置物尚未接入占用查询。
+`Query` 返回同一位置上的道路、地形和区域标签。`GetMovementSpeedMultiplier` 返回地图地形带来的移动修正，不包含 Actor 的状态修正；当前对所有与位置重叠的地形区域直接乘算，不根据道路标签筛选。要实现图示的沼泽路段降速 50%，场景作者需在对应 `MapAreaAuthoring` 上配置 `0.5`，并让标记体覆盖受影响路段。若规则最终要求移速修正只在特定道路生效，再增加路地关系筛选。`CanOccupy` 查询可选地图边界、场景静态阻挡和其他系统显式注册的移动阻挡体（当前用于放置障碍）；Actor 与非阻挡环境物不纳入占位查询。`RegisterMovementBlocker` 只接受当前场景内的非 Trigger 静态碰撞体；调用方需在对象移除时注销。
 
 MovementSystem 在 Actor 注册、物理位置同步和注销时，向 MapManager 提交位置变化/离场通知。它们是关卡内部的协作接口，不进入跨系统全局 API 表。MapManager 用位置查询维护区域成员关系，不保存 Actor 的位置副本；每次只在成员集合发生变化时发布边界事件。
 
@@ -128,7 +128,7 @@ MapManager 提供敌人点 / 武器点 / 目标点 / 固定路线
 
 ## 9. 当前实现与关键不变量
 
-当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring` 和可选的 `MapBoundsAuthoring`。MovementSystem 已查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。`Level_test` 当前尚未布置语义区域、地图点、边界标记或 StatusConfig 资产，因此没有场景环境状态效果。完整的动态占用与峡谷结果仍未实现。
+当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring` 和可选的 `MapBoundsAuthoring`。MovementSystem 已查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。MechanismSystem 可额外注册玩家放置的静态障碍碰撞体，供 `CanOccupy` 和 MovementSystem 查询。完整的动态 Actor 占用与峡谷结果仍未实现。
 
 1. 同一 LevelContext 内所有系统使用相同的世界坐标和地图索引。
 2. MapManager 不拥有任何 Actor、掉落物、机关或事件实例的生命周期。

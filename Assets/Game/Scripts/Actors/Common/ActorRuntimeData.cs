@@ -21,6 +21,7 @@ namespace SlimeBattle.Actors
             ConfigId = configId;
             IsAlive = true;
             Position = position;
+            BaseMaxHealth = maxHealth;
             MaxHealth = maxHealth;
             CurrentHealth = maxHealth;
             StatusIds = new HashSet<string>();
@@ -32,7 +33,8 @@ namespace SlimeBattle.Actors
         public ConfigId ConfigId { get; }
         public bool IsAlive { get; internal set; }
         public Vector2 Position { get; internal set; }
-        public float MaxHealth { get; }
+        public float BaseMaxHealth { get; }
+        public float MaxHealth { get; internal set; }
         public float CurrentHealth { get; internal set; }
         public ActorControlMode ControlMode { get; internal set; }
         internal HashSet<string> StatusIds { get; }

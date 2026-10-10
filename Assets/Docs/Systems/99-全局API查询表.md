@@ -1,7 +1,7 @@
 # 99 全局 API 查询表
 
 版本：0.4 草案
-最后更新：2026-10-09
+最后更新：2026-10-10
 用途：协作时查询跨系统公共接口
 状态：架构暂定
 
@@ -46,6 +46,7 @@ AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Acto
 | API-DATA-004 | LevelResultConfig（候选名称） | 是否启用史莱姆全灭失败 | 无 | 结果规则配置 | Core 结果规则组件 | 首关规则已确认；最终配置字段待确认 |
 | API-DATA-005 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 已实现 |
 | API-DATA-006 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager、MapManager 区域适配 | 已实现；重复 StatusId 拒绝 |
+| API-DATA-007 | ConfigSystem | TryGetStatus(StatusKind, out StatusConfig) | 玩法状态种类 | 是否成功、配置 | StatusManager | 已实现；重复 StatusKind 拒绝 |
 
 ## 4. LevelContext Manager API
 
@@ -92,7 +93,7 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | --- | --- | --- | --- | --- | --- | --- |
 | API-WORLD-001 | MapManager | TryGetMapBounds(out MapBounds) | 无 | 是否成功、地图边界 | CameraSystem、MovementSystem、AI | 已实现；场景需配置 MapBoundsAuthoring |
 | API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
-| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 已实现静态地图查询；不含动态 Actor/放置物 |
+| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI、MechanismSystem | 已实现静态地图查询及已注册的放置障碍；不含动态 Actor |
 | API-WORLD-004 | MapManager | GetMovementSpeedMultiplier(Vector2) | 世界坐标 | 地形移速修正（多个地形倍率相乘） | MovementSystem | 已实现；场景需配置地形区域 |
 | API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现 |
 | API-WORLD-006 | MapManager | TryGetMapPoint(MapPointId, out MapPointSnapshot) / GetMapPoints(MapPointKind) | 地图点 ID 或类型 | 是否成功、点位快照集合 | Actor Manager、MechanismSystem、Core 结果规则组件 | 已实现；首关只登记出生/目标/武器/敌人点 |
@@ -101,6 +102,8 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
 | API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | P0 已实现 |
 | API-WORLD-010 | MovementSystem | TryGetContactInfo(ActorId, out ContactInfo) | Actor ID | 是否成功、最近阻挡接触 | Actor、调试、UI | P0 已实现 |
+| API-WORLD-011 | MapManager | GetMapAreaSnapshots() / TryGetMapAreaCenter(MapAreaId, out Vector2) | 区域 ID（可选） | 区域快照集合或区域中心 | MechanismSystem | 已实现 |
+| API-WORLD-012 | MapManager | RegisterMovementBlocker(Collider2D) / UnregisterMovementBlocker(Collider2D) | 当前场景静态碰撞体 | 是否注册/注销 | MechanismSystem | 已实现；放置障碍加入 CanOccupy 查询 |
 
 ## 6. StatusManager API
 
@@ -111,6 +114,12 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API-STATUS-003 | StatusManager | RemoveStatus(ActorId, StatusId, StatusRemoveReason) | Actor、状态、原因 | 是否成功 | Actor、关卡规则 | 已实现 |
 | API-STATUS-004 | StatusManager | TryGetHealthSnapshot(ActorId, out HealthSnapshot) | Actor ID | 是否成功、生命快照 | AI、UI、Actor Manager | 已实现 |
 | API-STATUS-005 | StatusManager | TryGetStatusSnapshot(ActorId, out StatusSnapshot) | Actor ID | 是否成功、状态快照 | AI、UI、状态机 | 已实现 |
+| API-STATUS-009 | StatusManager | HasStatus(ActorId, StatusId/StatusKind) | Actor 与状态标识/种类 | 是否具有该状态 | AI、玩法规则 | 已实现 |
+| API-STATUS-010 | StatusManager | TryGetStatus(ActorId, StatusId, out StatusEntrySnapshot) | Actor 与状态 ID | 是否成功、状态条目（含已持续时间） | AI、UI | 已实现 |
+| API-STATUS-011 | StatusManager | NotifyFoodConsumed(ActorId, StatusId) | 史莱姆与可选冷/热食状态 | 是否处理 | 食物交互适配 | 已实现 |
+| API-STATUS-012 | StatusManager | NotifyGuideReached(ActorId, StatusGuideKind) | 史莱姆与引导源种类 | 是否处理 | 感知/交互适配 | 已实现 |
+| API-STATUS-013 | StatusManager | NotifyFurnaceCoreEntered/Exited(ActorId) | 火炉核心成员变化 | 是否处理 | MechanismSystem | 已实现 |
+| API-STATUS-014 | StatusManager | NotifyInjuredHumanNearby(ActorId) | 受伤人类在嗅觉范围内的史莱姆 | 是否触发暴躁 | 感知适配 | 已实现 |
 | API-STATUS-006 | StatusManager | GetMovementModifiers(ActorId) | Actor ID | MovementModifierSnapshot | MovementSystem | 已实现 |
 | API-STATUS-007 | StatusManager | GetAttackSpeedMultiplier(ActorId) | Actor ID | 攻击速度倍率 | ActorStateMachine 行动端口 | 已实现 |
 | API-STATUS-008 | StatusManager | Tick(StatusTickContext) | 当前帧间隔 | 更新状态计时与周期效果 | LevelContext | 已实现 |

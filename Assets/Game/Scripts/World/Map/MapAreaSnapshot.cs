@@ -5,7 +5,7 @@ namespace SlimeBattle.World
         public MapAreaSnapshot(MapAreaId areaId, MapAreaKind kind,
             MapRoadKind roadKind, MapTerrainKind terrainKind,
             MapRegionKind regionKind, float movementSpeedMultiplier,
-            string statusEffectConfigId)
+            string statusEffectConfigId, float guidanceRadiusPixels = 0f)
         {
             AreaId = areaId;
             Kind = kind;
@@ -14,6 +14,7 @@ namespace SlimeBattle.World
             RegionKind = regionKind;
             MovementSpeedMultiplier = movementSpeedMultiplier;
             StatusEffectConfigId = statusEffectConfigId ?? string.Empty;
+            GuidanceRadiusPixels = guidanceRadiusPixels;
         }
 
         public MapAreaId AreaId { get; }
@@ -23,5 +24,6 @@ namespace SlimeBattle.World
         public MapRegionKind RegionKind { get; }
         public float MovementSpeedMultiplier { get; }
         public string StatusEffectConfigId { get; }
+        public float GuidanceRadiusPixels { get; }
     }
 }

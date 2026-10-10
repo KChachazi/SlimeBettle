@@ -170,6 +170,42 @@ namespace SlimeBattle.World
             return matches.ToArray();
         }
 
+        public IReadOnlyList<MapAreaSnapshot> GetMapAreaSnapshots()
+        {
+            if (!IsBound) return Array.Empty<MapAreaSnapshot>();
+            var result = new List<MapAreaSnapshot>(areas.Count);
+            foreach (var binding in areas.Values) result.Add(binding.Snapshot);
+            result.Sort((left, right) => string.CompareOrdinal(
+                left.AreaId.Value, right.AreaId.Value));
+            return result.AsReadOnly();
+        }
+
+        public bool TryGetMapAreaCenter(MapAreaId areaId, out Vector2 center)
+        {
+            center = default(Vector2);
+            if (!IsBound || !areaId.IsValid || !areas.TryGetValue(areaId, out var binding))
+                return false;
+
+            var collider = binding.Authoring == null ? null : binding.Authoring.AreaCollider;
+            if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy)
+                return false;
+
+            center = collider.bounds.center;
+            return true;
+        }
+
+        public bool RegisterMovementBlocker(Collider2D collider)
+        {
+            if (!IsBound || !IsSolidStaticCollider(collider)) return false;
+            movementBlockers.Add(collider);
+            return true;
+        }
+
+        public bool UnregisterMovementBlocker(Collider2D collider)
+        {
+            return IsBound && collider != null && movementBlockers.Remove(collider);
+        }
+
         internal void NotifyActorPositionChanged(ActorId actorId, Vector2 position)
         {
             if (!IsBound || !actorId.IsValid) return;

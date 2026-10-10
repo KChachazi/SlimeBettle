@@ -15,8 +15,14 @@ namespace SlimeBattle.Status
     /// The level-scoped effect and status rules service. ActorCore remains the owner
     /// of health and active status IDs; this service owns status timing and modifiers.
     /// </summary>
-    public sealed class StatusManager : IDisposable
+    public sealed class StatusManager : IDisposable, IActorStatusQuery
     {
+        private sealed class HungerRuntime
+        {
+            public float TimeSinceFedSeconds;
+            public float RageRollRemainingSeconds;
+        }
+
         private sealed class ActiveStatus
         {
             public ActiveStatus(StatusConfig config)
@@ -33,6 +39,7 @@ namespace SlimeBattle.Status
             public float DirectRemainingSeconds { get; set; }
             public float ExitGraceRemainingSeconds { get; set; }
             public float PeriodicRemainingSeconds { get; set; }
+            public float ElapsedSeconds { get; set; }
             public ActorId SourceActorId { get; set; }
             public int StackCount { get; set; } = 1;
             public HashSet<MapAreaId> AreaSources { get; } = new HashSet<MapAreaId>();
@@ -45,22 +52,33 @@ namespace SlimeBattle.Status
         private readonly ConfigRegistry configs;
         private readonly ILevelEventBus eventBus;
         private readonly Func<ActorId, IEffectReceiver> actorResolver;
+        private readonly Func<IEnumerable<IEffectReceiver>> actorEnumerator;
+        private readonly Func<float> randomValue;
         private readonly Dictionary<ActorId, Dictionary<StatusId, ActiveStatus>> statuses =
             new Dictionary<ActorId, Dictionary<StatusId, ActiveStatus>>();
         private readonly Dictionary<ActorId, ActorControlMode> controlModeBaselines =
             new Dictionary<ActorId, ActorControlMode>();
         private readonly HashSet<EffectRequestId> processedRequests =
             new HashSet<EffectRequestId>();
+        private readonly Dictionary<ActorId, HungerRuntime> hungerRuntimes =
+            new Dictionary<ActorId, HungerRuntime>();
+        private readonly HashSet<ActorId> actorsInFurnaceCores = new HashSet<ActorId>();
+        private readonly Dictionary<ActorId, float> furnaceExposureSeconds =
+            new Dictionary<ActorId, float>();
         private readonly List<SubscriptionToken> subscriptions = new List<SubscriptionToken>();
         private bool paused;
         private bool disposed;
 
         internal StatusManager(ConfigRegistry configs, ILevelEventBus eventBus,
-            Func<ActorId, IEffectReceiver> actorResolver)
+            Func<ActorId, IEffectReceiver> actorResolver,
+            Func<IEnumerable<IEffectReceiver>> actorEnumerator = null,
+            Func<float> randomValue = null)
         {
             this.configs = configs ?? throw new ArgumentNullException(nameof(configs));
             this.eventBus = eventBus;
             this.actorResolver = actorResolver ?? throw new ArgumentNullException(nameof(actorResolver));
+            this.actorEnumerator = actorEnumerator ?? (() => Array.Empty<IEffectReceiver>());
+            this.randomValue = randomValue ?? (() => UnityEngine.Random.value);
             SubscribeToLevelEvents();
         }
 
@@ -127,6 +145,14 @@ namespace SlimeBattle.Status
             if (beforeHealth.CurrentHealth != afterHealth.CurrentHealth)
                 eventBus?.Publish(new HealthChangedEvent(request.RequestId,
                     beforeHealth, afterHealth, resolvedEffect));
+
+            if (request.Type == EffectType.Damage &&
+                beforeHealth.CurrentHealth != afterHealth.CurrentHealth &&
+                target.GetActorType() == ActorType.Guard)
+                NotifyNearbySlimesOfHumanBlood(target, afterActor.Position);
+
+            if (request.Type == EffectType.Damage && resolvedAmount > 0f && target.IsAlive())
+                ApplyOnHitStatus(request.SourceActorId, request.TargetActorId);
 
             eventBus?.Publish(new EffectAppliedEvent(request, resolvedEffect, result));
             return result;
@@ -208,6 +234,121 @@ namespace SlimeBattle.Status
             return true;
         }
 
+        /// <summary>Records feeding, clears Hunger/Rage, and optionally applies cold or hot food.</summary>
+        public bool NotifyFoodConsumed(ActorId actorId, StatusId foodStatusId = default(StatusId))
+        {
+            if (disposed || paused || !TryResolveTarget(actorId, out var receiver) ||
+                receiver.GetActorType() != ActorType.Slime) return false;
+
+            StatusConfig foodConfig = null;
+            if (foodStatusId.IsValid &&
+                (!configs.TryGetStatus(foodStatusId, out foodConfig) ||
+                 (foodConfig.Kind != StatusKind.Cold && foodConfig.Kind != StatusKind.Hot)))
+                return false;
+
+            if (!hungerRuntimes.TryGetValue(actorId, out var hunger))
+            {
+                hunger = new HungerRuntime();
+                hungerRuntimes.Add(actorId, hunger);
+            }
+            hunger.TimeSinceFedSeconds = 0f;
+            hunger.RageRollRemainingSeconds = 0f;
+            RemoveStatusByKind(actorId, StatusKind.Hunger, StatusRemoveReason.Dispelled);
+            RemoveStatusByKind(actorId, StatusKind.Rage, StatusRemoveReason.Dispelled);
+
+            if (foodConfig == null) return true;
+            var oppositeKind = foodConfig.Kind == StatusKind.Cold ? StatusKind.Hot : StatusKind.Cold;
+            if (configs.TryGetStatus(oppositeKind, out var opposite) && HasStatus(actorId, opposite.StatusId))
+            {
+                RemoveStatus(actorId, opposite.StatusId, StatusRemoveReason.Counteracted);
+                return true;
+            }
+
+            return ApplyStatus(new StatusApplicationRequest(default(ActorId), actorId,
+                foodConfig.StatusId));
+        }
+
+        public bool NotifyGuideReached(ActorId actorId, StatusGuideKind guideKind)
+        {
+            if (!Enum.IsDefined(typeof(StatusGuideKind), guideKind)) return false;
+            switch (guideKind)
+            {
+                case StatusGuideKind.Food:
+                    return NotifyFoodConsumed(actorId);
+                case StatusGuideKind.Warmth:
+                    return RemoveStatusByKind(actorId, StatusKind.Cold, StatusRemoveReason.Dispelled) |
+                        RemoveStatusByKind(actorId, StatusKind.Rage, StatusRemoveReason.Dispelled);
+                case StatusGuideKind.ColdArea:
+                    return RemoveStatusByKind(actorId, StatusKind.Hot, StatusRemoveReason.Dispelled) |
+                        RemoveStatusByKind(actorId, StatusKind.Rage, StatusRemoveReason.Dispelled);
+                case StatusGuideKind.Furnace:
+                    return RemoveStatusByKind(actorId, StatusKind.Cold, StatusRemoveReason.Dispelled) |
+                        RemoveStatusByKind(actorId, StatusKind.Rage, StatusRemoveReason.Dispelled);
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>Called by perception when an injured human is close enough for blood smell.</summary>
+        public bool NotifyInjuredHumanNearby(ActorId slimeActorId)
+        {
+            if (disposed || paused || !TryResolveTarget(slimeActorId, out var slime) ||
+                slime.GetActorType() != ActorType.Slime ||
+                HasStatus(slimeActorId, StatusKind.Rage) ||
+                !configs.TryGetStatus(StatusKind.Rage, out var rage) ||
+                randomValue() >= rage.HumanBloodRageChance)
+                return false;
+            return ApplyStatus(new StatusApplicationRequest(default(ActorId), slimeActorId,
+                rage.StatusId));
+        }
+
+        public bool NotifyFurnaceCoreEntered(ActorId actorId)
+        {
+            if (disposed || paused || !TryResolveTarget(actorId, out var receiver) ||
+                receiver.GetActorType() != ActorType.Slime) return false;
+            actorsInFurnaceCores.Add(actorId);
+            furnaceExposureSeconds[actorId] = 0f;
+            return true;
+        }
+
+        public bool NotifyFurnaceCoreExited(ActorId actorId)
+        {
+            furnaceExposureSeconds.Remove(actorId);
+            return actorsInFurnaceCores.Remove(actorId);
+        }
+
+        public bool HasStatus(ActorId actorId, StatusId statusId)
+        {
+            if (disposed || !statusId.IsValid || !TryResolveActor(actorId, out var receiver))
+                return false;
+            return ContainsStatus(receiver.GetSnapshot(), statusId);
+        }
+
+        public bool HasStatus(ActorId actorId, StatusKind kind)
+        {
+            return !disposed && configs.TryGetStatus(kind, out var config) &&
+                HasStatus(actorId, config.StatusId);
+        }
+
+        public bool TryGetStatus(ActorId actorId, StatusId statusId,
+            out StatusEntrySnapshot status)
+        {
+            status = default(StatusEntrySnapshot);
+            if (disposed || !statusId.IsValid || !TryResolveActor(actorId, out var receiver))
+                return false;
+            if (!ContainsStatus(receiver.GetSnapshot(), statusId)) return false;
+            if (statuses.TryGetValue(actorId, out var actorStatuses) &&
+                actorStatuses.TryGetValue(statusId, out var active))
+            {
+                status = CreateSnapshot(active);
+                return true;
+            }
+            status = new StatusEntrySnapshot(statusId, default(ConfigId),
+                float.PositiveInfinity, 0, true, 1, 1f, 1f, 1f, 1f,
+                false, StatusControlMode.None);
+            return true;
+        }
+
         public bool TryGetHealthSnapshot(ActorId actorId, out HealthSnapshot snapshot)
         {
             snapshot = default(HealthSnapshot);
@@ -234,9 +375,7 @@ namespace SlimeBattle.Status
                 var statusId = new StatusId(actor.StatusIds[i]);
                 if (!statusId.IsValid || (actorStatuses != null && actorStatuses.ContainsKey(statusId)))
                     continue;
-                entries.Add(new StatusEntrySnapshot(statusId, default(ConfigId),
-                    float.PositiveInfinity, 0, true, 1, 1f, 1f, 1f, 1f,
-                    false, StatusControlMode.None));
+                entries.Add(CreateSnapshot(statusId));
             }
             entries.Sort((left, right) => string.CompareOrdinal(
                 left.StatusId.Value, right.StatusId.Value));
@@ -286,6 +425,8 @@ namespace SlimeBattle.Status
             if (disposed || paused || !IsFinite(context.DeltaTime) || context.DeltaTime <= 0f)
                 return;
 
+            TickHunger(context.DeltaTime);
+            TickFurnaceExposure(context.DeltaTime);
             var actorIds = new List<ActorId>(statuses.Keys);
             foreach (var actorId in actorIds)
             {
@@ -296,12 +437,18 @@ namespace SlimeBattle.Status
                     continue;
                 }
 
+                var actorFrozen = HasStatus(actorId, StatusKind.Frozen);
                 var statusIds = new List<StatusId>(actorStatuses.Keys);
                 foreach (var statusId in statusIds)
                 {
                     if (!statuses.TryGetValue(actorId, out actorStatuses) ||
                         !actorStatuses.TryGetValue(statusId, out var active)) continue;
+                    if (actorFrozen && active.Config.Kind != StatusKind.Frozen) continue;
                     var previousModifiers = GetMovementModifiers(actorId);
+                    var activeDeltaTime = GetActiveDeltaTime(active, context.DeltaTime);
+                    active.ElapsedSeconds += activeDeltaTime;
+                    if (active.Config.HasPeriodicEffect)
+                        TickPeriodicEffect(actorId, active, activeDeltaTime);
 
                     if (active.HasDirectSource && !float.IsPositiveInfinity(active.DirectRemainingSeconds))
                     {
@@ -316,14 +463,8 @@ namespace SlimeBattle.Status
                         active.ExitGraceRemainingSeconds -= context.DeltaTime;
 
                     if (!active.IsActive)
-                    {
                         RemoveStatusInternal(actorId, statusId, StatusRemoveReason.Expired,
                             allowDeadActor: false, previousModifiers: previousModifiers);
-                        continue;
-                    }
-
-                    if (active.Config.HasPeriodicEffect)
-                        TickPeriodicEffect(actorId, active, context.DeltaTime);
                 }
             }
         }
@@ -347,6 +488,9 @@ namespace SlimeBattle.Status
             statuses.Clear();
             controlModeBaselines.Clear();
             processedRequests.Clear();
+            hungerRuntimes.Clear();
+            actorsInFurnaceCores.Clear();
+            furnaceExposureSeconds.Clear();
             disposed = true;
         }
 
@@ -355,6 +499,10 @@ namespace SlimeBattle.Status
         {
             if (config.IsImmuneTo(target.GetActorType()))
                 return EffectApplyResult.Immune("The target Actor is immune to this status.");
+            if (config.Kind == StatusKind.Burning &&
+                (HasStatus(request.TargetActorId, StatusKind.Frozen) ||
+                 HasStatus(request.TargetActorId, StatusKind.Cold)))
+                return EffectApplyResult.Immune("Burning is suppressed by cold or freezing.");
 
             statuses.TryGetValue(request.TargetActorId, out var actorStatuses);
             ActiveStatus existing = null;
@@ -377,6 +525,7 @@ namespace SlimeBattle.Status
             if (config.CounteractsStatusId.IsValid && config.CounteractsStatusId != request.StatusId)
                 RemoveStatus(request.TargetActorId, config.CounteractsStatusId,
                     StatusRemoveReason.Counteracted);
+            ApplyStatusCancellationRules(request.TargetActorId, config.Kind);
 
             statuses.TryGetValue(request.TargetActorId, out actorStatuses);
             existing = null;
@@ -452,6 +601,7 @@ namespace SlimeBattle.Status
                     existing.HasDirectSource = true;
                     existing.DirectRemainingSeconds = duration <= 0f
                         ? float.PositiveInfinity : duration;
+                    existing.ElapsedSeconds = 0f;
                     existing.ExitGraceRemainingSeconds = -1f;
                     existing.PeriodicRemainingSeconds = config.HasPeriodicEffect
                         ? config.PeriodicIntervalSeconds : float.PositiveInfinity;
@@ -463,6 +613,7 @@ namespace SlimeBattle.Status
             else if (changed)
                 eventBus?.Publish(new StatusChangedEvent(request.TargetActorId, CreateSnapshot(existing)));
 
+            RecalculateMaximumHealth(request.TargetActorId, target, beforeActor, request.StatusId);
             RecalculateControlMode(request.TargetActorId, target, previousControlMode);
             PublishMovementModifierChange(request.TargetActorId, previousModifiers);
             return EffectApplyResult.AcceptedStatus(changed || replaced,
@@ -471,6 +622,7 @@ namespace SlimeBattle.Status
 
         private void TickPeriodicEffect(ActorId actorId, ActiveStatus active, float deltaTime)
         {
+            if (deltaTime <= 0f) return;
             var interval = active.Config.PeriodicIntervalSeconds;
             if (interval <= 0f || !IsFinite(interval)) return;
             active.PeriodicRemainingSeconds -= deltaTime;
@@ -480,9 +632,13 @@ namespace SlimeBattle.Status
             {
                 active.PeriodicRemainingSeconds += interval;
                 ticks++;
+                var amount = active.Config.PeriodicAmount;
+                if (active.Config.PeriodicValueMode == PeriodicAmountMode.MaxHealthFraction &&
+                    TryResolveActor(actorId, out var affectedActor))
+                    amount *= affectedActor.GetSnapshot().MaxHealth;
                 var request = new EffectRequest(EffectRequestId.NewId(),
                     active.SourceActorId, actorId, active.Config.PeriodicEffectType,
-                    active.Config.PeriodicAmount * active.StackCount,
+                    amount * active.StackCount,
                     relationshipPolicy: EffectRelationshipPolicy.Any,
                     requireLivingSource: false);
                 ApplyEffect(request);
@@ -491,6 +647,229 @@ namespace SlimeBattle.Status
             if (ticks == MaximumPeriodicTicksPerStatusPerTick &&
                 active.PeriodicRemainingSeconds <= 0f)
                 active.PeriodicRemainingSeconds = interval;
+        }
+
+        private static float GetActiveDeltaTime(ActiveStatus active, float deltaTime)
+        {
+            if (active.AreaSources.Count > 0) return deltaTime;
+            if (active.HasDirectSource && !float.IsPositiveInfinity(active.DirectRemainingSeconds))
+                return Mathf.Min(deltaTime, Mathf.Max(0f, active.DirectRemainingSeconds));
+            if (!active.HasDirectSource && active.ExitGraceRemainingSeconds >= 0f)
+                return Mathf.Min(deltaTime, Mathf.Max(0f, active.ExitGraceRemainingSeconds));
+            return deltaTime;
+        }
+
+        private void ApplyOnHitStatus(ActorId sourceActorId, ActorId targetActorId)
+        {
+            if (!TryResolveTarget(sourceActorId, out var source) ||
+                !statuses.TryGetValue(sourceActorId, out var sourceStatuses)) return;
+            foreach (var active in sourceStatuses.Values)
+            {
+                if (!active.IsActive || !active.Config.HasOnHitStatus) continue;
+                ApplyStatus(new StatusApplicationRequest(sourceActorId, targetActorId,
+                    active.Config.OnHitStatusId,
+                    durationOverrideSeconds: active.Config.OnHitStatusDurationSeconds));
+                return;
+            }
+        }
+
+        private void ApplyStatusCancellationRules(ActorId actorId, StatusKind kind)
+        {
+            switch (kind)
+            {
+                case StatusKind.Cold:
+                    RemoveStatusByKind(actorId, StatusKind.Hot, StatusRemoveReason.Counteracted);
+                    RemoveStatusByKind(actorId, StatusKind.Burning, StatusRemoveReason.Counteracted);
+                    break;
+                case StatusKind.Frozen:
+                    RemoveStatusByKind(actorId, StatusKind.Burning, StatusRemoveReason.Counteracted);
+                    break;
+                case StatusKind.Hot:
+                    RemoveStatusByKind(actorId, StatusKind.Cold, StatusRemoveReason.Counteracted);
+                    break;
+            }
+        }
+
+        private bool RemoveStatusByKind(ActorId actorId, StatusKind kind,
+            StatusRemoveReason reason)
+        {
+            return configs.TryGetStatus(kind, out var config) &&
+                RemoveStatus(actorId, config.StatusId, reason);
+        }
+
+        private void RecalculateMaximumHealth(ActorId actorId, IEffectReceiver receiver,
+            ActorSnapshot before, StatusId causeStatusId)
+        {
+            if (!(receiver is IActorHealthLimitReceiver healthLimitReceiver) || !receiver.IsAlive())
+                return;
+            var multiplier = 1f;
+            if (statuses.TryGetValue(actorId, out var actorStatuses))
+                foreach (var active in actorStatuses.Values)
+                    if (active.IsActive)
+                        multiplier *= Mathf.Pow(active.Config.MaximumHealthMultiplier, active.StackCount);
+
+            healthLimitReceiver.SetMaxHealthMultiplier(multiplier);
+            var after = receiver.GetSnapshot();
+            if (!Mathf.Approximately(before.MaxHealth, after.MaxHealth) ||
+                !Mathf.Approximately(before.CurrentHealth, after.CurrentHealth))
+                eventBus?.Publish(new HealthChangedEvent(HealthSnapshot.FromActor(before),
+                    HealthSnapshot.FromActor(after), causeStatusId));
+        }
+
+        private void TickHunger(float deltaTime)
+        {
+            if (!configs.TryGetStatus(StatusKind.Hunger, out var hungerConfig)) return;
+            var actorIds = new List<ActorId>(hungerRuntimes.Keys);
+            foreach (var actorId in actorIds)
+            {
+                if (!hungerRuntimes.TryGetValue(actorId, out var runtime)) continue;
+                if (!TryResolveTarget(actorId, out var actor) || actor.GetActorType() != ActorType.Slime)
+                {
+                    hungerRuntimes.Remove(actorId);
+                    continue;
+                }
+                if (HasStatus(actorId, StatusKind.Frozen)) continue;
+
+                var wasHungry = HasStatus(actorId, StatusKind.Hunger);
+                runtime.TimeSinceFedSeconds += deltaTime;
+                if (!wasHungry && runtime.TimeSinceFedSeconds >= hungerConfig.HungerTriggerSeconds)
+                {
+                    ApplyStatus(new StatusApplicationRequest(default(ActorId), actorId,
+                        hungerConfig.StatusId));
+                    runtime.RageRollRemainingSeconds = hungerConfig.RageRollIntervalSeconds;
+                    continue;
+                }
+                if (!wasHungry) continue;
+
+                var interval = hungerConfig.RageRollIntervalSeconds;
+                if (runtime.RageRollRemainingSeconds <= 0f)
+                    runtime.RageRollRemainingSeconds = interval;
+                runtime.RageRollRemainingSeconds -= deltaTime;
+                var rolls = 0;
+                while (runtime.RageRollRemainingSeconds <= 0f && rolls++ < 16)
+                {
+                    runtime.RageRollRemainingSeconds += interval;
+                    if (!HasStatus(actorId, StatusKind.Rage) &&
+                        randomValue() < hungerConfig.HungerRageChance &&
+                        configs.TryGetStatus(StatusKind.Rage, out var rageConfig))
+                        ApplyStatus(new StatusApplicationRequest(default(ActorId), actorId,
+                            rageConfig.StatusId));
+                }
+                if (rolls >= 16 && runtime.RageRollRemainingSeconds <= 0f)
+                    runtime.RageRollRemainingSeconds = interval;
+            }
+        }
+
+        private void TickFurnaceExposure(float deltaTime)
+        {
+            if (!configs.TryGetStatus(StatusKind.Hot, out var hotConfig) ||
+                hotConfig.FurnaceExposureSeconds <= 0f) return;
+            var actorIds = new List<ActorId>(actorsInFurnaceCores);
+            foreach (var actorId in actorIds)
+            {
+                if (!TryResolveTarget(actorId, out var actor) || actor.GetActorType() != ActorType.Slime)
+                {
+                    NotifyFurnaceCoreExited(actorId);
+                    continue;
+                }
+                if (HasStatus(actorId, StatusKind.Frozen)) continue;
+                furnaceExposureSeconds.TryGetValue(actorId, out var elapsed);
+                elapsed += deltaTime;
+                furnaceExposureSeconds[actorId] = elapsed;
+                if (elapsed < hotConfig.FurnaceExposureSeconds) continue;
+                NotifyFurnaceCoreExited(actorId);
+                ApplyStatus(new StatusApplicationRequest(default(ActorId), actorId,
+                    hotConfig.StatusId));
+            }
+        }
+
+        private void OnSlimeSpawned(SlimeSpawnedEvent eventData)
+        {
+            hungerRuntimes[eventData.Snapshot.ActorId] = new HungerRuntime();
+        }
+
+        private void OnSlimeDied(SlimeDiedEvent eventData)
+        {
+            var actorId = eventData.Snapshot.ActorId;
+            ApplyHotDeathBurst(eventData.Snapshot.ActorId, eventData.Snapshot.Position,
+                eventData.Snapshot.ConfigId);
+            hungerRuntimes.Remove(actorId);
+            NotifyFurnaceCoreExited(actorId);
+
+            if (!configs.TryGetStatus(StatusKind.Hunger, out var hungerConfig)) return;
+            var companions = new List<IEffectReceiver>(actorEnumerator());
+            for (var i = 0; i < companions.Count; i++)
+            {
+                var companion = companions[i];
+                if (companion == null || !companion.IsAlive() ||
+                    companion.GetActorType() != ActorType.Slime || companion.GetActorId() == actorId)
+                    continue;
+                var roll = randomValue();
+                if (roll < hungerConfig.CompanionDeathRageChance &&
+                    configs.TryGetStatus(StatusKind.Rage, out var rage))
+                    ApplyStatus(new StatusApplicationRequest(default(ActorId), companion.GetActorId(), rage.StatusId));
+                else if (roll < hungerConfig.CompanionDeathRageChance +
+                    hungerConfig.CompanionDeathFearChance &&
+                    configs.TryGetStatus(StatusKind.Fear, out var fear))
+                    ApplyStatus(new StatusApplicationRequest(default(ActorId), companion.GetActorId(), fear.StatusId));
+            }
+        }
+
+        private void ApplyHotDeathBurst(ActorId sourceActorId, Vector2 position, ConfigId actorConfigId)
+        {
+            if (!TryGetActiveStatus(sourceActorId, StatusKind.Hot, out var hot) ||
+                !hot.Config.HasDeathBurst || !configs.TryGetActor(actorConfigId, out var actorConfig))
+                return;
+            var damage = actorConfig.AttackPower * hot.Config.DeathBurstDamageFraction;
+            if (damage <= 0f || !IsFinite(damage)) return;
+            var pixelsPerUnit = GetPixelsPerUnit(actorResolver(sourceActorId));
+            var radius = hot.Config.DeathBurstRadiusPixels / pixelsPerUnit;
+            var targets = new List<IEffectReceiver>(actorEnumerator());
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var target = targets[i];
+                if (target == null || !target.IsAlive() || target.GetActorType() != ActorType.Enemy ||
+                    Vector2.Distance(position, target.GetSnapshot().Position) > radius) continue;
+                ApplyEffect(new EffectRequest(EffectRequestId.NewId(), sourceActorId,
+                    target.GetActorId(), EffectType.Damage, damage,
+                    relationshipPolicy: EffectRelationshipPolicy.Any,
+                    requireLivingSource: false));
+            }
+        }
+
+        private void NotifyNearbySlimesOfHumanBlood(IEffectReceiver human, Vector2 position)
+        {
+            if (!configs.TryGetStatus(StatusKind.Rage, out var rage) ||
+                rage.HumanBloodSmellRadiusPixels <= 0f) return;
+            var radius = rage.HumanBloodSmellRadiusPixels / GetPixelsPerUnit(human);
+            var slimes = new List<IEffectReceiver>(actorEnumerator());
+            for (var i = 0; i < slimes.Count; i++)
+            {
+                var slime = slimes[i];
+                if (slime == null || !slime.IsAlive() || slime.GetActorType() != ActorType.Slime ||
+                    Vector2.Distance(position, slime.GetSnapshot().Position) > radius) continue;
+                NotifyInjuredHumanNearby(slime.GetActorId());
+            }
+        }
+
+        private static float GetPixelsPerUnit(IEffectReceiver receiver)
+        {
+            if (receiver is Component component)
+            {
+                var renderer = component.GetComponent<SpriteRenderer>();
+                if (renderer != null && renderer.sprite != null && renderer.sprite.pixelsPerUnit > 0f)
+                    return renderer.sprite.pixelsPerUnit;
+            }
+            return 100f;
+        }
+
+        private bool TryGetActiveStatus(ActorId actorId, StatusKind kind, out ActiveStatus active)
+        {
+            active = null;
+            if (!configs.TryGetStatus(kind, out var config) ||
+                !statuses.TryGetValue(actorId, out var actorStatuses) ||
+                !actorStatuses.TryGetValue(config.StatusId, out active)) return false;
+            return active.IsActive;
         }
 
         private void OnMapAreaEntered(MapAreaEnteredEvent eventData)
@@ -545,8 +924,11 @@ namespace SlimeBattle.Status
             }
         }
 
-        private void OnActorDied(SlimeDiedEvent eventData) =>
+        private void OnActorDied(SlimeDiedEvent eventData)
+        {
+            OnSlimeDied(eventData);
             ClearActor(eventData.Snapshot.ActorId, StatusRemoveReason.ActorDied, allowDeadActor: true);
+        }
 
         private void OnActorDied(EnemyDiedEvent eventData) =>
             ClearActor(eventData.Snapshot.ActorId, StatusRemoveReason.ActorDied, allowDeadActor: true);
@@ -575,6 +957,8 @@ namespace SlimeBattle.Status
                     if (ContainsStatus(actorSnapshot, statusId))
                         receiver.RemoveResolvedStatus(statusId.Value);
             }
+            hungerRuntimes.Remove(actorId);
+            NotifyFurnaceCoreExited(actorId);
 
             foreach (var pair in activeEntries)
                 eventBus?.Publish(new StatusRemovedEvent(actorId,
@@ -590,6 +974,8 @@ namespace SlimeBattle.Status
 
             var receiver = actorResolver(actorId);
             var modifiersBeforeRemoval = previousModifiers ?? GetMovementModifiers(actorId);
+            var beforeHealthActor = receiver != null && receiver.IsAlive()
+                ? receiver.GetSnapshot() : default(ActorSnapshot);
             var previousControl = receiver != null && receiver.IsAlive()
                 ? receiver.GetSnapshot().ControlMode : ActorControlMode.Autonomous;
             actorStatuses.Remove(statusId);
@@ -605,6 +991,7 @@ namespace SlimeBattle.Status
 
             if (receiver != null && receiver.IsAlive())
             {
+                RecalculateMaximumHealth(actorId, receiver, beforeHealthActor, statusId);
                 RecalculateControlMode(actorId, receiver, previousControl);
                 PublishMovementModifierChange(actorId, modifiersBeforeRemoval);
             }
@@ -617,27 +1004,38 @@ namespace SlimeBattle.Status
                 return;
 
             var hasControlStatus = false;
+            var pauseActor = false;
             if (statuses.TryGetValue(actorId, out var actorStatuses))
             {
                 foreach (var active in actorStatuses.Values)
-                    if (active.IsActive && active.Config.ControlMode == StatusControlMode.Controlled)
-                    { hasControlStatus = true; break; }
+                {
+                    if (!active.IsActive) continue;
+                    if (active.Config.ControlMode == StatusControlMode.Paused)
+                    {
+                        hasControlStatus = true;
+                        pauseActor = true;
+                        break;
+                    }
+                    if (active.Config.ControlMode == StatusControlMode.Controlled)
+                        hasControlStatus = true;
+                }
             }
 
             var currentMode = receiver.GetSnapshot().ControlMode;
             ActorControlMode desiredMode;
             if (hasControlStatus)
             {
-                if (currentMode == ActorControlMode.Controlled) return;
+                desiredMode = pauseActor ? ActorControlMode.Paused : ActorControlMode.Controlled;
+                if (currentMode == desiredMode) return;
                 if (!controlModeBaselines.ContainsKey(actorId))
                     controlModeBaselines.Add(actorId, currentMode);
-                desiredMode = ActorControlMode.Controlled;
             }
             else
             {
                 if (!controlModeBaselines.TryGetValue(actorId, out desiredMode)) return;
                 controlModeBaselines.Remove(actorId);
-                if (currentMode != ActorControlMode.Controlled) return;
+                if (currentMode != ActorControlMode.Controlled && currentMode != ActorControlMode.Paused)
+                    return;
             }
             if (currentMode == desiredMode) return;
             controlReceiver.SetControlMode(desiredMode);
@@ -660,6 +1058,7 @@ namespace SlimeBattle.Status
             if (eventBus == null) return;
             subscriptions.Add(eventBus.Subscribe<MapAreaEnteredEvent>(OnMapAreaEntered));
             subscriptions.Add(eventBus.Subscribe<MapAreaExitedEvent>(OnMapAreaExited));
+            subscriptions.Add(eventBus.Subscribe<SlimeSpawnedEvent>(OnSlimeSpawned));
             subscriptions.Add(eventBus.Subscribe<SlimeDiedEvent>(OnActorDied));
             subscriptions.Add(eventBus.Subscribe<EnemyDiedEvent>(OnActorDied));
             subscriptions.Add(eventBus.Subscribe<SlimeDespawnedEvent>(OnActorDespawned));
@@ -744,7 +1143,23 @@ namespace SlimeBattle.Status
                 remaining, active.AreaSources.Count, isPermanent, active.StackCount,
                 active.Config.MovementSpeedMultiplier, active.Config.AttackSpeedMultiplier,
                 active.Config.DamageDealtMultiplier, active.Config.DamageTakenMultiplier,
-                active.Config.IsRooted, active.Config.ControlMode);
+                active.Config.IsRooted, active.Config.ControlMode, active.Config.Kind,
+                active.ElapsedSeconds, active.Config.MaximumHealthMultiplier,
+                active.Config.RageHumanAttackDelaySeconds);
+        }
+
+        private StatusEntrySnapshot CreateSnapshot(StatusId statusId)
+        {
+            if (configs.TryGetStatus(statusId, out var config))
+                return new StatusEntrySnapshot(statusId, config.ConfigId,
+                    float.PositiveInfinity, 0, true, 1,
+                    config.MovementSpeedMultiplier, config.AttackSpeedMultiplier,
+                    config.DamageDealtMultiplier, config.DamageTakenMultiplier,
+                    config.IsRooted, config.ControlMode, config.Kind, 0f,
+                    config.MaximumHealthMultiplier, config.RageHumanAttackDelaySeconds);
+            return new StatusEntrySnapshot(statusId, default(ConfigId),
+                float.PositiveInfinity, 0, true, 1, 1f, 1f, 1f, 1f,
+                false, StatusControlMode.None);
         }
 
         private EffectApplyResult Reject(EffectRequest request, EffectApplyResult result)
