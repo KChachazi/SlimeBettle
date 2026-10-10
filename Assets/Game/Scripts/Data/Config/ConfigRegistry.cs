@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using SlimeBattle.Core;
+using SlimeBattle.Status;
 
 namespace SlimeBattle.Data
 {
@@ -111,6 +112,25 @@ namespace SlimeBattle.Data
             return TryGet(configId, out config);
         }
 
+        public bool TryGetStatus(StatusId statusId, out StatusConfig config)
+        {
+            config = null;
+            if (!statusId.IsValid) return false;
+
+            foreach (var candidate in configs)
+            {
+                if (!(candidate is StatusConfig status) || status.StatusId != statusId)
+                    continue;
+                if (config != null)
+                {
+                    config = null;
+                    return false;
+                }
+                config = status;
+            }
+            return config != null;
+        }
+
         public ConfigValidationReport ValidateAll()
         {
             var report = new ConfigValidationReport();
@@ -135,8 +155,23 @@ namespace SlimeBattle.Data
                 }
             }
 
+            var statusIds = new HashSet<StatusId>();
             foreach (var config in configs)
             {
+                if (!(config is StatusConfig status) || !status.StatusId.IsValid) continue;
+                if (!statusIds.Add(status.StatusId))
+                    report.AddError($"{status.name}: StatusId '{status.StatusId}' is registered more than once.");
+            }
+
+            foreach (var config in configs)
+            {
+                if (config is StatusConfig status && status.CounteractsStatusId.IsValid)
+                {
+                    if (status.CounteractsStatusId == status.StatusId)
+                        report.AddError($"{status.name}: CounteractsStatusId cannot reference itself.");
+                    else if (!TryGetStatus(status.CounteractsStatusId, out StatusConfig ignoredStatus))
+                        report.AddError($"{status.name}: CounteractsStatusId does not resolve uniquely.");
+                }
                 if (config is LevelConfig level && level.ObjectiveConfigId.IsValid &&
                     !TryGet(level.ObjectiveConfigId, out ObjectiveConfig ignoredObjective))
                 {

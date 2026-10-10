@@ -123,7 +123,7 @@ namespace SlimeBattle.Actors
 
         public bool RemoveResolvedStatus(string statusId)
         {
-            return RuntimeData.IsAlive && !string.IsNullOrEmpty(statusId) &&
+            return !string.IsNullOrEmpty(statusId) &&
                 RuntimeData.StatusIds.Remove(statusId);
         }
 

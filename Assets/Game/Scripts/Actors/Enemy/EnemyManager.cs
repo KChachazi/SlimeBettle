@@ -63,14 +63,15 @@ namespace SlimeBattle.Enemies
             actor.Initialize(config, id, request.Position,
                 request.FactionId.IsValid ? request.FactionId : new FactionId("Enemy"),
                 request.TargetPolicy, request.ActivityBounds);
+            actors.Add(id, actor);
             if (!TryRegisterMovement(actor, config.MoveSpeed))
             {
+                actors.Remove(id);
                 DestroyActor(actor);
                 return Reject("MovementSystem could not register the Enemy Rigidbody2D.");
             }
             actor.Died += OnActorDied;
             actor.ControlModeChanged += OnControlModeChanged;
-            actors.Add(id, actor);
             eventBus?.Publish(new EnemySpawnedEvent(actor.GetSnapshot()));
             return id;
         }

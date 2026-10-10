@@ -10,17 +10,20 @@ namespace SlimeBattle.Actors.AI.StateMachine
     public readonly struct StateContext
     {
         public StateContext(float deltaTime, ActorSnapshot actor,
-            IActorPerceptionSource perception, IActorActionPort actions)
+            IActorPerceptionSource perception, IActorActionPort actions,
+            float attackSpeedMultiplier = 1f)
         {
             DeltaTime = deltaTime;
             Actor = actor;
             Perception = perception;
             Actions = actions;
+            AttackSpeedMultiplier = attackSpeedMultiplier;
         }
         public float DeltaTime { get; }
         public ActorSnapshot Actor { get; }
         public IActorPerceptionSource Perception { get; }
         public IActorActionPort Actions { get; }
+        public float AttackSpeedMultiplier { get; }
     }
 
     public sealed class ActorStateMachine
@@ -127,9 +130,13 @@ namespace SlimeBattle.Actors.AI.StateMachine
                 RequestInterrupt(InterruptReason.Death, context.Actions);
                 return;
             }
-            if (context.DeltaTime > 0f) cooldown = UnityEngine.Mathf.Max(0f, cooldown - context.DeltaTime);
+            var attackSpeedMultiplier = IsValidAttackSpeed(context.AttackSpeedMultiplier)
+                ? context.AttackSpeedMultiplier : 1f;
+            if (context.DeltaTime > 0f)
+                cooldown = UnityEngine.Mathf.Max(0f,
+                    cooldown - context.DeltaTime * attackSpeedMultiplier);
             if (!attackPending) return;
-            attackElapsed += UnityEngine.Mathf.Max(0f, context.DeltaTime);
+            attackElapsed += UnityEngine.Mathf.Max(0f, context.DeltaTime) * attackSpeedMultiplier;
             if (attackElapsed < attackWindup) return;
 
             // 命中与提交发生在进入 Attacking 之后的 Tick；目标可能已失效。
@@ -139,7 +146,7 @@ namespace SlimeBattle.Actors.AI.StateMachine
                 attackRange, attackPower, context.Perception, context.Actions);
             // ApplyEffect 可能同步触发死亡或关卡销毁，不能覆盖中断后的 Dead 状态。
             if (stopped || paused) return;
-            cooldown = attackInterval;
+            cooldown = attackInterval / attackSpeedMultiplier;
             CurrentState = StateId.Idle;
             currentIntent = default(ActionIntent);
         }
@@ -175,5 +182,8 @@ namespace SlimeBattle.Actors.AI.StateMachine
             if (!string.IsNullOrEmpty(movementRequestId)) actions?.CancelMovement(movementRequestId);
             movementRequestId = null;
         }
+
+        private static bool IsValidAttackSpeed(float value) =>
+            value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }
