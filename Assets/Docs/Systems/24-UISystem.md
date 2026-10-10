@@ -7,6 +7,8 @@
 生命周期：应用级界面可跨关卡存在，关卡界面随 `LevelContext` 创建和销毁  
 状态：核心架构，界面内容待确认
 
+P0 实现更新：2026-10-09；负责人：小宸。P0 只实现 HUD、暂停、结果与重开，不实现最终放置和机关界面。
+
 ## 1. 职责
 
 - 显示关卡状态、目标、护送武器状态、史莱姆数量、资源、提示、暂停和结算；
@@ -75,4 +77,30 @@ UiCommandSubmittedEvent
 - UI 是独立场景、场景对象还是运行时创建；
 - 屏幕适配、字体和交互区域；
 - 是否需要完整的关卡选择和 Meta 界面。
+
+## 9. P0 实现与接入契约
+
+实现：`Assets/Game/Scripts/UI/UISystem.cs`；uGUI 视图：`BattleHudView.cs`；快照与事件：`UiState.cs`。沿用第 4 节接口，SubmitCommand 返回 `void`，接受/拒绝通过 `UiCommandSubmittedEvent.Accepted` 通知。
+
+```csharp
+void Initialize(LevelManager manager, InputSystem input,
+    IUiSnapshotSource source = null, BattleHudView hudView = null);
+// InputSystem 的完整名称为 SlimeBattle.Player.Input.InputSystem。
+```
+
+- Initialize 必须传当前应用的 LevelManager；缺失时抛 ArgumentNullException。输入、快照源、视图允许缺失，不阻塞关卡模拟。重复 Initialize 会解除原绑定。
+- 启用时先查询当前关卡状态及来源快照，再订阅 LevelManager 的实际 C# 事件 `LevelStateChanged`、`LevelStarted`、`LevelLoadFailed`。禁用时解除订阅与按钮监听；再次启用重新查询，支持结算后才打开 UI。
+- UiState 是只读显示快照：LevelId、LevelState、ObjectiveText、SlimeCount、EnemyCount、Hint、ResultText。数量 -1 表示未接入并显示 `--`，不是 0 存活。UI 不根据数量或文本推断胜负。
+- `IUiSnapshotSource.ReadSnapshot(LevelContext context)` 是提供给关卡接入层的显示适配接口，不替代 ObjectiveSystem 的领域 API。目标/Actor 负责人实现适配器，调用自己的公开快照 API，返回目标、数量和结果原因。UI 在初始化、阶段变化和最多每秒 5 次刷新时查询。LevelId / LevelState 始终使用 LevelManager 的权威状态，忽略来源的同名字段。
+- 快照来源缺失时显示 Waiting for objective data；异常时降级并仅记录一次警告。来源不持有旧 Context，重开后从参数查询新一局。UISystem.Refresh 只修改显示缓存，不发布目标结果。
+- UiPanelId 为 Hud / Pause / Result；OpenPanel / ClosePanel 只管理展示，不能代替暂停和胜负判定。UiCommand 为 Pause / Resume / Restart，分别调用 LevelManager 的三个公开流程请求；状态不匹配和重复重开拒绝。重开完成或加载失败解除 pending。
+- 只响应 `CancelInputEvent.IsUserRequested == true` 切换暂停/恢复。生命周期取消不会切换关卡状态。加载、初始化、卸载时禁用游戏输入；暂停、结算时保留 UI 操作。
+- BattleHudView.Create 可创建最小 HUD，支持指定 Font；默认内置 LegacyRuntime.ttf，默认英文文案避免未导入中文字体时出现方框。Canvas 以 1280×720、宽高折中缩放作为测试值，不作为最终屏幕方向/适配规则。正式中文字体、安全区域与超长文本仍需设备验证。
+- 对外面板/指令事件采用 C# event；订阅方在禁用时移除。关卡销毁后不得缓存旧 UI 或来源引用。
+
+场景级组合入口 `SlimeBattle.Player.PlayerPresentationRoot.Initialize(LevelManager, CameraSystem, IUiSnapshotSource = null, BattleHudView = null)` 只组装三个系统并同步输入生命周期，不修改 Core 内部。可在场景引用中指定各组件；无引用时只在 Start 查找一次 Bootstrap 的 LevelManager 与子镜头。不调用全局静态服务。没有 EventSystem 时创建使用 InputSystemUIInputModule 的场景级对象；现有场景须使用新版 UI 模块，不能并存旧 StandaloneInputModule。
+
+未来选择面板可作为独立 uGUI 子面板或注入的 BattleHudView 扩展，由自己的显示适配器管理选中状态；GraphicRaycaster 会阻止其点击穿透地图。当前不定义 PlacementItem、消耗、地形校验、确认/取消规则，也不创建机关或调用 MapManager。
+
+验证与边界见 `Assets/Game/Tests/PlayerPresentation/README.md` 和 `Assets/Docs/P0-小宸接入说明.md`。
 

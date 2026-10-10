@@ -1,7 +1,10 @@
 {
     "name": "SlimeBattle.Runtime",
     "rootNamespace": "SlimeBattle",
-    "references": [],
+    "references": [
+        "Unity.InputSystem",
+        "UnityEngine.UI"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
