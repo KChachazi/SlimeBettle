@@ -1,0 +1,14 @@
+{
+    "name": "SlimeBattle.AIBranches",
+    "rootNamespace": "SlimeBattle.Tests.AIBranches",
+    "references": ["SlimeBattle.Runtime"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

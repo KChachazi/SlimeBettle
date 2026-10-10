@@ -21,6 +21,9 @@ namespace SlimeBattle.Data
         private float attackRange = 1f;
 
         [SerializeField]
+        private float detectionRange = 1.5f;
+
+        [SerializeField]
         private float attackWindup = 0.15f;
 
         public int AttackPower => attackPower;
@@ -29,6 +32,8 @@ namespace SlimeBattle.Data
         public float MoveSpeed => moveSpeed;
         public float AttackInterval => attackInterval;
         public float AttackRange => attackRange;
+        /// <summary>Temporary target detection radius in world units; tune when design values arrive.</summary>
+        public float DetectionRange => detectionRange;
         public float AttackWindup => attackWindup;
 
         // Authoring helper used by tests and editor-side setup.
@@ -49,6 +54,12 @@ namespace SlimeBattle.Data
         {
             EnsureAuthoring();
             attackRange = value;
+        }
+
+        public void SetDetectionRange(float value)
+        {
+            EnsureAuthoring();
+            detectionRange = value;
         }
 
         public void SetAttackWindup(float value)
@@ -82,6 +93,11 @@ namespace SlimeBattle.Data
             if (float.IsNaN(attackRange) || float.IsInfinity(attackRange) || attackRange <= 0f)
             {
                 report.AddError($"{name}: AttackRange must be greater than zero.");
+            }
+            if (float.IsNaN(detectionRange) || float.IsInfinity(detectionRange) ||
+                detectionRange <= attackRange)
+            {
+                report.AddError($"{name}: DetectionRange must be greater than AttackRange.");
             }
             if (float.IsNaN(attackWindup) || float.IsInfinity(attackWindup) || attackWindup < 0f)
             {

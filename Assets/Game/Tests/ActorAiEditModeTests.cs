@@ -314,7 +314,7 @@ namespace SlimeBattle.Tests
                     new FactionId("enemy"), EnemyTargetPolicy.NearestHostile,
                     new EnemyActivityBounds(new Vector2(-2f, -2f), new Vector2(2f, 2f)));
                 var world = new FakeWorld { Perception = new PerceptionSnapshot(1, null,
-                    true, Vector2.right) };
+                    guides: new[] { new GuidanceObservation(GuidanceKind.Wander, Vector2.right) }) };
                 enemy.Tick(new ActorContext(.2f, world, world));
                 Assert.AreEqual(Vector2.right, world.Moves[0].Destination);
                 Assert.That(enemy.LastDecisionReason, Does.Contain("游走"));
@@ -335,6 +335,7 @@ namespace SlimeBattle.Tests
         {
             var actorObject = new GameObject("Test SlimeActor");
             actorObjects.Add(actorObject);
+            actorObject.AddComponent<CircleCollider2D>();
             return actorObject.AddComponent<SlimeActor>();
         }
 
@@ -342,6 +343,7 @@ namespace SlimeBattle.Tests
         {
             var actorObject = new GameObject("Test EnemyActor");
             actorObjects.Add(actorObject);
+            actorObject.AddComponent<CircleCollider2D>();
             return actorObject.AddComponent<EnemyActor>();
         }
     }

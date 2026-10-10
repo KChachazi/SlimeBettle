@@ -44,6 +44,8 @@ WeaponConfig
 
 每个配置资产必须拥有稳定的 `ConfigId`。显示名称不能作为跨系统唯一键。
 
+`ActorConfig.DetectionRange` 是目标感知半径（世界单位），必须大于 `AttackRange`。当前测试资产暂填攻击半径 1.2、感知半径 1.5；这是通路测试值，不是策划最终数值，也不含墙体遮挡判定。
+
 当前 `ObjectiveConfig` 包含 `FailWhenNoSlimes` 关卡规则开关：默认开启，保持“史莱姆全灭失败”；`Level_test` 的配置关闭它，仅保留护送对象生命归零失败。它是静态设计值，不保存本局史莱姆数量或武器生命。
 
 ## 3.1 当前策划提出的初始数值

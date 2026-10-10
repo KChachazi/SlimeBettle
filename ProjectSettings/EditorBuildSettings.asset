@@ -14,4 +14,46 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Game/Scenes/Level_test.unity
     guid: 8330e8de1192d494e96d13b95282ac2d
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeWait.unity
+    guid: f5ada559aafe02f4a99e25974766ec55
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeChase.unity
+    guid: 1cacbc84b8fbbbc42b0894a24c122385
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeAttack.unity
+    guid: 353ce4fd82a64c541b046ed7cd8538f3
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeHungry.unity
+    guid: d690d649b6dd03e4f94c219d1a3c37d9
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeCold.unity
+    guid: 9523ec2570b34074eba73c96103eb6e9
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeAfraid.unity
+    guid: f0d663b0e0752df408038d12205184e4
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeFleeBelow50.unity
+    guid: af3da58c02a55c64796b69be1e4a919e
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeFleeBelow30.unity
+    guid: 072e71b055b4747409e81abf69967501
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeFightAfterFailedFlee.unity
+    guid: 3b69de4437fb1654c9c51e5106ce109a
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_SlimeAgitatedHuman.unity
+    guid: df4ac796bc02ba7418b9c1933875aafb
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_EnemyWander.unity
+    guid: 9eac66738eb892d45a3af8bdb69b3d16
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_EnemyChase.unity
+    guid: 0beec3983f4bb8d4a86a2bc6822a381d
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_EnemyAttack.unity
+    guid: 28cc5acfe54a35440a04ad84563758c7
+  - enabled: 1
+    path: Assets/Game/Tests/AIBranches/Scenes/Test_AI_EnemyOutsideActivityBounds.unity
+    guid: c4bacf8be0643ac4cb0b3486ad301a44
   m_configObjects: {}

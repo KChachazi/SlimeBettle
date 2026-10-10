@@ -9,4 +9,4 @@
 
 直接从 Level_test 场景启动不会创建正式 GameRoot，应从 Bootstrap 开始。
 
-`Level_test` 的 `ObjectiveConfig` 关闭了“史莱姆全部死亡也失败”，因此这局只在护送对象生命归零时判负；其他关卡保持现有默认规则。由于 StatusManager 尚未接入，Play 模式中目前没有正式伤害路径可以打掉护送对象生命；EditMode 测试通过 `ObjectiveSystem` 的公开效果接口验证该判定。
+`Level_test` 的 `ObjectiveConfig` 关闭了“史莱姆全部死亡也失败”，因此这局只在护送对象生命归零时判负；其他关卡保持现有默认规则。StatusManager 已接入 Actor 效果结算，但本场景的漫游感知没有敌对目标，护送对象也不是 Actor；Play 模式仍没有攻击护送对象的路径。EditMode 测试通过 `ObjectiveSystem` 的公开效果接口验证失败判定。
