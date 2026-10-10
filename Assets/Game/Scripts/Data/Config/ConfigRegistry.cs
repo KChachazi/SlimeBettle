@@ -131,6 +131,23 @@ namespace SlimeBattle.Data
             return config != null;
         }
 
+        public bool TryGetStatus(StatusKind kind, out StatusConfig config)
+        {
+            config = null;
+            if (kind == StatusKind.None || !Enum.IsDefined(typeof(StatusKind), kind)) return false;
+            foreach (var candidate in configs)
+            {
+                if (!(candidate is StatusConfig status) || status.Kind != kind) continue;
+                if (config != null)
+                {
+                    config = null;
+                    return false;
+                }
+                config = status;
+            }
+            return config != null;
+        }
+
         public ConfigValidationReport ValidateAll()
         {
             var report = new ConfigValidationReport();
@@ -156,11 +173,14 @@ namespace SlimeBattle.Data
             }
 
             var statusIds = new HashSet<StatusId>();
+            var statusKinds = new HashSet<StatusKind>();
             foreach (var config in configs)
             {
                 if (!(config is StatusConfig status) || !status.StatusId.IsValid) continue;
                 if (!statusIds.Add(status.StatusId))
                     report.AddError($"{status.name}: StatusId '{status.StatusId}' is registered more than once.");
+                if (status.Kind != StatusKind.None && !statusKinds.Add(status.Kind))
+                    report.AddError($"{status.name}: StatusKind '{status.Kind}' is registered more than once.");
             }
 
             foreach (var config in configs)
@@ -171,6 +191,11 @@ namespace SlimeBattle.Data
                         report.AddError($"{status.name}: CounteractsStatusId cannot reference itself.");
                     else if (!TryGetStatus(status.CounteractsStatusId, out StatusConfig ignoredStatus))
                         report.AddError($"{status.name}: CounteractsStatusId does not resolve uniquely.");
+                }
+                if (config is StatusConfig statusConfig && statusConfig.OnHitStatusId.IsValid &&
+                    !TryGetStatus(statusConfig.OnHitStatusId, out StatusConfig ignoredOnHitStatus))
+                {
+                    report.AddError($"{statusConfig.name}: OnHitStatusId does not resolve uniquely.");
                 }
                 if (config is LevelConfig level && level.ObjectiveConfigId.IsValid &&
                     !TryGet(level.ObjectiveConfigId, out ObjectiveConfig ignoredObjective))

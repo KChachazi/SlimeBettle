@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SlimeBattle.Actors;
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.Enemies;
@@ -79,7 +80,8 @@ namespace SlimeBattle.Core
                 throw new InvalidOperationException("SlimeActor and EnemyActor prefabs are required.");
 
             MapManager = new MapManager(SceneManager.GetActiveScene(), EventBus);
-            StatusManager = new StatusManager(ConfigRegistry, EventBus, ResolveActor);
+            StatusManager = new StatusManager(ConfigRegistry, EventBus, ResolveActor,
+                EnumerateAliveActors);
             MovementSystem = new MovementSystem(MapManager, EventBus,
                 StatusManager.GetMovementModifiers);
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
@@ -140,6 +142,14 @@ namespace SlimeBattle.Core
         private IEffectReceiver ResolveActor(ActorId actorId)
         {
             return TryResolveActor(actorId, out var receiver) ? receiver : null;
+        }
+
+        private IEnumerable<IEffectReceiver> EnumerateAliveActors()
+        {
+            if (SlimeManager != null)
+                foreach (var actor in SlimeManager.GetAliveEffectReceivers()) yield return actor;
+            if (EnemyManager != null)
+                foreach (var actor in EnemyManager.GetAliveEffectReceivers()) yield return actor;
         }
 
         internal void SetState(LevelState nextState)

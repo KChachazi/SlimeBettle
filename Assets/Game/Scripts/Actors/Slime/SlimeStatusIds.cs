@@ -8,6 +8,8 @@ namespace SlimeBattle.Actors.Slimes
         public const string Afraid = "Afraid";
         public const string Agitated = "Agitated";
         public const string Hot = "Hot";
+        public const string Frozen = "Frozen";
+        public const string Burning = "Burning";
 
         internal static bool Contains(System.Collections.Generic.IReadOnlyList<string> statusIds, string id)
         {

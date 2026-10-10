@@ -7,7 +7,7 @@
 生命周期：当前 `LevelContext` 生命周期<br />
 状态：P0 效果结算、状态运行时和地图区域接入已实现；具体玩法配置由状态资产提供
 
-源码按职责放在 `Configuration/`、`Effects/`、`Runtime/`、`Snapshots/` 和 `Events/` 子目录。各类型继续使用 `SlimeBattle.Status` 命名空间，文件夹调整不改变调用方 API。
+`StatusConfig` 是配置资产，源码放在 `Assets/Game/Scripts/Data/Config/Types/` 并使用 `SlimeBattle.Data` 命名空间。`StatusId`、`StatusControlMode`、`StatusStackingPolicy`、`StatusKind` 和 `PeriodicAmountMode` 属于状态领域类型，源码放在 `Assets/Game/Scripts/Status/` 并使用 `SlimeBattle.Status` 命名空间；运行逻辑、请求、快照和事件也按职责放在该目录下。
 
 ## 1. 定位与所有权
 
@@ -44,7 +44,7 @@ MovementModifierSnapshot
 StatusTickContext
 ```
 
-`StatusConfig` 由 `ConfigRegistry` 按 `StatusId` 唯一解析。重复的 `StatusId` 或缺失配置会被拒绝，不会静默选取某一项。配置包含持续时间、区域离开宽限、移动/攻击/伤害倍率、定身和控制、叠层策略、抵消状态、Actor 类型免疫及周期伤害/治疗。
+`StatusConfig` 由 `ConfigRegistry` 按 `StatusId` 或唯一的 `StatusKind` 解析。重复 ID、重复玩法种类或缺失配置会在验证时报告。配置包含持续时间、区域离开宽限、移动/攻击/伤害/最大生命倍率、定身和控制、叠层策略、抵消状态、Actor 类型免疫、命中附加状态、周期伤害/治疗和专属触发参数。正式配置资产位于 `Assets/Game/Configs/Status/`，并由 Bootstrap 场景的 `LevelManager` 注册。
 
 ## 4. 效果请求与结算
 
@@ -102,6 +102,24 @@ bool ApplyStatus(StatusApplicationRequest request);
 
 因此，寒冷/温暖区域的具体结果通过状态资产表达：区域资产关联相应状态配置，状态配置再定义减速、周期伤害或其他效果。缺少或存在歧义的状态配置会发出拒绝事件，不会写死在 MapManager 中。
 
+## 5.5 史莱姆具体状态
+
+正式配置 ID 保留与决策树一致的 `Hungry`、`Agitated`、`Afraid`、`Cold`、`Hot`，并新增 `Frozen`、`Burning`。战斗是行为规则，不创建 `Combat` 状态。
+
+| 状态 | 配置效果与触发 |
+| --- | --- |
+| 饥饿 `Hungry` | 出生/上次进食后 90 秒必定进入；造成伤害降低 10%。进入饥饿后每 10 秒以 20% 概率获得暴躁。 |
+| 暴躁 `Agitated` | 移速、攻速和造成伤害提高 10%；获得后 5 秒才允许把附近人类作为攻击目标。饥饿后的定时判定、300px 内人类受伤时的 60% 判定或同伴死亡（25%）可触发。 |
+| 害怕 `Afraid` | 移速提高 20%，持续 10 秒；忽略引导并沿逃跑目标移动。生命值低于 50% 时有 20%、低于 30% 时有 50% 的逃跑概率；同伴死亡时有 25% 概率触发。 |
+| 寒冷 `Cold` | 低温区域、冷食触发；移速与攻速降低 20%，攻击命中附加 1 秒冻结。离开低温区 20 秒后或到达热源时解除。 |
+| 冻结 `Frozen` | 持续 1 秒，定身并暂停 Actor 行为状态机及其他状态计时；同时移除燃烧。 |
+| 炙热 `Hot` | 温暖区域、热食触发；最大生命降低 30%。离开温暖区 20 秒后或到达低温区域时解除。火炉核心累计停留 20 秒也会触发。 |
+| 燃烧 `Burning` | 每秒造成目标最大生命 2% 的伤害，持续 5 秒；进入低温区或被冻结时解除。 |
+
+食用冷/热食物时，如果当前已有相反温度状态，则移除当前状态且不施加新状态。炙热史莱姆死亡时，对 150 像素范围内的所有敌人造成其攻击力 15% 的伤害。最大生命变化会同步写入 ActorCore，降低生命上限时会将当前生命夹到新上限。
+
+`StatusManager.NotifyFoodConsumed` 由食物交互调用；`NotifyGuideReached` 用于到达食物、热源或低温区域后解除对应需求；火炉交互通过 `NotifyFurnaceCoreEntered/Exited` 上报核心区域成员；感知发现受伤人类在范围内时调用 `NotifyInjuredHumanNearby`。同伴死亡触发由 StatusManager 订阅 `SlimeDiedEvent` 自动处理。
+
 ## 6. 查询与移除接口
 
 ```csharp
@@ -114,9 +132,14 @@ float GetAttackSpeedMultiplier(ActorId actorId);
 float GetDamageDealtMultiplier(ActorId actorId);
 float GetDamageTakenMultiplier(ActorId actorId);
 void Tick(StatusTickContext context);
+bool HasStatus(ActorId actorId, StatusId statusId);
+bool HasStatus(ActorId actorId, StatusKind kind);
+bool TryGetStatus(ActorId actorId, StatusId statusId, out StatusEntrySnapshot status);
 ```
 
 快照只读并反映 Actor 当前权威数据及本系统跟踪的配置状态。移除、过期、抵消、离区宽限结束、死亡和销毁会带上对应 `StatusRemoveReason`。
+
+状态查询支持 HasStatus(ActorId, StatusId/StatusKind)、TryGetStatus(ActorId, StatusId) 和 TryGetStatusSnapshot；条目包含玩法种类、已持续时间、剩余时间、层数和数值倍率。只读契约为 IActorStatusQuery，Actor 决策经行动端口查询，不直接写状态。
 
 ## 7. 事件
 
@@ -134,7 +157,7 @@ void Tick(StatusTickContext context);
 
 ## 8. LevelContext 集成
 
-`LevelContext.Initialize()` 在 MapManager 后创建 StatusManager，并将其移动修正查询注入 MovementSystem。Actor 行动端口把 `AttackAction` 的伤害请求转交 StatusManager，同时向状态机提供攻速倍率。`LevelContext.Tick()` 驱动状态计时；暂停、恢复和 Dispose 与其他关卡系统同步。Actor 在注册到 MovementSystem 前进入所属 Manager 的索引，使初始区域事件能够解析到 Actor。
+`LevelContext.Initialize()` 在 MapManager 后创建 StatusManager，并将其移动修正查询注入 MovementSystem。Actor 行动端口把 `AttackAction` 的伤害请求转交 StatusManager，同时向状态机提供攻速倍率和只读状态查询；逃跑意图可携带 Fear 申请，由行动端口提交。`LevelContext.Tick()` 驱动状态计时；暂停、恢复和 Dispose 与其他关卡系统同步。Actor 在注册到 MovementSystem 前进入所属 Manager 的索引，使初始区域事件能够解析到 Actor。
 
 ## 9. 关键不变量
 
@@ -150,4 +173,4 @@ void Tick(StatusTickContext context);
 - 击退需要 MovementSystem 提供确定的冲量/受击接口后再消费 `EffectRequest.Direction`。
 - 受击闪烁、动画、音效和 UI 由表现/UI 系统观察事件实现。
 - 地图落物、阻挠点、峡谷坠落、区域随机事件由地图/机关等系统负责；本系统只结算其提交的 Actor 效果。
-- 状态资产、具体数值、状态优先级和免疫表仍由玩法配置确认；当前没有预设寒冷、炙热等状态数值。
+- 状态配置资产和首版数值已放入 `Assets/Game/Configs/Status/`；正式区域仍需在场景标记体上关联对应配置。食物、火炉核心和受伤人类的玩法适配层应调用本系统公开通知接口。

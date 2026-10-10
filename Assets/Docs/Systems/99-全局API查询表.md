@@ -46,6 +46,7 @@ AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Acto
 | API-DATA-004 | ObjectiveConfig | FailWhenNoSlimes | 无 | 是否在史莱姆全灭时失败 | ObjectiveSystem | P0，默认开启；Level_test 关闭 |
 | API-DATA-005 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 已实现 |
 | API-DATA-006 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager、MapManager 区域适配 | 已实现；重复 StatusId 拒绝 |
+| API-DATA-007 | ConfigSystem | TryGetStatus(StatusKind, out StatusConfig) | 玩法状态种类 | 是否成功、配置 | StatusManager | 已实现；重复 StatusKind 拒绝 |
 
 ## 4. LevelContext Manager API
 
@@ -110,6 +111,12 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API-STATUS-003 | StatusManager | RemoveStatus(ActorId, StatusId, StatusRemoveReason) | Actor、状态、原因 | 是否成功 | Actor、关卡规则 | 已实现 |
 | API-STATUS-004 | StatusManager | TryGetHealthSnapshot(ActorId, out HealthSnapshot) | Actor ID | 是否成功、生命快照 | AI、UI、ObjectiveSystem | 已实现 |
 | API-STATUS-005 | StatusManager | TryGetStatusSnapshot(ActorId, out StatusSnapshot) | Actor ID | 是否成功、状态快照 | AI、UI、状态机 | 已实现 |
+| API-STATUS-009 | StatusManager | HasStatus(ActorId, StatusId/StatusKind) | Actor 与状态标识/种类 | 是否具有该状态 | AI、玩法规则 | 已实现 |
+| API-STATUS-010 | StatusManager | TryGetStatus(ActorId, StatusId, out StatusEntrySnapshot) | Actor 与状态 ID | 是否成功、状态条目（含已持续时间） | AI、UI | 已实现 |
+| API-STATUS-011 | StatusManager | NotifyFoodConsumed(ActorId, StatusId) | 史莱姆与可选冷/热食状态 | 是否处理 | 食物交互适配 | 已实现 |
+| API-STATUS-012 | StatusManager | NotifyGuideReached(ActorId, StatusGuideKind) | 史莱姆与引导源种类 | 是否处理 | 感知/交互适配 | 已实现 |
+| API-STATUS-013 | StatusManager | NotifyFurnaceCoreEntered/Exited(ActorId) | 火炉核心成员变化 | 是否处理 | MechanismSystem | 已实现 |
+| API-STATUS-014 | StatusManager | NotifyInjuredHumanNearby(ActorId) | 受伤人类在嗅觉范围内的史莱姆 | 是否触发暴躁 | 感知适配 | 已实现 |
 | API-STATUS-006 | StatusManager | GetMovementModifiers(ActorId) | Actor ID | MovementModifierSnapshot | MovementSystem | 已实现 |
 | API-STATUS-007 | StatusManager | GetAttackSpeedMultiplier(ActorId) | Actor ID | 攻击速度倍率 | ActorStateMachine 行动端口 | 已实现 |
 | API-STATUS-008 | StatusManager | Tick(StatusTickContext) | 当前帧间隔 | 更新状态计时与周期效果 | LevelContext | 已实现 |

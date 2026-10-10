@@ -8,7 +8,9 @@ namespace SlimeBattle.Status
             float remainingDurationSeconds, int areaSourceCount, bool isPermanent,
             int stackCount, float movementSpeedMultiplier, float attackSpeedMultiplier,
             float damageDealtMultiplier, float damageTakenMultiplier, bool isRooted,
-            StatusControlMode controlMode)
+            StatusControlMode controlMode, StatusKind kind = StatusKind.None,
+            float elapsedDurationSeconds = 0f, float maximumHealthMultiplier = 1f,
+            float humanAttackDelaySeconds = 0f)
         {
             StatusId = statusId;
             ConfigId = configId;
@@ -22,6 +24,10 @@ namespace SlimeBattle.Status
             DamageTakenMultiplier = damageTakenMultiplier;
             IsRooted = isRooted;
             ControlMode = controlMode;
+            Kind = kind;
+            ElapsedDurationSeconds = elapsedDurationSeconds;
+            MaximumHealthMultiplier = maximumHealthMultiplier;
+            HumanAttackDelaySeconds = humanAttackDelaySeconds;
         }
 
         public StatusId StatusId { get; }
@@ -36,5 +42,9 @@ namespace SlimeBattle.Status
         public float DamageTakenMultiplier { get; }
         public bool IsRooted { get; }
         public StatusControlMode ControlMode { get; }
+        public StatusKind Kind { get; }
+        public float ElapsedDurationSeconds { get; }
+        public float MaximumHealthMultiplier { get; }
+        public float HumanAttackDelaySeconds { get; }
     }
 }

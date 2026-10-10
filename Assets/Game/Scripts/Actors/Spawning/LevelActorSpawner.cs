@@ -3,6 +3,7 @@ using SlimeBattle.Core;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
 using SlimeBattle.Slimes;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Actors.Spawning
@@ -20,6 +21,8 @@ namespace SlimeBattle.Actors.Spawning
 
         private LevelManager levelManager;
         private LevelContext spawnedContext;
+        private ILevelEventBus statusEventBus;
+        private SubscriptionToken statusSubscription;
 
         private void OnEnable()
         {
@@ -35,6 +38,7 @@ namespace SlimeBattle.Actors.Spawning
         private void OnDisable()
         {
             if (levelManager != null) levelManager.LevelStarted -= OnLevelStarted;
+            UnsubscribeFromStatusEvents();
             levelManager = null;
             spawnedContext = null;
         }
@@ -62,6 +66,7 @@ namespace SlimeBattle.Actors.Spawning
             }
 
             spawnedContext = context;
+            SubscribeToStatusEvents(context);
             var slimeCount = 0;
             var enemyCount = 0;
             var bounds = new EnemyActivityBounds(enemyBoundsMinimum, enemyBoundsMaximum);
@@ -88,6 +93,35 @@ namespace SlimeBattle.Actors.Spawning
             }
             Debug.Log("Level_test initial actors: " + slimeCount +
                 " Slimes, " + enemyCount + " Enemies.", this);
+        }
+
+        private void SubscribeToStatusEvents(LevelContext context)
+        {
+            UnsubscribeFromStatusEvents();
+            statusEventBus = context.GetEventBus();
+            if (statusEventBus != null)
+                statusSubscription = statusEventBus.Subscribe<StatusAddedEvent>(OnStatusAdded);
+        }
+
+        private void UnsubscribeFromStatusEvents()
+        {
+            if (statusEventBus != null && statusSubscription.IsValid)
+                statusEventBus.Unsubscribe(statusSubscription);
+            statusEventBus = null;
+            statusSubscription = default(SubscriptionToken);
+        }
+
+        private void OnStatusAdded(StatusAddedEvent statusAdded)
+        {
+            if (spawnedContext == null ||
+                !spawnedContext.SlimeManager.TryGetActor(statusAdded.ActorId, out var slime))
+                return;
+
+            var status = statusAdded.Status;
+            Debug.Log("[Level_test] Slime " + statusAdded.ActorId + " gained status " +
+                status.StatusId + " (" + status.Kind + "); move x" +
+                status.MovementSpeedMultiplier.ToString("0.##") + ", max HP x" +
+                status.MaximumHealthMultiplier.ToString("0.##") + ".", slime);
         }
     }
 }
