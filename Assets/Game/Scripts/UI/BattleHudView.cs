@@ -12,6 +12,7 @@ namespace SlimeBattle.UI
         [SerializeField] private GameObject resultPanel;
         [SerializeField] private Text objectiveText;
         [SerializeField] private Text countsText;
+        [SerializeField] private Text weaponText;
         [SerializeField] private Text hintText;
         [SerializeField] private Text resultText;
         [SerializeField] private Button pauseButton;
@@ -58,9 +59,11 @@ namespace SlimeBattle.UI
             if (objectiveText != null) { objectiveText.text = state.ObjectiveText; }
             if (countsText != null)
             {
-                countsText.text = "SLIMES  " + Count(state.SlimeCount) + "    ENEMIES  " + Count(state.EnemyCount) +
+                countsText.text = "SLIMES  " + Count(state.SlimeCount) +
+                    (state.SlimeLimit > 0 ? " / " + state.SlimeLimit : string.Empty) + "    ENEMIES  " + Count(state.EnemyCount) +
                     "    /    " + state.LevelState;
             }
+            if (weaponText != null) { weaponText.text = state.WeaponText; }
             if (hintText != null) { hintText.text = state.Hint; }
             if (resultText != null)
             {
@@ -88,14 +91,16 @@ namespace SlimeBattle.UI
             font = font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
             var hud = Panel("HUD", root.transform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -150f), Vector2.zero, new Color(0.035f, 0.065f, 0.11f, 0.96f));
+                new Vector2(0f, -180f), Vector2.zero, new Color(0.035f, 0.065f, 0.11f, 0.96f));
             view.hudPanel = hud.gameObject;
             Label("Title", hud, font, "SLIME BATTLE  /  P0", new Vector2(24f, -16f), new Vector2(800f, 28f), 20,
                 new Color(0.4f, 0.94f, 0.77f));
             view.objectiveText = Label("Objective", hud, font, "", new Vector2(24f, -52f), new Vector2(950f, 28f), 22, Color.white);
             view.countsText = Label("Counts", hud, font, "", new Vector2(24f, -88f), new Vector2(950f, 22f), 16,
                 new Color(0.6f, 0.72f, 0.8f));
-            view.hintText = Label("Hint", hud, font, "", new Vector2(24f, -118f), new Vector2(1080f, 22f), 15,
+            view.weaponText = Label("Weapon", hud, font, "", new Vector2(24f, -114f), new Vector2(1080f, 22f), 16,
+                new Color(0.85f, 0.8f, 0.55f));
+            view.hintText = Label("Hint", hud, font, "", new Vector2(24f, -146f), new Vector2(1200f, 26f), 15,
                 new Color(0.7f, 0.78f, 0.84f));
             view.pauseButton = ActionButton("Pause", hud, font, new Vector2(-100f, -32f), new Vector2(150f, 44f));
             var pauseRect = view.pauseButton.GetComponent<RectTransform>();

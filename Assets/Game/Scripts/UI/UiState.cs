@@ -9,7 +9,8 @@ namespace SlimeBattle.UI
     public readonly struct UiState
     {
         public UiState(LevelId levelId, LevelState levelState, string objectiveText,
-            int slimeCount = -1, int enemyCount = -1, string hint = "", string resultText = "")
+            int slimeCount = -1, int enemyCount = -1, string hint = "", string resultText = "",
+            int slimeLimit = -1, string weaponText = "")
         {
             LevelId = levelId;
             LevelState = levelState;
@@ -18,6 +19,8 @@ namespace SlimeBattle.UI
             EnemyCount = enemyCount;
             Hint = hint ?? string.Empty;
             ResultText = resultText ?? string.Empty;
+            SlimeLimit = slimeLimit;
+            WeaponText = weaponText ?? string.Empty;
         }
         public LevelId LevelId { get; }
         public LevelState LevelState { get; }
@@ -26,6 +29,8 @@ namespace SlimeBattle.UI
         public int EnemyCount { get; }
         public string Hint { get; }
         public string ResultText { get; }
+        public int SlimeLimit { get; }
+        public string WeaponText { get; }
     }
 
     public readonly struct UiPanelOpenedEvent

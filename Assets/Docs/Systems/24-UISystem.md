@@ -108,3 +108,5 @@ void Initialize(LevelManager manager, InputSystem input,
 ## 小宸首关实现契约通知（2026-10-11）
 
 网格、放置状态、显示与注入接口的新增契约见 `Assets/Docs/Tasks/首关最小地图-小宸实现与接入.md`。本次只修改 Player / UI 与隔离测试；当前机关创建请求和武器/Core 结果接口存在文档与代码差异，正式适配须等待所有者确认，不在调用方绕过规则。
+
+`UiState` 新增尾部可选 `slimeLimit = -1 / weaponText = ""`，`UISystem` 刷新时保留这两项，关卡 ID / 阶段仍由 LevelManager 覆盖。`FirstLevelUiSnapshotSource` 读取真实存活快照及 `MaxAliveCount`；非 20 配置显示差异，不改 Actor 或配置。`IFirstLevelStatusSource.ReadSnapshot(LevelContext)` 返回只读 `FirstLevelStatusSnapshot`（WeaponText / ResultText），缺失武器数据显示未接入；正式结果面板仍响应权威关卡阶段，不根据武器文字或数量决定胜负。

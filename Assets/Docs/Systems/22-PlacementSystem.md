@@ -110,3 +110,5 @@ PlacementCancelledEvent
 ## 小宸首关实现契约通知（2026-10-11）
 
 网格、放置状态、显示与注入接口的新增契约见 `Assets/Docs/Tasks/首关最小地图-小宸实现与接入.md`。本次只修改 Player / UI 与隔离测试；当前机关创建请求和武器/Core 结果接口存在文档与代码差异，正式适配须等待所有者确认，不在调用方绕过规则。
+
+当前实现使用 `SlimeBattle.Player.Placement` 命名空间，确认返回 `PlacementResult`，预览返回 `PlacementValidationResult`；本地 `Changed / PlacementCompleted` 只用于显示与请求反馈，不替代第 5 节待接入的全局领域事实。`IPlacementBackend` 的成功返回必须同步提供有效机关 ID 及对应只读快照。运行阶段守卫、边界和单格占用在最终确认时复核；其他系统尚未完成的新规则不在调用方绕过。地图点击只预览，确认由显式按钮或公开方法提交。

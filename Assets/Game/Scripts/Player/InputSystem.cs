@@ -124,7 +124,7 @@ namespace SlimeBattle.Player.Input
                 shouldWaitForRelease = press.IsPressed() || pan.IsPressed() ||
                     attack.IsPressed() || move.ReadValue<Vector2>().sqrMagnitude > 0.001f;
                 snapshot = new PlayerInputSnapshot(Time.frameCount, mode, position, Vector2.zero,
-                    Vector2.zero, false, false, false, false, didCancel, Vector2.zero, 0f);
+                    Vector2.zero, false, false, false, false, didCancel, Vector2.zero, 0f, true);
                 return;
             }
 
@@ -145,7 +145,7 @@ namespace SlimeBattle.Player.Input
             var didAttack = canPlay && !isOverUi && !isPointerBlocked && !isHeld && attack.WasPressedThisFrame();
             snapshot = new PlayerInputSnapshot(Time.frameCount, mode, position, delta,
                 movement, didPress, isHeld, didRelease, didAttack, didCancel,
-                cameraDrag, canPlay && !isOverUi ? scroll.ReadValue<Vector2>().y : 0f);
+                cameraDrag, canPlay && !isOverUi ? scroll.ReadValue<Vector2>().y : 0f, isPointerBlocked);
 
             if (didPress)
             {

@@ -1,0 +1,145 @@
+using System;
+using SlimeBattle.Core;
+using SlimeBattle.Player.Placement;
+using SlimeBattle.Presentation.Camera;
+using SlimeBattle.UI;
+using SlimeBattle.World;
+using UnityEngine;
+using PlayerInputSystem = SlimeBattle.Player.Input.InputSystem;
+
+namespace SlimeBattle.Player
+{
+    /// <summary>Optional first-level composition; a backend is valid only for the context it was injected into.</summary>
+    [DefaultExecutionOrder(-100), RequireComponent(typeof(PlayerPresentationRoot)), DisallowMultipleComponent]
+    public sealed class FirstLevelPresentationRoot : MonoBehaviour
+    {
+        [SerializeField] private LevelManager levelManager;
+        [SerializeField] private CameraSystem cameraSystem;
+        [SerializeField] private PlacementGridAuthoring grid;
+        [SerializeField] private PlacementConfirmationMode confirmationMode;
+        [SerializeField] private MonoBehaviour placementBackend;
+        [SerializeField] private MonoBehaviour statusSnapshotSource;
+        private PlayerInputSystem input;
+        private IPlacementBackend injectedBackend;
+        private IFirstLevelStatusSource statusSource;
+        private LevelContext backendContext;
+        private PlacementInputAdapter inputAdapter;
+        private PlacementGridView gridView;
+        private PlacementSelectionView selectionView;
+        private bool isInitialized;
+        private bool isBound;
+        private float nextRefresh;
+        public PlacementSystem Placement { get; private set; }
+
+        private void Start()
+        {
+            if (isInitialized) { return; }
+            if (levelManager == null || cameraSystem == null || grid == null)
+            {
+                Debug.LogError("FirstLevelPresentationRoot needs explicit LevelManager, CameraSystem and Grid references.", this);
+                enabled = false;
+                return;
+            }
+            if (placementBackend != null && !(placementBackend is IPlacementBackend) ||
+                statusSnapshotSource != null && !(statusSnapshotSource is IFirstLevelStatusSource))
+            {
+                Debug.LogError("First-level providers must implement their documented read/request interfaces.", this);
+                enabled = false;
+                return;
+            }
+            Initialize(levelManager, GetComponent<PlayerInputSystem>(), cameraSystem, grid,
+                placementBackend as IPlacementBackend, confirmationMode, statusSnapshotSource as IFirstLevelStatusSource);
+        }
+
+        public void Initialize(LevelManager manager, PlayerInputSystem input, CameraSystem camera,
+            PlacementGridAuthoring grid, IPlacementBackend backend, PlacementConfirmationMode mode,
+            IFirstLevelStatusSource statusSource = null)
+        {
+            Unbind();
+            levelManager = manager != null ? manager : throw new ArgumentNullException(nameof(manager));
+            this.input = input != null ? input : throw new ArgumentNullException(nameof(input));
+            if (input != GetComponent<PlayerInputSystem>()) { throw new ArgumentException("Input must belong to this presentation root."); }
+            cameraSystem = camera != null ? camera : throw new ArgumentNullException(nameof(camera));
+            this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
+            grid.ValidateConfiguration();
+            if (!Enum.IsDefined(typeof(PlacementConfirmationMode), mode))
+            { throw new ArgumentOutOfRangeException(nameof(mode)); }
+            confirmationMode = mode;
+            injectedBackend = backend;
+            backendContext = manager.GetCurrentContext();
+            this.statusSource = statusSource;
+            if (inputAdapter == null) { inputAdapter = gameObject.AddComponent<PlacementInputAdapter>(); }
+            if (gridView == null) { gridView = gameObject.AddComponent<PlacementGridView>(); }
+            if (selectionView == null) { selectionView = PlacementSelectionView.Create(transform); }
+            isInitialized = true;
+            if (isActiveAndEnabled) { Bind(); }
+        }
+
+        private void Bind()
+        {
+            if (isBound) { return; }
+            isBound = true;
+            levelManager.LevelStateChanged += OnPhaseChanged;
+            levelManager.LevelStarted += OnStarted;
+            CreateSession();
+        }
+
+        private void CreateSession()
+        {
+            Placement?.Dispose();
+            var context = levelManager.GetCurrentContext();
+            var backend = context == backendContext && injectedBackend != null ? injectedBackend :
+                new PendingMechanismPlacementBackend(context?.MechanismSystem);
+            Placement = new PlacementSystem(grid, ReadBounds, levelManager.GetLevelState, backend, confirmationMode);
+            var source = new FirstLevelUiSnapshotSource(Placement, statusSource);
+            GetComponent<PlayerPresentationRoot>().Initialize(levelManager, cameraSystem, source);
+            gridView.Initialize(Placement, grid);
+            gridView.enabled = true;
+            selectionView.Initialize(Placement);
+            selectionView.enabled = true;
+            inputAdapter.Initialize(input, cameraSystem, Placement);
+            inputAdapter.enabled = true;
+            ApplyMapBounds();
+        }
+
+        private MapBounds? ReadBounds()
+        {
+            var map = levelManager.GetCurrentContext()?.MapManager;
+            return map != null && map.TryGetMapBounds(out var bounds) ? bounds : (MapBounds?)null;
+        }
+
+        private void ApplyMapBounds()
+        {
+            var bounds = ReadBounds();
+            if (bounds.HasValue) { cameraSystem.SetBounds(new CameraBounds(bounds.Value.Min, bounds.Value.Max)); }
+        }
+
+        private void OnStarted(LevelStartedEvent data) { CreateSession(); }
+        private void OnPhaseChanged(LevelStateChangedEvent data)
+        {
+            if (levelManager.GetLevelState() != LevelState.Running) { Placement?.CancelPlacement(); }
+        }
+        private void Update()
+        {
+            if (!isBound || Placement == null || Time.unscaledTime < nextRefresh) { return; }
+            nextRefresh = Time.unscaledTime + 0.2f;
+            Placement.Refresh();
+        }
+        private void OnEnable() { if (isInitialized) { Bind(); } }
+        private void OnDisable() { Unbind(); }
+        private void Unbind()
+        {
+            if (levelManager != null)
+            {
+                levelManager.LevelStateChanged -= OnPhaseChanged;
+                levelManager.LevelStarted -= OnStarted;
+            }
+            if (inputAdapter != null) { inputAdapter.enabled = false; }
+            if (gridView != null) { gridView.enabled = false; }
+            if (selectionView != null) { selectionView.enabled = false; }
+            Placement?.Dispose();
+            isBound = false;
+        }
+        private void OnDestroy() { Unbind(); }
+    }
+}

@@ -24,7 +24,7 @@ namespace SlimeBattle.Player.Input
         public PlayerInputSnapshot(int frame, InputMode mode, Vector2 pointerPosition,
             Vector2 pointerDelta, Vector2 movement, bool pointerPressed, bool pointerHeld,
             bool pointerReleased, bool attackPressed, bool cancelPressed,
-            Vector2 cameraDrag, float zoom)
+            Vector2 cameraDrag, float zoom, bool pointerBlocked = false)
         {
             Frame = frame;
             Mode = mode;
@@ -38,6 +38,7 @@ namespace SlimeBattle.Player.Input
             CancelPressed = cancelPressed;
             CameraDrag = cameraDrag;
             Zoom = zoom;
+            PointerBlocked = pointerBlocked;
         }
 
         public int Frame { get; }
@@ -52,6 +53,7 @@ namespace SlimeBattle.Player.Input
         public bool CancelPressed { get; }
         public Vector2 CameraDrag { get; }
         public float Zoom { get; }
+        public bool PointerBlocked { get; }
     }
 
     public readonly struct PlayerCommand
