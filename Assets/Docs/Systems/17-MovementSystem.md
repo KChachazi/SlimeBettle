@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World.Movement
 建议实现目录：Assets/Game/Scripts/World/Movement/
 生命周期：当前 LevelContext 生命周期
-状态：P0 直线移动、地图地形倍率和 StatusManager 移动修正已接入；首关固定路线运输适配待接入，动态寻路不在本轮
+状态：P0 直线移动、地图地形倍率、StatusManager 移动修正和固定路线分段适配契约已实现；护送武器端口接入待 MechanismSystem 消费
 
 ## 1. 职责
 
@@ -27,6 +27,8 @@
       → 完成回调 / MovementBlockedEvent
 
 固定物理步和普通位置同步都会把刚体实际位置交给 MapManager。MapManager 用它计算区域进入/离开事实；MovementSystem 不自行维护 Actor 的区域成员关系。速度计算组合 Actor 基础移速、地图地形修正和 StatusManager 提供的 Actor 状态修正。
+
+护送等非 Actor 对象可通过 `IFixedRouteSegmentMotor` 暴露分段移动端口，并由 `FixedRouteMovementAdapter` 按 `MapRouteSnapshot` 的顺序提交目标点。适配器不驱动物理、不创建对象，也不改变既有 Actor 专用 `MovementSystem.SubmitMovement` 契约。分段返回 Blocked 时适配器停在 Blocked 并保留当前目标点；消费方处理障碍后可显式重试或取消。首关不自动绕行，也不把阻挡直接推断成运输失败。
 
 ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转给 MovementSystem；攻击效果请求由同一适配器转交 StatusManager，并向状态机提供攻速倍率。MovementSystem 在固定物理步中设置动态 Rigidbody2D 的速度，并把刚体位置回报给 Actor。Actor 不直接写入正式位置。
 
@@ -73,7 +75,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 - 使用动态 Rigidbody2D、零重力、冻结旋转和连续碰撞检测；MovementSystem 在 `FixedTick` 设置刚体速度，不直接改 Transform。
 - 角色之间由二维物理碰撞产生推挤；MovementSystem 只结束与 MapManager 识别出的静态实体碰撞所对应的请求。
 - `ActorConfig.MoveSpeed` 的单位为像素/秒；世界速度为 `MoveSpeed / SpriteRenderer.sprite.pixelsPerUnit`。
-- 首版普通 Actor 朝请求目标直线移动，不做动态寻路。护送武器的固定路线由 MechanismSystem 按 MapManager 路线点分段提交到待确认的机制运输移动适配；MovementSystem 只执行位置变化、碰撞和阻挡事实，不能直接把 Actor 专用请求当作武器请求。与 MapManager 绑定的场景静态实体碰撞时停止当前请求、报告当前位置并发布 `MovementBlockedEvent`；系统不把碰撞解释为伤害或机关效果。
+- 首版普通 Actor 朝请求目标直线移动，不做动态寻路。`FixedRouteMovementAdapter` 可将固定路线按路点转为非 Actor 移动端口的连续分段请求；其 `IFixedRouteSegmentMotor` 实现由武器/运输所有者提供。与 MapManager 绑定的场景静态实体碰撞时，Actor 请求停止并发布 `MovementBlockedEvent`；非 Actor 分段端口返回阻挡事实后，适配器停在 Blocked 等消费方决定重试或取消。系统不把碰撞解释为伤害、自动绕行或运输失败。
 - 地形移速修正从 MapManager 的当前位置快照读取；寒冷、炙热、减速等 Actor 状态修正由 StatusManager 提供。两类修正都只影响速度计算，MovementSystem 仍独占实际位移。
 - 地形倍率按乘法叠加到 Actor 基础移速和 StatusManager 提供的 Actor 状态倍率上。当前 `Level_test` 尚未配置语义地形区域，因此实际场景速度仍为原移速。
 - 暂停、死亡、销毁和重开会停止刚体并清理当前请求。取消会使当前速度归零；同一 Actor 只保留一个活动请求。
@@ -91,7 +93,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 
 - 后续是否加入绕开障碍的路径搜索；首关固定路线不等于动态寻路；
 - 动态占用查询接入后，玩家放置物/动态障碍对移动请求的影响；路线被障碍占用时的等待/失败/禁止放置规则待确认；
-- 非 Actor 护送武器使用 MovementSystem 的运输移动适配接口及位置/碰撞快照契约；
+- MechanismSystem 对 `IFixedRouteSegmentMotor` 的具体实现及武器碰撞/位置快照契约；
 - 沼泽减速和其他地形移动修正的组合顺序，以及地形区域边界事件与物理碰撞的先后语义。
 
 ## 11. 验收场景
