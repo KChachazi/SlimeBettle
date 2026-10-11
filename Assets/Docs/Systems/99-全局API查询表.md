@@ -212,3 +212,16 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 - UI 控件刷新、动画、特效和音效播放方法；
 - 只有一个系统内部调用方的辅助方法。
 
+
+## 小宸首关接口通知（2026-10-11，待评审）
+
+| 提供者 | 接口 | 调用方 / 边界 |
+| --- | --- | --- |
+| PlacementGridAuthoring | WorldToCell(Vector3) / GetCellCenter(Vector3Int) | PlacementSystem / 预览；场景矩形 XY Grid |
+| PlacementSystem | BeginPlacement(PlacementItemId) / PreviewPlacement(Vector3) / ConfirmPlacement() / CancelPlacement() / GetCurrentPreview() / GetBudgetSnapshot() | 放置适配与选择 UI；只报告结果，不生成机关 |
+| IPlacementBackend | IsAvailable / RequestPlacement(PlacementRequest) / ReadPlacedObjects() / GetBudgetSnapshot() | PlacementSystem；由机关/关卡适配实现，负责最终请求与只读已放置对象 |
+| IFirstLevelStatusSource | ReadSnapshot(LevelContext) | FirstLevelUiSnapshotSource；武器 / 结果只读显示，不决定结果 |
+| UiState | 尾部可选参数 slimeLimit / weaponText | 保持旧构造调用兼容；未知值不显示成 0 |
+| FirstLevelPresentationRoot | Initialize(LevelManager, InputSystem, CameraSystem, PlacementGridAuthoring, IPlacementBackend, PlacementConfirmationMode, IFirstLevelStatusSource = null) | 场景组合；本关依赖，禁用解绑，重开清理 |
+
+机关创建与新武器/Core 结果接口尚未提供，当前注入契约不替代对应所有者的正式 API。详细参数、失败与生命周期见小宸实现与接入通知。

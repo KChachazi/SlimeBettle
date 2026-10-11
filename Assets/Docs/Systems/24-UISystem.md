@@ -104,3 +104,7 @@ void Initialize(LevelManager manager, InputSystem input,
 
 验证与边界见 `Assets/Game/Tests/PlayerPresentation/README.md` 和 `Assets/Docs/P0-小宸接入说明.md`。
 
+
+## 小宸首关实现契约通知（2026-10-11）
+
+网格、放置状态、显示与注入接口的新增契约见 `Assets/Docs/Tasks/首关最小地图-小宸实现与接入.md`。本次只修改 Player / UI 与隔离测试；当前机关创建请求和武器/Core 结果接口存在文档与代码差异，正式适配须等待所有者确认，不在调用方绕过规则。
