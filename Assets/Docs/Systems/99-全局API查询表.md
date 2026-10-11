@@ -225,3 +225,5 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | FirstLevelPresentationRoot | Initialize(LevelManager, InputSystem, CameraSystem, PlacementGridAuthoring, IPlacementBackend, PlacementConfirmationMode, IFirstLevelStatusSource = null) | 场景组合；本关依赖，禁用解绑，重开清理 |
 
 机关创建与新武器/Core 结果接口尚未提供，当前注入契约不替代对应所有者的正式 API。详细参数、失败与生命周期见小宸实现与接入通知。
+
+首关快照补充：PlayerInputSnapshot.PointerBlocked 为只读 UI 手势/恢复保护事实；末尾可选构造参数保持旧调用兼容。PlacementInputAdapter 仅在未屏蔽的 Gameplay 快照下更新预览。
