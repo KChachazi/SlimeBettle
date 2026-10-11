@@ -1,7 +1,7 @@
 # 99 全局 API 查询表
 
 版本：0.4 草案
-最后更新：2026-10-10
+最后更新：2026-10-11
 用途：协作时查询跨系统公共接口
 状态：架构暂定
 
@@ -92,18 +92,19 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | API-WORLD-001 | MapManager | TryGetMapBounds(out MapBounds) | 无 | 是否成功、地图边界 | CameraSystem、MovementSystem、AI | 已实现；场景需配置 MapBoundsAuthoring |
-| API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
+| API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域、可放置区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
 | API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI、MechanismSystem | 已实现静态地图查询及已注册的放置障碍；不含动态 Actor |
 | API-WORLD-004 | MapManager | GetMovementSpeedMultiplier(Vector2) | 世界坐标 | 地形移速修正（多个地形倍率相乘） | MovementSystem | 已实现；场景需配置地形区域 |
 | API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现 |
 | API-WORLD-006 | MapManager | TryGetMapPoint(MapPointId, out MapPointSnapshot) / GetMapPoints(MapPointKind) | 地图点 ID 或类型 | 是否成功、点位快照集合 | Actor Manager、MechanismSystem、Core 结果规则组件 | 已实现；首关只登记出生/目标/武器/敌人点 |
-| API-WORLD-011 | MapManager | TryGetRoute(MapRouteId, out MapRouteSnapshot) | 固定路线 ID | 是否成功、顺序路点和终点 | MechanismSystem、MovementSystem | 首关候选接口；待实现 |
 | API-WORLD-007 | MovementSystem | SubmitMovement(MovementRequest) | 移动请求 | MovementRequestId | ActorStateMachine、InputSystem | P0 已实现 |
 | API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
 | API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | P0 已实现 |
 | API-WORLD-010 | MovementSystem | TryGetContactInfo(ActorId, out ContactInfo) | Actor ID | 是否成功、最近阻挡接触 | Actor、调试、UI | P0 已实现 |
-| API-WORLD-011 | MapManager | GetMapAreaSnapshots() / TryGetMapAreaCenter(MapAreaId, out Vector2) | 区域 ID（可选） | 区域快照集合或区域中心 | MechanismSystem | 已实现 |
-| API-WORLD-012 | MapManager | RegisterMovementBlocker(Collider2D) / UnregisterMovementBlocker(Collider2D) | 当前场景静态碰撞体 | 是否注册/注销 | MechanismSystem | 已实现；放置障碍加入 CanOccupy 查询 |
+| API-WORLD-011 | MapManager | TryGetRoute(MapRouteId, out MapRouteSnapshot) | 固定路线 ID | 是否成功、顺序路点和终点 | MechanismSystem、MovementSystem | 已实现；路线只读，不执行寻路 |
+| API-WORLD-012 | MapManager | GetMapAreaSnapshots() / TryGetMapAreaCenter(MapAreaId, out Vector2) | 区域 ID（可选） | 区域快照集合或区域中心 | MechanismSystem | 已实现 |
+| API-WORLD-013 | MapManager | RegisterMovementBlocker(Collider2D) / UnregisterMovementBlocker(Collider2D) | 当前场景静态碰撞体 | 是否注册/注销 | MechanismSystem | 已实现；放置障碍加入 CanOccupy 查询 |
+| API-WORLD-014 | `FixedRouteMovementAdapter` / `IFixedRouteSegmentMotor` | Start() / Tick() / RetryBlockedSegment() / Cancel()；TryGetPosition() / SubmitSegment() / TryGetResult() / CancelSegment() | 固定路线快照、当前位置和分段移动端口 | 按路点提交的分段状态及阻挡接触事实 | EscortWeapon 适配层 | 已实现契约和序列适配；物理端口由 MechanismSystem 提供，不执行寻路或阻挡策略 |
 
 ## 6. StatusManager API
 
