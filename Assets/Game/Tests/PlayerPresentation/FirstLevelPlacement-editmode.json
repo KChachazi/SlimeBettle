@@ -1,6 +1,6 @@
 {
   "unityVersion": "2022.3.62f2c1",
-  "baseline": "origin/master 548abbb",
+  "baseline": "origin/master 22e02e7",
   "validationDate": "2026-10-12",
   "total": 56,
   "passed": 55,
@@ -22,7 +22,18 @@
       "test": "SlimeBattle.Tests.ActorAiEditModeTests.LowHealthFleeCheckAndAgitationUseFormalPaths",
       "message": "System.ArgumentOutOfRangeException : Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index",
       "source": "Assets/Game/Tests/ActorAiEditModeTests.cs:297",
-      "note": "Existing Actor test and runtime files unchanged versus origin/master 548abbb; pure-master rerun not performed."
+      "note": "Reproduced the same failure at line 297 in a targeted pure-master 22e02e7 run on Unity 2022.3.62f2c1; unrelated to the placement-click change. The full pure-master suite was not rerun."
     }
-  ]
+  ],
+  "baselineCheck": {
+    "baseline": "origin/master 22e02e7",
+    "testFilter": "SlimeBattle.Tests.ActorAiEditModeTests.LowHealthFleeCheckAndAgitationUseFormalPaths",
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "sameFailureReproduced": true,
+    "sourceFilesCompared": 194,
+    "sourceComparison": "C#, assembly definitions and JSON match master after CRLF normalization.",
+    "processExitCode": 2
+  }
 }

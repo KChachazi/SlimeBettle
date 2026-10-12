@@ -55,7 +55,7 @@ namespace SlimeBattle.Player.Placement
             CancelPlacement();
             if (!IsRunning) { Hint = "Placement is only available while the level is running."; Changed?.Invoke(); return; }
             SelectedItem = itemId;
-            preview = new PlacementPreview(itemId, default, default, PlacementValidationStatus.NoPosition, "Point at a map cell, then confirm.");
+            preview = new PlacementPreview(itemId, default, default, PlacementValidationStatus.NoPosition, "Click/tap a map cell to select it, then confirm.");
             Hint = preview.Message;
             Changed?.Invoke();
         }

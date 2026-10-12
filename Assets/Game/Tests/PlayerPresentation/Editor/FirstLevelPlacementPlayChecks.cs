@@ -143,9 +143,21 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var freeColor = fixture.GridView.PreviewColor;
                 yield return Click(mouse, pixel);
                 Check(fixture.Backend.Requests == 0, "World click previews without auto-confirming or creating an object");
+                var selectedCell = fixture.Placement.GetCurrentPreview().Cell;
+                var otherPixel = fixture.Camera.WorldToScreen(new Vector3(2.2f, 0.3f));
+                yield return Move(mouse, otherPixel);
+                yield return Move(mouse, fixture.Camera.WorldToScreen(new Vector3(2.2f, -1.2f)));
+                Check(fixture.Placement.GetCurrentPreview().Cell == selectedCell,
+                    "A map click locks the cell while the mouse crosses other map cells towards Confirm");
+                yield return Click(mouse, otherPixel);
+                Check(fixture.Placement.GetCurrentPreview().Cell == new Vector3Int(2, 0, 0),
+                    "A second map click explicitly replaces the locked target");
+                yield return Click(mouse, pixel);
                 yield return Click(mouse, ButtonPoint(fixture, "PlacementConfirmButton"));
                 Check(fixture.Backend.Requests == 1 && !fixture.Placement.IsPlacing && !fixture.GridView.IsVisible,
                     "Confirm submits exactly one request and single mode hides grid/preview");
+                Check(fixture.Backend.ReadPlacedObjects()[0].Position == new Vector3(0.5f, 0.5f),
+                    "Confirm submits the clicked world cell rather than the last cell crossed by the pointer");
 
                 yield return Click(mouse, ButtonPoint(fixture, "PlacementFurnaceButton"));
                 yield return Move(mouse, pixel);
@@ -173,6 +185,9 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 yield return Tap(touch, touchPixel);
                 Check(fixture.Placement.GetCurrentPreview().Cell == new Vector3Int(-2, -1, 0),
                     "Touch primary action projects and snaps negative coordinates");
+                yield return Move(mouse, fixture.Camera.WorldToScreen(new Vector3(3.2f, 0.3f)));
+                Check(fixture.Placement.GetCurrentPreview().Cell == new Vector3Int(-2, -1, 0),
+                    "A touch-selected cell remains locked when a mouse moves elsewhere");
                 yield return Tap(touch, ButtonPoint(fixture, "PlacementConfirmButton"));
                 Check(fixture.Backend.ReadPlacedObjects().Count == 3, "Touch UI confirmation places the third type once");
 
@@ -198,6 +213,12 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 Check(fixture.Placement.GetCurrentPreview().Cell == fixture.Grid.WorldToCell(fixture.Camera.ScreenToWorld(fixedPixel)) &&
                     fixture.Backend.ReadPlacedObjects()[0].Position == oldPosition,
                     "Camera pan/zoom reprojects stationary pointer and preserves placed world position");
+                yield return Click(mouse, fixedPixel);
+                var lockedCenter = fixture.Placement.GetCurrentPreview().WorldCenter;
+                fixture.Camera.SubmitCommand(new CameraCommand(CameraCommandKind.Pan, Vector2.left * 1.2f));
+                yield return Frames(4);
+                Check(fixture.Placement.GetCurrentPreview().WorldCenter == lockedCenter,
+                    "Camera movement preserves a clicked target in world space until another map click");
                 ScreenCapture.CaptureScreenshot(Path.ChangeExtension(SessionState.GetString(OutputKey, ""), ".png"));
                 yield return Frames(5);
 
