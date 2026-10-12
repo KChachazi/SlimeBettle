@@ -230,3 +230,5 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 首关快照补充：PlayerInputSnapshot.PointerBlocked 为只读 UI 手势/恢复保护事实；末尾可选构造参数保持旧调用兼容。PlacementInputAdapter 仅在未屏蔽的 Gameplay 快照下更新预览。
 
 返回值补充：`PreviewPlacement` → `PlacementValidationResult`（Preview / IsValid / Reason）；`ConfirmPlacement` → `PlacementResult`（Succeeded / MechanismId / Reason）。`PlacementSystem.Changed / PlacementCompleted` 为本地刷新／尝试结果事件，不是全局领域事实。backend 成功返回要求同步生效且 ID 有效，仅用于其注入时的当前关卡；新 Context 须重新注入。`IFirstLevelStatusSource` 返回 `FirstLevelStatusSnapshot`（WeaponText / ResultText）。详细边界、降级与生命周期见实现与接入文档。
+
+2026-10-12 交互修正：PlacementInputAdapter 在地图 PrimaryAction 后锁定目标世界格子，移动鼠标到 CONFIRM 或移动镜头不会改选，再次点击地图可替换。锁定不新增公开 API；直接调用 PlacementSystem.PreviewPlacement / ConfirmPlacement 的契约不变。
