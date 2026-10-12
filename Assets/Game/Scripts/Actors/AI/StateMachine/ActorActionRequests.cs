@@ -42,6 +42,11 @@ namespace SlimeBattle.Actors.AI.StateMachine
         void ApplyEffect(ActorEffectRequest request);
     }
 
+    public interface IActorStatusRequestPort
+    {
+        bool ApplyStatus(ActorId actorId, StatusId statusId, float durationSeconds = -1f);
+    }
+
     public interface IActorPerceptionSource
     {
         DecisionTree.PerceptionSnapshot GetPerception(ActorId actorId);

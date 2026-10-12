@@ -31,6 +31,8 @@ namespace SlimeBattle.World
             new Dictionary<MapAreaId, AreaBinding>();
         private readonly Dictionary<MapPointId, MapPointSnapshot> points =
             new Dictionary<MapPointId, MapPointSnapshot>();
+        private readonly Dictionary<MapRouteId, MapRouteSnapshot> routes =
+            new Dictionary<MapRouteId, MapRouteSnapshot>();
         private readonly Dictionary<MapPointKind, List<MapPointSnapshot>> pointsByKind =
             new Dictionary<MapPointKind, List<MapPointSnapshot>>();
         private readonly Dictionary<ActorId, HashSet<MapAreaId>> actorAreas =
@@ -162,12 +164,57 @@ namespace SlimeBattle.World
             return false;
         }
 
+        public bool TryGetRoute(MapRouteId routeId, out MapRouteSnapshot route)
+        {
+            if (IsBound && routeId.IsValid && routes.TryGetValue(routeId, out route))
+                return true;
+
+            route = default(MapRouteSnapshot);
+            return false;
+        }
+
         public IReadOnlyList<MapPointSnapshot> GetMapPoints(MapPointKind kind)
         {
             if (!IsBound || !pointsByKind.TryGetValue(kind, out var matches))
                 return Array.Empty<MapPointSnapshot>();
 
             return matches.ToArray();
+        }
+
+        public IReadOnlyList<MapAreaSnapshot> GetMapAreaSnapshots()
+        {
+            if (!IsBound) return Array.Empty<MapAreaSnapshot>();
+            var result = new List<MapAreaSnapshot>(areas.Count);
+            foreach (var binding in areas.Values) result.Add(binding.Snapshot);
+            result.Sort((left, right) => string.CompareOrdinal(
+                left.AreaId.Value, right.AreaId.Value));
+            return result.AsReadOnly();
+        }
+
+        public bool TryGetMapAreaCenter(MapAreaId areaId, out Vector2 center)
+        {
+            center = default(Vector2);
+            if (!IsBound || !areaId.IsValid || !areas.TryGetValue(areaId, out var binding))
+                return false;
+
+            var collider = binding.Authoring == null ? null : binding.Authoring.AreaCollider;
+            if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy)
+                return false;
+
+            center = collider.bounds.center;
+            return true;
+        }
+
+        public bool RegisterMovementBlocker(Collider2D collider)
+        {
+            if (!IsBound || !IsSolidStaticCollider(collider)) return false;
+            movementBlockers.Add(collider);
+            return true;
+        }
+
+        public bool UnregisterMovementBlocker(Collider2D collider)
+        {
+            return IsBound && collider != null && movementBlockers.Remove(collider);
         }
 
         internal void NotifyActorPositionChanged(ActorId actorId, Vector2 position)
@@ -213,6 +260,7 @@ namespace SlimeBattle.World
             movementBlockers.Clear();
             areas.Clear();
             points.Clear();
+            routes.Clear();
             pointsByKind.Clear();
             actorAreas.Clear();
             mapBounds = null;
@@ -243,6 +291,7 @@ namespace SlimeBattle.World
 
             scene = activeScene;
             MapBoundsAuthoring foundBounds = null;
+            var routeAuthorings = new List<MapRouteAuthoring>();
             foreach (var root in scene.GetRootGameObjects())
             {
                 foreach (var authoring in root.GetComponentsInChildren<MapBoundsAuthoring>(true))
@@ -299,6 +348,12 @@ namespace SlimeBattle.World
                     group.Add(snapshot);
                 }
 
+                foreach (var authoring in root.GetComponentsInChildren<MapRouteAuthoring>(true))
+                {
+                    if (IsSceneAuthoring(authoring) && authoring.isActiveAndEnabled)
+                        routeAuthorings.Add(authoring);
+                }
+
                 foreach (var collider in root.GetComponentsInChildren<Collider2D>(true))
                 {
                     if (IsSolidStaticCollider(collider)) movementBlockers.Add(collider);
@@ -311,6 +366,28 @@ namespace SlimeBattle.World
                 else Debug.LogError($"MapBoundsAuthoring on '{foundBounds.name}' has invalid size.", foundBounds);
             }
 
+            foreach (var authoring in routeAuthorings)
+            {
+                if (!authoring.TryGetSnapshot(out var route, out var error))
+                {
+                    Debug.LogError($"Invalid map route on '{authoring.name}': {error}", authoring);
+                    continue;
+                }
+                if (mapBounds.HasValue && HasPointOutsideBounds(route, mapBounds.Value))
+                {
+                    Debug.LogError($"Map route '{route.RouteId}' contains a waypoint outside the map bounds.",
+                        authoring);
+                    continue;
+                }
+                if (routes.ContainsKey(route.RouteId))
+                {
+                    Debug.LogError($"Duplicate map route ID '{route.RouteId}' in scene '{scene.name}'.",
+                        authoring);
+                    continue;
+                }
+                routes.Add(route.RouteId, route);
+            }
+
             foreach (var group in pointsByKind.Values)
                 group.Sort((left, right) => string.CompareOrdinal(
                     left.PointId.Value, right.PointId.Value));
@@ -319,6 +396,13 @@ namespace SlimeBattle.World
         private bool IsSceneAuthoring(Component component)
         {
             return component != null && component.gameObject.scene.handle == scene.handle;
+        }
+
+        private static bool HasPointOutsideBounds(MapRouteSnapshot route, MapBounds bounds)
+        {
+            for (var i = 0; i < route.Waypoints.Count; i++)
+                if (!bounds.Contains(route.Waypoints[i].Position)) return true;
+            return false;
         }
 
         private bool IsSolidStaticCollider(Collider2D collider)

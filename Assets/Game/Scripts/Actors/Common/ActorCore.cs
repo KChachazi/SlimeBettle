@@ -127,6 +127,15 @@ namespace SlimeBattle.Actors
                 RuntimeData.StatusIds.Remove(statusId);
         }
 
+        public void SetMaxHealthMultiplier(float multiplier)
+        {
+            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier <= 0f)
+                throw new ArgumentOutOfRangeException(nameof(multiplier));
+
+            RuntimeData.MaxHealth = RuntimeData.BaseMaxHealth * multiplier;
+            RuntimeData.CurrentHealth = Math.Min(RuntimeData.CurrentHealth, RuntimeData.MaxHealth);
+        }
+
         internal void SetPosition(Vector2 position)
         {
             RuntimeData.Position = position;

@@ -17,7 +17,9 @@ namespace SlimeBattle.Slimes
         Cold,
         Hot,
         Afraid,
-        Agitated
+        Agitated,
+        Frozen,
+        Burning
     }
 
 }

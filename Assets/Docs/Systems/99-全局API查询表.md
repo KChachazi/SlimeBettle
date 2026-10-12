@@ -1,7 +1,7 @@
 # 99 全局 API 查询表
 
 版本：0.4 草案
-最后更新：2026-10-09
+最后更新：2026-10-11
 用途：协作时查询跨系统公共接口
 状态：架构暂定
 
@@ -46,6 +46,7 @@ AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Acto
 | API-DATA-004 | LevelResultConfig（候选名称） | 是否启用史莱姆全灭失败 | 无 | 结果规则配置 | Core 结果规则组件 | 首关规则已确认；最终配置字段待确认 |
 | API-DATA-005 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 已实现 |
 | API-DATA-006 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager、MapManager 区域适配 | 已实现；重复 StatusId 拒绝 |
+| API-DATA-007 | ConfigSystem | TryGetStatus(StatusKind, out StatusConfig) | 玩法状态种类 | 是否成功、配置 | StatusManager | 已实现；重复 StatusKind 拒绝 |
 
 ## 4. LevelContext Manager API
 
@@ -91,16 +92,19 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | API-WORLD-001 | MapManager | TryGetMapBounds(out MapBounds) | 无 | 是否成功、地图边界 | CameraSystem、MovementSystem、AI | 已实现；场景需配置 MapBoundsAuthoring |
-| API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
-| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI | 已实现静态地图查询；不含动态 Actor/放置物 |
+| API-WORLD-002 | MapManager | Query(Vector2) | 世界坐标 | MapSpatialSnapshot（道路、地形、区域、可放置区域和边界事实） | MovementSystem、AI、PlacementSystem、机关 | 已实现；区域需配置 MapAreaAuthoring |
+| API-WORLD-003 | MapManager | CanOccupy(Vector2, OccupancyQuery) | 位置、边界/半径/静态阻挡条件 | 是否可占用 | MovementSystem、PlacementSystem、AI、MechanismSystem | 已实现静态地图查询及已注册的放置障碍；不含动态 Actor |
 | API-WORLD-004 | MapManager | GetMovementSpeedMultiplier(Vector2) | 世界坐标 | 地形移速修正（多个地形倍率相乘） | MovementSystem | 已实现；场景需配置地形区域 |
 | API-WORLD-005 | MapManager | TryGetMapArea(MapAreaId, out MapAreaSnapshot) | 区域 ID | 是否成功、区域快照 | StatusManager、AI、关卡规则 | 已实现 |
 | API-WORLD-006 | MapManager | TryGetMapPoint(MapPointId, out MapPointSnapshot) / GetMapPoints(MapPointKind) | 地图点 ID 或类型 | 是否成功、点位快照集合 | Actor Manager、MechanismSystem、Core 结果规则组件 | 已实现；首关只登记出生/目标/武器/敌人点 |
-| API-WORLD-011 | MapManager | TryGetRoute(MapRouteId, out MapRouteSnapshot) | 固定路线 ID | 是否成功、顺序路点和终点 | MechanismSystem、MovementSystem | 首关候选接口；待实现 |
 | API-WORLD-007 | MovementSystem | SubmitMovement(MovementRequest) | 移动请求 | MovementRequestId | ActorStateMachine、InputSystem | P0 已实现 |
 | API-WORLD-008 | MovementSystem | CancelMovement(MovementRequestId, CancelReason) | 请求 ID、原因 | 是否取消 | ActorStateMachine、Manager | P0 已实现 |
 | API-WORLD-009 | MovementSystem | TryGetMovementState(ActorId, out MovementState) | Actor ID | 是否成功、状态 | Actor、UI、调试 | P0 已实现 |
 | API-WORLD-010 | MovementSystem | TryGetContactInfo(ActorId, out ContactInfo) | Actor ID | 是否成功、最近阻挡接触 | Actor、调试、UI | P0 已实现 |
+| API-WORLD-011 | MapManager | TryGetRoute(MapRouteId, out MapRouteSnapshot) | 固定路线 ID | 是否成功、顺序路点和终点 | MechanismSystem、MovementSystem | 已实现；路线只读，不执行寻路 |
+| API-WORLD-012 | MapManager | GetMapAreaSnapshots() / TryGetMapAreaCenter(MapAreaId, out Vector2) | 区域 ID（可选） | 区域快照集合或区域中心 | MechanismSystem | 已实现 |
+| API-WORLD-013 | MapManager | RegisterMovementBlocker(Collider2D) / UnregisterMovementBlocker(Collider2D) | 当前场景静态碰撞体 | 是否注册/注销 | MechanismSystem | 已实现；放置障碍加入 CanOccupy 查询 |
+| API-WORLD-014 | `FixedRouteMovementAdapter` / `IFixedRouteSegmentMotor` | Start() / Tick() / RetryBlockedSegment() / Cancel()；TryGetPosition() / SubmitSegment() / TryGetResult() / CancelSegment() | 固定路线快照、当前位置和分段移动端口 | 按路点提交的分段状态及阻挡接触事实 | EscortWeapon 适配层 | 已实现契约和序列适配；物理端口由 MechanismSystem 提供，不执行寻路或阻挡策略 |
 
 ## 6. StatusManager API
 
@@ -111,6 +115,12 @@ Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManag
 | API-STATUS-003 | StatusManager | RemoveStatus(ActorId, StatusId, StatusRemoveReason) | Actor、状态、原因 | 是否成功 | Actor、关卡规则 | 已实现 |
 | API-STATUS-004 | StatusManager | TryGetHealthSnapshot(ActorId, out HealthSnapshot) | Actor ID | 是否成功、生命快照 | AI、UI、Actor Manager | 已实现 |
 | API-STATUS-005 | StatusManager | TryGetStatusSnapshot(ActorId, out StatusSnapshot) | Actor ID | 是否成功、状态快照 | AI、UI、状态机 | 已实现 |
+| API-STATUS-009 | StatusManager | HasStatus(ActorId, StatusId/StatusKind) | Actor 与状态标识/种类 | 是否具有该状态 | AI、玩法规则 | 已实现 |
+| API-STATUS-010 | StatusManager | TryGetStatus(ActorId, StatusId, out StatusEntrySnapshot) | Actor 与状态 ID | 是否成功、状态条目（含已持续时间） | AI、UI | 已实现 |
+| API-STATUS-011 | StatusManager | NotifyFoodConsumed(ActorId, StatusId) | 史莱姆与可选冷/热食状态 | 是否处理 | 食物交互适配 | 已实现 |
+| API-STATUS-012 | StatusManager | NotifyGuideReached(ActorId, StatusGuideKind) | 史莱姆与引导源种类 | 是否处理 | 感知/交互适配 | 已实现 |
+| API-STATUS-013 | StatusManager | NotifyFurnaceCoreEntered/Exited(ActorId) | 火炉核心成员变化 | 是否处理 | MechanismSystem | 已实现 |
+| API-STATUS-014 | StatusManager | NotifyInjuredHumanNearby(ActorId) | 受伤人类在嗅觉范围内的史莱姆 | 是否触发暴躁 | 感知适配 | 已实现 |
 | API-STATUS-006 | StatusManager | GetMovementModifiers(ActorId) | Actor ID | MovementModifierSnapshot | MovementSystem | 已实现 |
 | API-STATUS-007 | StatusManager | GetAttackSpeedMultiplier(ActorId) | Actor ID | 攻击速度倍率 | ActorStateMachine 行动端口 | 已实现 |
 | API-STATUS-008 | StatusManager | Tick(StatusTickContext) | 当前帧间隔 | 更新状态计时与周期效果 | LevelContext | 已实现 |
@@ -203,3 +213,22 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 - UI 控件刷新、动画、特效和音效播放方法；
 - 只有一个系统内部调用方的辅助方法。
 
+
+## 小宸首关接口通知（2026-10-11，待评审）
+
+| 提供者 | 接口 | 调用方 / 边界 |
+| --- | --- | --- |
+| PlacementGridAuthoring | WorldToCell(Vector3) / GetCellCenter(Vector3Int) | PlacementSystem / 预览；场景矩形 XY Grid |
+| PlacementSystem | BeginPlacement(PlacementItemId) / PreviewPlacement(Vector3) / ConfirmPlacement() / CancelPlacement() / GetCurrentPreview() / GetBudgetSnapshot() | 放置适配与选择 UI；只报告结果，不生成机关 |
+| IPlacementBackend | IsAvailable / RequestPlacement(PlacementRequest) / ReadPlacedObjects() / GetBudgetSnapshot() | PlacementSystem；由机关/关卡适配实现，负责最终请求与只读已放置对象 |
+| IFirstLevelStatusSource | ReadSnapshot(LevelContext) | FirstLevelUiSnapshotSource；武器 / 结果只读显示，不决定结果 |
+| UiState | 尾部可选参数 slimeLimit / weaponText | 保持旧构造调用兼容；未知值不显示成 0 |
+| FirstLevelPresentationRoot | Initialize(LevelManager, InputSystem, CameraSystem, PlacementGridAuthoring, IPlacementBackend, PlacementConfirmationMode, IFirstLevelStatusSource = null) | 场景组合；本关依赖，禁用解绑，重开清理 |
+
+机关创建与新武器/Core 结果接口尚未提供，当前注入契约不替代对应所有者的正式 API。详细参数、失败与生命周期见小宸实现与接入通知。
+
+首关快照补充：PlayerInputSnapshot.PointerBlocked 为只读 UI 手势/恢复保护事实；末尾可选构造参数保持旧调用兼容。PlacementInputAdapter 仅在未屏蔽的 Gameplay 快照下更新预览。
+
+返回值补充：`PreviewPlacement` → `PlacementValidationResult`（Preview / IsValid / Reason）；`ConfirmPlacement` → `PlacementResult`（Succeeded / MechanismId / Reason）。`PlacementSystem.Changed / PlacementCompleted` 为本地刷新／尝试结果事件，不是全局领域事实。backend 成功返回要求同步生效且 ID 有效，仅用于其注入时的当前关卡；新 Context 须重新注入。`IFirstLevelStatusSource` 返回 `FirstLevelStatusSnapshot`（WeaponText / ResultText）。详细边界、降级与生命周期见实现与接入文档。
+
+2026-10-12 交互修正：PlacementInputAdapter 在地图 PrimaryAction 后锁定目标世界格子，移动鼠标到 CONFIRM 或移动镜头不会改选，再次点击地图可替换。锁定不新增公开 API；直接调用 PlacementSystem.PreviewPlacement / ConfirmPlacement 的契约不变。

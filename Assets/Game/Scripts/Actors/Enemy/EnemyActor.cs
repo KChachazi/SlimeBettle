@@ -9,7 +9,8 @@ using UnityEngine;
 namespace SlimeBattle.Actors.Enemies
 {
     [RequireComponent(typeof(SpriteRenderer), typeof(Rigidbody2D), typeof(Collider2D))]
-    public sealed class EnemyActor : MonoBehaviour, IEffectReceiver, IActorControlReceiver
+    public sealed class EnemyActor : MonoBehaviour, IEffectReceiver, IActorControlReceiver,
+        IActorHealthLimitReceiver
     {
         private ActorCore core;
         private EnemyConfig config;
@@ -87,6 +88,11 @@ namespace SlimeBattle.Actors.Enemies
         public bool RemoveResolvedStatus(string statusId)
         {
             return !disposed && core != null && core.RemoveResolvedStatus(statusId);
+        }
+
+        public void SetMaxHealthMultiplier(float multiplier)
+        {
+            if (core != null && IsAlive) core.SetMaxHealthMultiplier(multiplier);
         }
 
         public void SetControlMode(ActorControlMode mode)

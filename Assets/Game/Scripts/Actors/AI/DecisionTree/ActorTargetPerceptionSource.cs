@@ -5,16 +5,28 @@ using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
 using SlimeBattle.Slimes;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Actors.AI.DecisionTree
 {
     public sealed class ActorTargetPerceptionSource : IActorPerceptionSource
     {
+        private sealed class FleeRoll
+        {
+            public ActorId TargetActorId;
+            public int HealthBand;
+            public bool Succeeded;
+            public bool HasFled;
+        }
+
         private readonly SlimeManager slimes;
         private readonly EnemyManager enemies;
         private readonly ConfigRegistry configs;
         private long sampleTick;
+        private readonly System.Random random = new System.Random();
+        private readonly Dictionary<ActorId, FleeRoll> fleeRolls =
+            new Dictionary<ActorId, FleeRoll>();
 
         public ActorTargetPerceptionSource(SlimeManager slimes, EnemyManager enemies,
             ConfigRegistry configs)
@@ -30,7 +42,10 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             if (!TryGetActorSnapshot(actorId, out var self) || !self.IsAlive ||
                 !TryGetConfigId(actorId, out var configId) ||
                 !configs.TryGet(configId, out ActorConfig config))
+            {
+                fleeRolls.Remove(actorId);
                 return new PerceptionSnapshot(++sampleTick, targets);
+            }
 
             // 当前没有视线阻挡规则；距离是直线世界距离，活动范围仍由 EnemyDecision 检查。
             foreach (var slime in slimes.GetAliveSnapshots())
@@ -43,7 +58,12 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                     ActorType.Enemy, enemy.IsAlive, enemy.Position, enemy.CurrentHealth,
                     enemy.MaxHealth, (ActorControlMode)enemy.ControlMode, enemy.StatusIds),
                     config.DetectionRange, targets);
-            return new PerceptionSnapshot(++sampleTick, targets);
+            var hasEscapeDestination = TryGetFleeResult(self, targets,
+                out var escapeDestination, out var fleeCheckSucceeded);
+            return new PerceptionSnapshot(++sampleTick, targets,
+                hasEscapeDestination: hasEscapeDestination,
+                escapeDestination: escapeDestination,
+                fleeCheckSucceeded: fleeCheckSucceeded);
         }
 
         public bool TryGetActorSnapshot(ActorId actorId, out ActorSnapshot snapshot)
@@ -84,6 +104,68 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 (target.Position - self.Position).sqrMagnitude > detectionRange * detectionRange)
                 return;
             targets.Add(new TargetObservation(target, true));
+        }
+
+        private bool TryGetFleeResult(ActorSnapshot actor,
+            IReadOnlyList<TargetObservation> targets, out Vector2 escapeDestination,
+            out bool fleeCheckSucceeded)
+        {
+            escapeDestination = default(Vector2);
+            fleeCheckSucceeded = false;
+            if (actor.ActorType != ActorType.Slime || targets == null || targets.Count == 0 ||
+                !configs.TryGetStatus(StatusKind.Fear, out var fearConfig))
+            {
+                fleeRolls.Remove(actor.ActorId);
+                return false;
+            }
+
+            var nearestDistance = float.PositiveInfinity;
+            var nearestTarget = default(ActorSnapshot);
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var observation = targets[i];
+                if (!observation.IsVisible || !observation.IsHostile || !observation.Actor.IsAlive)
+                    continue;
+                var distance = (observation.Actor.Position - actor.Position).sqrMagnitude;
+                if (distance >= nearestDistance) continue;
+                nearestDistance = distance;
+                nearestTarget = observation.Actor;
+            }
+            if (!nearestTarget.ActorId.IsValid)
+            {
+                fleeRolls.Remove(actor.ActorId);
+                return false;
+            }
+
+            var healthRatio = actor.MaxHealth <= 0f ? 1f : actor.CurrentHealth / actor.MaxHealth;
+            var healthBand = healthRatio < fearConfig.CriticalFleeHealthThreshold ? 2
+                : healthRatio < fearConfig.FleeHealthThreshold ? 1 : 0;
+            if (healthBand == 0)
+            {
+                fleeRolls.Remove(actor.ActorId);
+                return false;
+            }
+
+            if (!fleeRolls.TryGetValue(actor.ActorId, out var roll) ||
+                roll.TargetActorId != nearestTarget.ActorId || roll.HealthBand != healthBand)
+            {
+                var chance = healthBand == 2
+                    ? fearConfig.CriticalFleeChance : fearConfig.FleeChance;
+                roll = new FleeRoll
+                {
+                    TargetActorId = nearestTarget.ActorId,
+                    HealthBand = healthBand,
+                    Succeeded = random.NextDouble() < chance
+                };
+                fleeRolls[actor.ActorId] = roll;
+            }
+
+            var away = actor.Position - nearestTarget.Position;
+            if (away.sqrMagnitude <= 0.0001f) away = Vector2.up;
+            escapeDestination = actor.Position + away.normalized * 3f;
+            fleeCheckSucceeded = roll.Succeeded && !roll.HasFled;
+            if (fleeCheckSucceeded) roll.HasFled = true;
+            return true;
         }
     }
 }

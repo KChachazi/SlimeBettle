@@ -12,6 +12,7 @@ namespace SlimeBattle.World
         [SerializeField] private MapRegionKind regionKind;
         [SerializeField, Min(0.01f)] private float movementSpeedMultiplier = 1f;
         [SerializeField] private string statusEffectConfigId;
+        [SerializeField, Min(0f)] private float guidanceRadiusPixels = 500f;
 
         internal MapAreaId AreaId => new MapAreaId(areaId);
         internal MapAreaKind Kind => kind;
@@ -39,6 +40,13 @@ namespace SlimeBattle.World
                 return false;
             }
 
+            if (float.IsNaN(guidanceRadiusPixels) ||
+                float.IsInfinity(guidanceRadiusPixels) || guidanceRadiusPixels < 0f)
+            {
+                error = "Guidance radius must be finite and non-negative.";
+                return false;
+            }
+
             if ((kind == MapAreaKind.Road && !System.Enum.IsDefined(typeof(MapRoadKind), roadKind)) ||
                 (kind == MapAreaKind.Terrain &&
                     (!System.Enum.IsDefined(typeof(MapTerrainKind), terrainKind) || terrainKind == MapTerrainKind.None)) ||
@@ -51,7 +59,9 @@ namespace SlimeBattle.World
             }
 
             snapshot = new MapAreaSnapshot(AreaId, kind, roadKind, terrainKind,
-                regionKind, movementSpeedMultiplier, statusEffectConfigId);
+                regionKind, movementSpeedMultiplier, statusEffectConfigId,
+                kind == MapAreaKind.Region && regionKind == MapRegionKind.Warm
+                    ? guidanceRadiusPixels : 0f);
             error = string.Empty;
             return true;
         }

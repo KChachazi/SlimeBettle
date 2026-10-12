@@ -101,3 +101,7 @@ PlayerCommandSubmittedEvent
 
 验收入口、异常场景与跨系统示例见 `Assets/Game/Tests/PlayerPresentation/README.md` 和 `Assets/Docs/P0-小宸接入说明.md`。多指、虚拟摇杆、键位重映射留待后续确认。
 
+
+### 首关快照补充通知（2026-10-11）
+
+PlayerInputSnapshot 增加只读 PointerBlocked（构造函数尾部可选参数，旧调用兼容），表示 UI 起始手势或等待控件归零期间不可作为地图预览。PlacementInputAdapter 在 LateUpdate 使用该事实，避免 UI 按下后拖出时更新地图预览；不改变 PrimaryAction 语义。

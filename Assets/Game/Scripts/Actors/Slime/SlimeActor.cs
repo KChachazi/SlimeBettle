@@ -5,12 +5,14 @@ using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.SlimeGroups;
 using SlimeBattle.Data;
 using SlimeBattle.Slimes;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Actors.Slimes
 {
     [RequireComponent(typeof(SpriteRenderer), typeof(Rigidbody2D), typeof(Collider2D))]
-    public sealed class SlimeActor : MonoBehaviour, IEffectReceiver, IActorControlReceiver
+    public sealed class SlimeActor : MonoBehaviour, IEffectReceiver, IActorControlReceiver,
+        IActorHealthLimitReceiver
     {
         private ActorCore core;
         private SlimeConfig config;
@@ -54,7 +56,11 @@ namespace SlimeBattle.Actors.Slimes
             lastActions = context.Actions;
             var snapshot = core.GetSnapshot();
             var perception = context.Perception.GetPerception(ActorId);
-            var intent = decisionTree.Evaluate(new DecisionContext(snapshot, perception));
+            var statusQuery = context.Actions as IActorStatusQuery;
+            var intent = decisionTree.Evaluate(new DecisionContext(snapshot, perception, statusQuery));
+            if (intent.StatusToApply.IsValid && context.Actions is IActorStatusRequestPort statusRequests)
+                statusRequests.ApplyStatus(ActorId, intent.StatusToApply,
+                    intent.StatusDurationSeconds);
             LastDecisionReason = intent.Reason;
             var modifierProvider = context.Actions as IActorModifierProvider;
             var attackSpeedMultiplier = modifierProvider == null ? 1f
@@ -78,6 +84,8 @@ namespace SlimeBattle.Actors.Slimes
         private static SlimeNeedState GetPrimaryNeed(ActorSnapshot snapshot)
         {
             var statuses = snapshot.StatusIds;
+            if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Frozen)) return SlimeNeedState.Frozen;
+            if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Burning)) return SlimeNeedState.Burning;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Afraid)) return SlimeNeedState.Afraid;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Hungry)) return SlimeNeedState.Hungry;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Cold)) return SlimeNeedState.Cold;
@@ -102,6 +110,11 @@ namespace SlimeBattle.Actors.Slimes
         public bool RemoveResolvedStatus(string statusId)
         {
             return !disposed && core != null && core.RemoveResolvedStatus(statusId);
+        }
+
+        public void SetMaxHealthMultiplier(float multiplier)
+        {
+            if (core != null && IsAlive) core.SetMaxHealthMultiplier(multiplier);
         }
 
         public void SetControlMode(ActorControlMode mode)
