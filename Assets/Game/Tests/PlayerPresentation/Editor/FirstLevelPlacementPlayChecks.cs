@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SlimeBattle.Core;
+using SlimeBattle.Player;
 using SlimeBattle.Player.Input;
 using SlimeBattle.Player.Placement;
 using SlimeBattle.Presentation.Camera;
@@ -14,6 +15,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using DeviceInput = UnityEngine.InputSystem.InputSystem;
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
@@ -286,6 +288,115 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             }
             finally
             { DeviceInput.RemoveDevice(mouse); DeviceInput.RemoveDevice(keyboard); DeviceInput.RemoveDevice(touch); }
+            yield return CheckCompositionLifecycle();
+        }
+
+        private static IEnumerator CheckCompositionLifecycle()
+        {
+            // Read existing registered scenes; never save them or write Build Settings.
+            // Additional presentation objects live in the test-owned DontDestroyOnLoad root.
+            Check(Application.CanStreamedLevelBeLoaded("Bootstrap") && Application.CanStreamedLevelBeLoaded("Level_test"),
+                "Composition checks use already registered Bootstrap and Level_test scenes");
+            yield return SceneManager.LoadSceneAsync("Bootstrap");
+            while (SceneManager.GetActiveScene().name != "MainMenu") { yield return null; }
+            var gameRoot = UnityEngine.Object.FindObjectOfType<GameRoot>();
+            Check(gameRoot != null, "Existing Bootstrap provides the public GameRoot entry point");
+            var manager = gameRoot.GetLevelManager();
+            gameRoot.RequestEnterLevel(new LevelId("Level_test"));
+            while (manager.GetLevelState() != LevelState.Running)
+            {
+                if (manager.GetLevelState() == LevelState.Failed) { throw new InvalidOperationException("Existing Level_test failed to load."); }
+                yield return null;
+            }
+            var owner = new GameObject("TEST_ONLY_FirstLevelComposition");
+            UnityEngine.Object.DontDestroyOnLoad(owner);
+            var backend = new TestPlacementBackend();
+            var nextBackend = new TestPlacementBackend();
+            try
+            {
+                var gridObject = new GameObject("TEST_ONLY_Grid", typeof(Grid), typeof(PlacementGridAuthoring));
+                gridObject.transform.SetParent(owner.transform, false);
+                var grid = gridObject.GetComponent<PlacementGridAuthoring>();
+                grid.Grid.cellSize = new Vector3(1f, 1f, 0f);
+                var cameraObject = new GameObject("TEST_ONLY_Camera", typeof(UnityEngine.Camera), typeof(CameraSystem));
+                cameraObject.transform.SetParent(owner.transform, false);
+                // Projection/assembly only; don't draw over the existing scene camera.
+                cameraObject.GetComponent<UnityEngine.Camera>().enabled = false;
+                var root = owner.AddComponent<FirstLevelPresentationRoot>();
+                var input = owner.GetComponent<SlimeBattle.Player.Input.InputSystem>();
+                var camera = cameraObject.GetComponent<CameraSystem>();
+                root.Initialize(manager, input, camera, grid, backend, PlacementConfirmationMode.Single);
+                var ui = owner.GetComponent<UISystem>();
+                var selection = owner.GetComponentInChildren<PlacementSelectionView>();
+                var view = owner.GetComponent<PlacementGridView>();
+                Check(selection.IsVisible && ui.GetState().SlimeLimit == manager.GetCurrentContext().SlimeManager.MaxAliveCount,
+                    "Composition initializes from current public context and displays the actual configured slime limit");
+                root.Placement.BeginPlacement(PlacementItemId.Food);
+                root.Placement.PreviewPlacement(Vector3.zero);
+                Check(root.Placement.GetCurrentPreview().CanConfirm && view.IsVisible,
+                    "Composition reads actual MapManager bounds and accepts the injected TEST_ONLY backend");
+                ui.SubmitCommand(UiCommand.Pause);
+                yield return Frames(2);
+                Check(manager.GetLevelState() == LevelState.Paused && !selection.IsVisible && !view.IsVisible && !root.Placement.IsPlacing,
+                    "Real LevelManager pause hides selection and clears preview through the composition root");
+                ui.SubmitCommand(UiCommand.Resume);
+                yield return Frames(2);
+                Check(manager.GetLevelState() == LevelState.Running && selection.IsVisible && !root.Placement.IsPlacing,
+                    "Real LevelManager resume restores selection without reviving the old preview");
+                var adapter = owner.GetComponent<PlacementInputAdapter>();
+                adapter.enabled = false;
+                ui.SubmitCommand(UiCommand.Pause);
+                ui.SubmitCommand(UiCommand.Resume);
+                Check(selection.IsVisible && !root.Placement.IsPlacing,
+                    "Phase changes refresh selection independently of input-adapter cancellation callbacks");
+                adapter.enabled = true;
+                root.Placement.BeginPlacement(PlacementItemId.Food);
+                root.Placement.PreviewPlacement(Vector3.zero);
+                var oldPlacement = root.Placement;
+                root.enabled = false;
+                Check(!oldPlacement.IsPlacing && !selection.IsVisible && !view.IsVisible,
+                    "Disabling the composition root disposes selection and hides owned views");
+                root.enabled = true;
+                Check(root.Placement != oldPlacement && selection.IsVisible && owner.GetComponentsInChildren<PlacementSelectionView>(true).Length == 1,
+                    "Re-enabling the composition root creates a fresh session and reuses one selection view");
+                root.Placement.BeginPlacement(PlacementItemId.Food);
+                root.Placement.PreviewPlacement(Vector3.zero);
+                Check(root.Placement.ConfirmPlacement().Succeeded && backend.Requests == 1,
+                    "Composition confirmation invokes only the injected TEST_ONLY creation backend");
+                var oldContext = manager.GetCurrentContext();
+                oldPlacement = root.Placement;
+                ui.SubmitCommand(UiCommand.Restart);
+                while (manager.GetCurrentContext() == oldContext || manager.GetLevelState() != LevelState.Running)
+                {
+                    if (manager.GetLevelState() == LevelState.Failed) { throw new InvalidOperationException("Existing Level_test restart failed."); }
+                    yield return null;
+                }
+                yield return Frames(2);
+                root.Placement.BeginPlacement(PlacementItemId.Food);
+                root.Placement.PreviewPlacement(Vector3.zero);
+                Check(!oldPlacement.IsPlacing && root.Placement != oldPlacement &&
+                    root.Placement.GetCurrentPreview().Status == PlacementValidationStatus.Unavailable &&
+                    !root.Placement.ConfirmPlacement().Succeeded && backend.Requests == 1,
+                    "Real LevelManager restart replaces the context and refuses to reuse the old creation backend");
+                root.Initialize(manager, input, camera, grid, nextBackend, PlacementConfirmationMode.Single);
+                root.Placement.BeginPlacement(PlacementItemId.Obstacle);
+                root.Placement.PreviewPlacement(Vector3.zero);
+                Check(root.Placement.ConfirmPlacement().Succeeded && nextBackend.Requests == 1 && backend.Requests == 1 &&
+                    owner.GetComponentsInChildren<PlacementSelectionView>(true).Length == 1,
+                    "Reinjecting a backend for the new context restores placement without duplicating selection UI");
+                root.Placement.BeginPlacement(PlacementItemId.Furnace);
+                manager.ReportResult(LevelResult.Failed); // Explicit simulated result, not a Core rule assertion.
+                Check(ui.GetState().LevelState == LevelState.Failed && !selection.IsVisible && !view.IsVisible && !root.Placement.IsPlacing,
+                    "Explicit public result reporting updates the real UI adapter and clears placement");
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(owner);
+                backend.Dispose();
+                nextBackend.Dispose();
+                UnityEngine.Object.Destroy(gameRoot.gameObject);
+            }
+            yield return Frames(2);
         }
 
         private static Vector2 ButtonPoint(FirstLevelPlacementFixture fixture, string name)

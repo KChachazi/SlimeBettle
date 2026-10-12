@@ -117,7 +117,9 @@ namespace SlimeBattle.Player
         private void OnStarted(LevelStartedEvent data) { CreateSession(); }
         private void OnPhaseChanged(LevelStateChangedEvent data)
         {
-            if (levelManager.GetLevelState() != LevelState.Running) { Placement?.CancelPlacement(); }
+            // Resume must refresh the selection view even when the input adapter is disabled.
+            // Every phase transition discards the previous selection; never restore its preview.
+            Placement?.CancelPlacement();
         }
         private void Update()
         {

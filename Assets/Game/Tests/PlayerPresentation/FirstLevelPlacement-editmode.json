@@ -1,13 +1,14 @@
 {
   "unityVersion": "2022.3.62f2c1",
-  "baseline": "origin/master 6a3b9ef",
-  "total": 51,
-  "passed": 50,
+  "baseline": "origin/master 548abbb",
+  "validationDate": "2026-10-12",
+  "total": 56,
+  "passed": 55,
   "failed": 1,
   "assemblies": [
     {
       "name": "SlimeBattle.P0.Tests.dll",
-      "passed": 26,
+      "passed": 31,
       "failed": 1
     },
     {
@@ -21,7 +22,7 @@
       "test": "SlimeBattle.Tests.ActorAiEditModeTests.LowHealthFleeCheckAndAgitationUseFormalPaths",
       "message": "System.ArgumentOutOfRangeException : Index was out of range. Must be non-negative and less than the size of the collection.\nParameter name: index",
       "source": "Assets/Game/Tests/ActorAiEditModeTests.cs:297",
-      "note": "Existing Actor test and runtime files unchanged in this PR; pure-master rerun not performed."
+      "note": "Existing Actor test and runtime files unchanged versus origin/master 548abbb; pure-master rerun not performed."
     }
   ]
 }
