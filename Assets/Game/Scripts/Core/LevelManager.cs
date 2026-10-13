@@ -3,9 +3,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using SlimeBattle.Data;
-using SlimeBattle.Objectives;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.Enemies;
+using SlimeBattle.Actors.Guards;
 
 namespace SlimeBattle.Core
 {
@@ -14,6 +14,7 @@ namespace SlimeBattle.Core
         [SerializeField] private ConfigAsset[] levelConfigs;
         [SerializeField] private SlimeActor slimePrefab;
         [SerializeField] private EnemyActor enemyPrefab;
+        [SerializeField] private GuardActor guardPrefab;
         private bool initialized;
         private bool disposed;
         private Coroutine loadCoroutine;
@@ -188,8 +189,8 @@ namespace SlimeBattle.Core
             if (currentContext != null)
             {
                 SetState(LevelState.Unloading);
-                if (currentContext.ObjectiveSystem != null)
-                    currentContext.ObjectiveSystem.Failed -= OnObjectiveFailed;
+                if (currentContext.ResultRules != null)
+                    currentContext.ResultRules.ResultDecided -= OnResultDecided;
                 currentContext.Dispose();
                 currentContext = null;
             }
@@ -210,8 +211,8 @@ namespace SlimeBattle.Core
             if (currentContext != null)
             {
                 SetState(LevelState.Unloading);
-                if (currentContext.ObjectiveSystem != null)
-                    currentContext.ObjectiveSystem.Failed -= OnObjectiveFailed;
+                if (currentContext.ResultRules != null)
+                    currentContext.ResultRules.ResultDecided -= OnResultDecided;
                 currentContext.Dispose();
                 currentContext = null;
                 currentLevelId = default(LevelId);
@@ -257,9 +258,9 @@ namespace SlimeBattle.Core
             try
             {
                 currentContext = new LevelContext(levelId, registry, levelConfig,
-                    slimePrefab, enemyPrefab);
+                    slimePrefab, enemyPrefab, guardPrefab);
                 currentContext.Initialize();
-                currentContext.ObjectiveSystem.Failed += OnObjectiveFailed;
+                currentContext.ResultRules.ResultDecided += OnResultDecided;
             }
             catch (Exception exception)
             {
@@ -277,9 +278,9 @@ namespace SlimeBattle.Core
             }
         }
 
-        private void OnObjectiveFailed(ObjectiveFailedEvent failed)
+        private void OnResultDecided(LevelResult result)
         {
-            ReportResult(LevelResult.Failed);
+            ReportResult(result);
         }
 
         private bool CanStartTransition()

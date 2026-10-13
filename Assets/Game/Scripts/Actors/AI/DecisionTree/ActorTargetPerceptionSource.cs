@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
+using SlimeBattle.Guards;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.Slimes;
 using SlimeBattle.Status;
 using UnityEngine;
@@ -22,6 +24,8 @@ namespace SlimeBattle.Actors.AI.DecisionTree
 
         private readonly SlimeManager slimes;
         private readonly EnemyManager enemies;
+        private readonly GuardManager guards;
+        private readonly MechanismSystem mechanisms;
         private readonly ConfigRegistry configs;
         private long sampleTick;
         private readonly System.Random random = new System.Random();
@@ -29,11 +33,14 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             new Dictionary<ActorId, FleeRoll>();
 
         public ActorTargetPerceptionSource(SlimeManager slimes, EnemyManager enemies,
-            ConfigRegistry configs)
+            ConfigRegistry configs, GuardManager guards = null,
+            MechanismSystem mechanisms = null)
         {
             this.slimes = slimes ?? throw new ArgumentNullException(nameof(slimes));
             this.enemies = enemies ?? throw new ArgumentNullException(nameof(enemies));
             this.configs = configs ?? throw new ArgumentNullException(nameof(configs));
+            this.guards = guards;
+            this.mechanisms = mechanisms;
         }
 
         public PerceptionSnapshot GetPerception(ActorId actorId)
@@ -49,15 +56,49 @@ namespace SlimeBattle.Actors.AI.DecisionTree
 
             // 当前没有视线阻挡规则；距离是直线世界距离，活动范围仍由 EnemyDecision 检查。
             foreach (var slime in slimes.GetAliveSnapshots())
+            {
+                if (slime.IsCarrying) continue;
                 AddIfDetected(self, new ActorSnapshot(slime.ActorId, slime.FactionId,
                     ActorType.Slime, slime.IsAlive, slime.Position, slime.CurrentHealth,
                     slime.MaxHealth, (ActorControlMode)slime.ControlMode, slime.StatusIds),
                     config.DetectionRange, targets);
+            }
             foreach (var enemy in enemies.GetAliveSnapshots())
                 AddIfDetected(self, new ActorSnapshot(enemy.ActorId, enemy.FactionId,
                     ActorType.Enemy, enemy.IsAlive, enemy.Position, enemy.CurrentHealth,
                     enemy.MaxHealth, (ActorControlMode)enemy.ControlMode, enemy.StatusIds),
                     config.DetectionRange, targets);
+            if (guards != null)
+                foreach (var guard in guards.GetAliveSnapshots())
+                    AddIfDetected(self, new ActorSnapshot(guard.ActorId, guard.FactionId,
+                        ActorType.Guard, guard.IsAlive, guard.Position,
+                        guard.CurrentHealth, guard.MaxHealth,
+                        ActorControlMode.Autonomous, guard.StatusIds),
+                        config.DetectionRange, targets, isHuman: true);
+
+            var weapon = default(EscortWeaponSnapshot);
+            var hasWeapon = mechanisms != null &&
+                mechanisms.TryGetWeaponSnapshot(out weapon) &&
+                !weapon.IsDestroyed && !weapon.HasReachedGoal;
+            if (hasWeapon && self.ActorType == ActorType.Enemy)
+                AddIfDetected(self, WeaponTarget(weapon),
+                    config.DetectionRange, targets);
+            if (hasWeapon && self.ActorType == ActorType.Guard)
+            {
+                targets.Clear();
+                foreach (var enemy in enemies.GetAliveSnapshots())
+                {
+                    if ((enemy.Position - weapon.Position).sqrMagnitude >
+                        config.DetectionRange * config.DetectionRange) continue;
+                    AddIfDetected(self, new ActorSnapshot(enemy.ActorId,
+                        enemy.FactionId, ActorType.Enemy, enemy.IsAlive,
+                        enemy.Position, enemy.CurrentHealth, enemy.MaxHealth,
+                        (ActorControlMode)enemy.ControlMode, enemy.StatusIds),
+                        float.PositiveInfinity, targets);
+                }
+                return new PerceptionSnapshot(++sampleTick, targets,
+                    hasDestination: true, destination: weapon.Position);
+            }
             var hasEscapeDestination = TryGetFleeResult(self, targets,
                 out var escapeDestination, out var fleeCheckSucceeded);
             return new PerceptionSnapshot(++sampleTick, targets,
@@ -82,6 +123,21 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                     (ActorControlMode)enemy.ControlMode, enemy.StatusIds);
                 return true;
             }
+            if (guards != null && guards.TryGetSnapshot(actorId, out var guard))
+            {
+                snapshot = new ActorSnapshot(guard.ActorId, guard.FactionId,
+                    ActorType.Guard, guard.IsAlive, guard.Position,
+                    guard.CurrentHealth, guard.MaxHealth,
+                    ActorControlMode.Autonomous, guard.StatusIds);
+                return true;
+            }
+            if (mechanisms != null &&
+                mechanisms.TryGetWeaponSnapshot(out var weapon) &&
+                actorId == weapon.CombatTargetId)
+            {
+                snapshot = WeaponTarget(weapon);
+                return true;
+            }
             snapshot = default(ActorSnapshot);
             return false;
         }
@@ -92,18 +148,27 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             { configId = slime.ConfigId; return true; }
             if (enemies.TryGetSnapshot(actorId, out var enemy))
             { configId = enemy.ConfigId; return true; }
+            if (guards != null && guards.TryGetSnapshot(actorId, out var guard))
+            { configId = guard.ConfigId; return true; }
             configId = default(ConfigId);
             return false;
         }
 
+        private static ActorSnapshot WeaponTarget(EscortWeaponSnapshot weapon) =>
+            new ActorSnapshot(weapon.CombatTargetId, new FactionId("Slime"),
+                ActorType.EscortWeapon, !weapon.IsDestroyed && !weapon.HasReachedGoal,
+                weapon.Position, weapon.Health, weapon.MaxHealth,
+                ActorControlMode.Autonomous, Array.Empty<string>());
+
         private static void AddIfDetected(ActorSnapshot self, ActorSnapshot target,
-            float detectionRange, List<TargetObservation> targets)
+            float detectionRange, List<TargetObservation> targets, bool isHuman = false)
         {
             if (target.ActorId == self.ActorId || !target.IsAlive ||
-                target.FactionId == self.FactionId ||
+                (target.FactionId == self.FactionId && !isHuman) ||
                 (target.Position - self.Position).sqrMagnitude > detectionRange * detectionRange)
                 return;
-            targets.Add(new TargetObservation(target, true));
+            targets.Add(new TargetObservation(target,
+                target.FactionId != self.FactionId, isHuman: isHuman));
         }
 
         private bool TryGetFleeResult(ActorSnapshot actor,

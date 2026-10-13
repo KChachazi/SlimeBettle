@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: CFG_Level_Test
   m_EditorClassIdentifier:
   configId: Level_test
-  maxAliveSlimes: 30
+  maxAliveSlimes: 20
   objectiveConfigId: mvp_objective
   maximumActivePlacedMechanisms: 5

@@ -5,9 +5,11 @@ using SlimeBattle.Actors;
 using SlimeBattle.Actors.AI.DecisionTree;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.Enemies;
+using SlimeBattle.Actors.Guards;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
+using SlimeBattle.Guards;
 using SlimeBattle.Slimes;
 using UnityEngine;
 
@@ -223,6 +225,145 @@ namespace SlimeBattle.Tests
                 new SlimeSpawnRequest(config.ConfigId, Vector2.zero)).IsValid);
             Assert.AreEqual(50, manager.GetAliveSnapshots().Count);
             manager.Dispose();
+        }
+
+        [Test]
+        public void FirstLevelCapRejectsTwentyFirstSlimeWithoutChangingExistingActors()
+        {
+            var config = New<SlimeConfig>("slime");
+            var manager = new SlimeManager(
+                new ConfigRegistry(new ConfigAsset[] { config }), null, 20, NewSlimePrefab());
+            try
+            {
+                var first = default(ActorId);
+                for (var i = 0; i < 20; i++)
+                {
+                    var id = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId, Vector2.zero));
+                    Assert.IsTrue(id.IsValid);
+                    if (i == 0) first = id;
+                }
+                Assert.IsFalse(manager.SpawnSlime(
+                    new SlimeSpawnRequest(config.ConfigId, Vector2.zero)).IsValid);
+                Assert.AreEqual(20, manager.GetAliveSnapshots().Count);
+                Assert.IsTrue(manager.TryGetSnapshot(first, out var snapshot));
+                Assert.IsTrue(snapshot.IsAlive);
+            }
+            finally { manager.Dispose(); }
+        }
+
+        [Test]
+        public void DepletedEventFiresOnceForZeroAndLastDeathAndResetsWithNewManager()
+        {
+            var config = New<SlimeConfig>("slime");
+            var registry = new ConfigRegistry(new ConfigAsset[] { config });
+            using (var bus = new LevelEventBus())
+            {
+                var count = 0;
+                bus.Subscribe<SlimeDepletedEvent>(e =>
+                {
+                    Assert.AreEqual(new LevelId("first"), e.LevelId);
+                    Assert.AreEqual(0, e.AliveCount);
+                    count++;
+                });
+                var manager = new SlimeManager(registry, bus, 20, NewSlimePrefab(),
+                    levelId: new LevelId("first"));
+                manager.Tick(new LevelTickContext(.1f, null, null));
+                manager.Tick(new LevelTickContext(.1f, null, null));
+                Assert.AreEqual(1, count);
+                manager.Dispose();
+
+                manager = new SlimeManager(registry, bus, 20, NewSlimePrefab(),
+                    levelId: new LevelId("first"));
+                var id = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId,
+                    Vector2.zero));
+                Assert.IsTrue(manager.TryGetActor(id, out var slime));
+                slime.ApplyResolvedEffect(ResolvedEffect.Damage(config.MaxHealth));
+                Assert.AreEqual(2, count);
+                manager.Tick(new LevelTickContext(.1f, null, null));
+                Assert.AreEqual(2, count);
+                manager.Dispose();
+
+                manager = new SlimeManager(registry, bus, 20, NewSlimePrefab(),
+                    levelId: new LevelId("first"));
+                id = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId,
+                    Vector2.zero));
+                Assert.IsTrue(manager.RequestDespawn(id, DespawnReason.Removed));
+                Assert.AreEqual(3, count);
+                manager.Dispose();
+            }
+        }
+
+        [Test]
+        public void GuardRejectsStatusAndAcceptsDamageWithoutChangingItsDefenseState()
+        {
+            var config = New<GuardConfig>("guard");
+            config.ConfigureStats(10, 100, 1f, 1f);
+            var prefabObject = new GameObject("Test Guard Prefab");
+            assets.Add(prefabObject);
+            prefabObject.AddComponent<CircleCollider2D>();
+            var prefab = prefabObject.AddComponent<GuardActor>();
+            var manager = new GuardManager(
+                new ConfigRegistry(new ConfigAsset[] { config }), null, prefab);
+            try
+            {
+                var id = manager.SpawnGuard(new GuardSpawnRequest(config.ConfigId, Vector2.zero));
+                Assert.IsTrue(id.IsValid);
+                Assert.IsTrue(manager.TryGetActor(id, out var guard));
+                var guardRoot = new GameObject("Guard Root");
+                assets.Add(guardRoot);
+                guardRoot.transform.position = new Vector3(3f, 2f, 0f);
+                var spawnPosition = guard.transform.position;
+                Assert.IsTrue(manager.TrySetSpawnParent(guardRoot.transform));
+                Assert.AreSame(guardRoot.transform, guard.transform.parent);
+                Assert.AreEqual(spawnPosition, guard.transform.position);
+                var before = guard.GetSnapshot();
+                Assert.IsFalse(guard.ApplyResolvedEffect(new ResolvedEffect(
+                    EffectType.Status, 0f, id, "hot")).IsAccepted);
+                Assert.IsFalse(guard.ApplyResolvedEffect(new ResolvedEffect(
+                    EffectType.Status, 0f, id, "cold")).IsAccepted);
+                Assert.IsTrue(guard.ApplyResolvedEffect(ResolvedEffect.Damage(1f)).IsAccepted);
+                var after = guard.GetSnapshot();
+                Assert.AreEqual(0, after.StatusIds.Count);
+                Assert.AreEqual(before.CurrentHealth - 1f, after.CurrentHealth);
+                Assert.AreEqual(before.ActionState, after.ActionState);
+            }
+            finally { manager.Dispose(); }
+        }
+
+        [Test]
+        public void CarrierRemainsAliveUntilAttackThenDetachesWithoutLosingRuntimeHealth()
+        {
+            var slimeConfig = New<SlimeConfig>("slime");
+            var enemyConfig = New<EnemyConfig>("enemy");
+            var registry = new ConfigRegistry(new ConfigAsset[] { slimeConfig, enemyConfig });
+            var slimes = new SlimeManager(registry, null, 20, NewSlimePrefab());
+            var enemies = new EnemyManager(registry, null, NewEnemyPrefab());
+            var weapon = new GameObject("test weapon");
+            assets.Add(weapon);
+            try
+            {
+                var slimeId = slimes.SpawnSlime(new SlimeSpawnRequest(
+                    slimeConfig.ConfigId, Vector2.zero));
+                var enemyId = enemies.SpawnEnemy(new EnemySpawnRequest(
+                    enemyConfig.ConfigId, Vector2.up));
+                Assert.IsTrue(slimes.TryAttachCarrier(slimeId, weapon.transform,
+                    Vector2.zero));
+                Assert.IsTrue(slimes.TryGetActor(slimeId, out var carrier));
+                weapon.transform.position = Vector2.up;
+                Assert.IsTrue(slimes.TryGetSnapshot(slimeId, out var snapshot));
+                Assert.IsTrue(snapshot.IsAlive && snapshot.IsCarrying);
+                Assert.AreEqual(Vector2.up, snapshot.Position);
+                Assert.AreEqual(1, slimes.GetAliveSnapshots().Count);
+                var perception = new ActorTargetPerceptionSource(slimes, enemies, registry);
+                Assert.AreEqual(0, perception.GetPerception(enemyId).Targets.Count);
+                var health = snapshot.CurrentHealth;
+                Assert.IsFalse(carrier.ApplyResolvedEffect(
+                    ResolvedEffect.Damage(100f, enemyId)).IsAccepted);
+                Assert.IsTrue(slimes.TryGetSnapshot(slimeId, out snapshot));
+                Assert.IsFalse(snapshot.IsCarrying);
+                Assert.AreEqual(health, snapshot.CurrentHealth);
+            }
+            finally { slimes.Dispose(); enemies.Dispose(); }
         }
 
         private T New<T>(string id) where T : ConfigAsset

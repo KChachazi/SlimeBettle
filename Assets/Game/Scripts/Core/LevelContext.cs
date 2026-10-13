@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using SlimeBattle.Actors;
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.Enemies;
+using SlimeBattle.Actors.Guards;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
+using SlimeBattle.Guards;
 using SlimeBattle.Mechanisms;
-using SlimeBattle.Objectives;
 using SlimeBattle.Slimes;
 using SlimeBattle.Status;
 using SlimeBattle.World;
@@ -24,10 +25,11 @@ namespace SlimeBattle.Core
         private IActorActionPort actions;
         private readonly SlimeActor slimePrefab;
         private readonly EnemyActor enemyPrefab;
+        private readonly GuardActor guardPrefab;
 
         public LevelContext(LevelId levelId, ConfigRegistry configRegistry = null,
             LevelConfig levelConfig = null, SlimeActor slimePrefab = null,
-            EnemyActor enemyPrefab = null)
+            EnemyActor enemyPrefab = null, GuardActor guardPrefab = null)
         {
             if (!levelId.IsValid)
             {
@@ -40,6 +42,7 @@ namespace SlimeBattle.Core
             LevelConfig = levelConfig;
             this.slimePrefab = slimePrefab;
             this.enemyPrefab = enemyPrefab;
+            this.guardPrefab = guardPrefab;
             state = LevelState.Unloaded;
         }
 
@@ -50,7 +53,8 @@ namespace SlimeBattle.Core
         public LevelConfig LevelConfig { get; }
         public SlimeManager SlimeManager { get; private set; }
         public EnemyManager EnemyManager { get; private set; }
-        public ObjectiveSystem ObjectiveSystem { get; private set; }
+        public GuardManager GuardManager { get; private set; }
+        public LevelResultRules ResultRules { get; private set; }
         public MapManager MapManager { get; private set; }
         public StatusManager StatusManager { get; private set; }
         public MechanismSystem MechanismSystem { get; private set; }
@@ -87,19 +91,36 @@ namespace SlimeBattle.Core
             MovementSystem = new MovementSystem(MapManager, EventBus,
                 StatusManager.GetMovementModifiers);
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
-                LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem);
+                LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem,
+                levelId: LevelId);
             EnemyManager = new EnemyManager(ConfigRegistry, EventBus, enemyPrefab,
                 movementSystem: MovementSystem);
-            ObjectiveSystem = new ObjectiveSystem(ConfigRegistry, EventBus);
-            if (!ObjectiveSystem.InitializeFromRegistry(
-                new ObjectiveId(LevelConfig.ObjectiveConfigId.Value), WeaponId.NewId()))
-                throw new InvalidOperationException("Objective or weapon config is missing.");
             MechanismSystem = new MechanismSystem(ConfigRegistry,
                 LevelConfig.MaximumActivePlacedMechanisms, MapManager, StatusManager,
                 EventBus, SceneManager.GetActiveScene());
-            EventBus.Subscribe<SlimeSpawnedEvent>(_ => UpdateSlimeCount());
-            EventBus.Subscribe<SlimeDiedEvent>(_ => UpdateSlimeCount());
-            EventBus.Subscribe<SlimeDespawnedEvent>(_ => UpdateSlimeCount());
+            ResultRules = new LevelResultRules(EventBus);
+            if (guardPrefab != null && MechanismSystem.TryGetWeaponSnapshot(out var weapon))
+            {
+                GuardConfig guardConfig = null;
+                foreach (var asset in ConfigRegistry.Configs)
+                    if (asset is GuardConfig found)
+                    {
+                        if (guardConfig != null)
+                            throw new InvalidOperationException("Only one GuardConfig is supported.");
+                        guardConfig = found;
+                    }
+                if (guardConfig != null)
+                {
+                    GuardManager = new GuardManager(ConfigRegistry, EventBus,
+                        guardPrefab, movementSystem: MovementSystem);
+                    foreach (var offset in guardConfig.SpawnOffsets)
+                        if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
+                            guardConfig.ConfigId, weapon.Position + offset)).IsValid)
+                            throw new InvalidOperationException(
+                                "Guard spawn failed: " + GuardManager.LastFailureReason);
+                }
+            }
+            MechanismSystem.BindCarrierActors(SlimeManager, EnemyManager, GuardManager);
             MapManager.PublishReady();
         }
 
@@ -111,7 +132,8 @@ namespace SlimeBattle.Core
             perception = perceptionSource;
             actions = MovementSystem == null
                 ? actionPort
-                : new MovementActorActionPort(MovementSystem, actionPort, StatusManager);
+                : new MovementActorActionPort(MovementSystem, actionPort,
+                    StatusManager, MechanismSystem);
         }
 
         public void Tick(float deltaTime)
@@ -121,10 +143,14 @@ namespace SlimeBattle.Core
             StatusManager?.Tick(new StatusTickContext(deltaTime));
             MechanismSystem?.Tick(deltaTime);
             MovementSystem?.SyncPositions();
-            if (perception == null || actions == null) return;
-            var context = new LevelTickContext(deltaTime, perception, actions);
-            SlimeManager?.Tick(context);
-            EnemyManager?.Tick(context);
+            SlimeManager?.Tick(new LevelTickContext(deltaTime, perception, actions));
+            if (perception != null && actions != null)
+            {
+                var context = new LevelTickContext(deltaTime, perception, actions);
+                EnemyManager?.Tick(context);
+                GuardManager?.Tick(context);
+            }
+            ResultRules?.EndFrame();
         }
 
         internal void FixedTick(float fixedDeltaTime)
@@ -142,6 +168,8 @@ namespace SlimeBattle.Core
             { receiver = slime; return true; }
             if (EnemyManager != null && EnemyManager.TryGetActor(actorId, out var enemy))
             { receiver = enemy; return true; }
+            if (GuardManager != null && GuardManager.TryGetActor(actorId, out var guard))
+            { receiver = guard; return true; }
             return false;
         }
 
@@ -156,6 +184,7 @@ namespace SlimeBattle.Core
                 foreach (var actor in SlimeManager.GetAliveEffectReceivers()) yield return actor;
             if (EnemyManager != null)
                 foreach (var actor in EnemyManager.GetAliveEffectReceivers()) yield return actor;
+            // Guards take health damage through ResolveActor but do not enter StatusManager ticks.
         }
 
         internal void SetState(LevelState nextState)
@@ -174,6 +203,7 @@ namespace SlimeBattle.Core
             {
                 SlimeManager?.Pause();
                 EnemyManager?.Pause();
+                GuardManager?.Pause();
                 StatusManager?.Pause();
                 MechanismSystem?.Pause();
                 MovementSystem?.Pause();
@@ -185,6 +215,7 @@ namespace SlimeBattle.Core
                 MechanismSystem?.Resume();
                 SlimeManager?.Resume();
                 EnemyManager?.Resume();
+                GuardManager?.Resume();
             }
             EventBus.Publish(new LevelStateChangedEvent(LevelId, previousState, nextState));
         }
@@ -200,21 +231,16 @@ namespace SlimeBattle.Core
             StatusManager?.Dispose();
             SlimeManager?.Dispose();
             EnemyManager?.Dispose();
+            GuardManager?.Dispose();
             MovementSystem?.Dispose();
             MapManager?.Dispose();
-            ObjectiveSystem?.Dispose();
+            ResultRules?.Dispose();
             MechanismSystem = null;
             EventBus.Dispose();
             perception = null;
             actions = null;
             state = LevelState.Unloaded;
             disposed = true;
-        }
-
-        private void UpdateSlimeCount()
-        {
-            ObjectiveSystem?.NotifySlimeCountChanged(
-                SlimeManager == null ? 0 : SlimeManager.GetAliveSnapshots().Count);
         }
 
         private void ThrowIfDisposed()

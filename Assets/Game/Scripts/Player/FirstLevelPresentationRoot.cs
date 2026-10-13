@@ -19,6 +19,7 @@ namespace SlimeBattle.Player
         [SerializeField] private PlacementConfirmationMode confirmationMode;
         [SerializeField] private MonoBehaviour placementBackend;
         [SerializeField] private MonoBehaviour statusSnapshotSource;
+        [SerializeField] private Transform selectionParent;
         private PlayerInputSystem input;
         private IPlacementBackend injectedBackend;
         private IFirstLevelStatusSource statusSource;
@@ -34,6 +35,8 @@ namespace SlimeBattle.Player
         private void Start()
         {
             if (isInitialized) { return; }
+            // LevelManager belongs to the persistent Bootstrap scene.
+            if (levelManager == null) { levelManager = FindObjectOfType<LevelManager>(); }
             if (levelManager == null || cameraSystem == null || grid == null)
             {
                 Debug.LogError("FirstLevelPresentationRoot needs explicit LevelManager, CameraSystem and Grid references.", this);
@@ -67,10 +70,11 @@ namespace SlimeBattle.Player
             confirmationMode = mode;
             injectedBackend = backend;
             backendContext = manager.GetCurrentContext();
-            this.statusSource = statusSource;
+            this.statusSource = statusSource ?? new FirstLevelRuntimeStatusSource();
             if (inputAdapter == null) { inputAdapter = gameObject.AddComponent<PlacementInputAdapter>(); }
             if (gridView == null) { gridView = gameObject.AddComponent<PlacementGridView>(); }
-            if (selectionView == null) { selectionView = PlacementSelectionView.Create(transform); }
+            if (selectionView == null)
+            { selectionView = PlacementSelectionView.Create(selectionParent != null ? selectionParent : transform); }
             isInitialized = true;
             if (isActiveAndEnabled) { Bind(); }
         }
@@ -89,7 +93,7 @@ namespace SlimeBattle.Player
             Placement?.Dispose();
             var context = levelManager.GetCurrentContext();
             var backend = context == backendContext && injectedBackend != null ? injectedBackend :
-                new PendingMechanismPlacementBackend(context?.MechanismSystem);
+                new MechanismPlacementBackend(context?.MechanismSystem);
             Placement = new PlacementSystem(grid, ReadBounds, levelManager.GetLevelState, backend, confirmationMode);
             var source = new FirstLevelUiSnapshotSource(Placement, statusSource);
             GetComponent<PlayerPresentationRoot>().Initialize(levelManager, cameraSystem, source);

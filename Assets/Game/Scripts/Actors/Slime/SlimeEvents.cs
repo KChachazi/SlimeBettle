@@ -1,9 +1,16 @@
 /* 史莱姆生命周期的已发生结果；不用于提交命令。 */
 using SlimeBattle.Actors;
 using SlimeBattle.Actors.SlimeGroups;
+using SlimeBattle.Core;
 
 namespace SlimeBattle.Slimes
 {
+    public readonly struct SlimeDepletedEvent
+    {
+        public SlimeDepletedEvent(LevelId levelId) { LevelId = levelId; AliveCount = 0; }
+        public LevelId LevelId { get; }
+        public int AliveCount { get; }
+    }
     public readonly struct SlimeSpawnedEvent
     {
         public SlimeSpawnedEvent(SlimeSnapshot snapshot) { Snapshot = snapshot; }

@@ -1,6 +1,9 @@
 /* 场景初始角色清单；Level_test 注入随机漫游感知，Actor 生命周期仍由正式 Manager 管理。 */
 using SlimeBattle.Core;
+using SlimeBattle.Actors.AI.DecisionTree;
+using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Data;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.Enemies;
 using SlimeBattle.Slimes;
 using SlimeBattle.Status;
@@ -10,10 +13,41 @@ namespace SlimeBattle.Actors.Spawning
 {
     public sealed class LevelActorSpawner : MonoBehaviour
     {
+        private sealed class LevelPerception : IActorPerceptionSource
+        {
+            private readonly ActorTargetPerceptionSource targets;
+            private readonly RandomWalkPerceptionSource wander;
+            private readonly SlimeBattle.Slimes.SlimeManager slimes;
+            private readonly MechanismSystem mechanisms;
+            public LevelPerception(ActorTargetPerceptionSource targets,
+                RandomWalkPerceptionSource wander, SlimeBattle.Slimes.SlimeManager slimes,
+                MechanismSystem mechanisms)
+            { this.targets = targets; this.wander = wander;
+                this.slimes = slimes; this.mechanisms = mechanisms; }
+            public bool TryGetActorSnapshot(ActorId id, out ActorSnapshot snapshot) =>
+                targets.TryGetActorSnapshot(id, out snapshot);
+            public PerceptionSnapshot GetPerception(ActorId id)
+            {
+                var target = targets.GetPerception(id);
+                var roaming = wander.GetPerception(id);
+                var guides = new System.Collections.Generic.List<GuidanceObservation>(roaming.Guides);
+                if (mechanisms != null && slimes.TryGetSnapshot(id, out var slime) &&
+                    !slime.IsCarrying)
+                    foreach (var source in mechanisms.GetGuideSourcesInRange(
+                        slime.Position, slime.PixelsPerUnit))
+                        guides.Add(new GuidanceObservation(source.Type == GuideSourceType.Food
+                            ? GuidanceKind.Food : GuidanceKind.Warmth, source.Position));
+                return new PerceptionSnapshot(target.SampleTick, target.Targets,
+                    target.HasDestination, target.Destination, guides,
+                    target.HasEscapeDestination, target.EscapeDestination,
+                    target.FleeCheckSucceeded);
+            }
+        }
         [SerializeField] private SlimeConfig slimeConfig;
         [SerializeField] private EnemyConfig enemyConfig;
         [SerializeField] private Transform slimeRoot;
         [SerializeField] private Transform enemyRoot;
+        [SerializeField] private Transform guardRoot;
         [SerializeField] private Transform[] slimeSpawnPoints;
         [SerializeField] private Transform[] enemySpawnPoints;
         [SerializeField] private Vector2 enemyBoundsMinimum = new Vector2(-6f, -4f);
@@ -52,14 +86,16 @@ namespace SlimeBattle.Actors.Spawning
         {
             if (context == null || context == spawnedContext) return;
             if (slimeConfig == null || enemyConfig == null ||
-                slimeRoot == null || enemyRoot == null ||
+                slimeRoot == null || enemyRoot == null || guardRoot == null ||
                 slimeSpawnPoints == null || enemySpawnPoints == null)
             {
                 Debug.LogError("LevelActorSpawner: configs, actor roots or spawn points are missing.", this);
                 return;
             }
             if (!context.SlimeManager.TrySetSpawnParent(slimeRoot) ||
-                !context.EnemyManager.TrySetSpawnParent(enemyRoot))
+                !context.EnemyManager.TrySetSpawnParent(enemyRoot) ||
+                context.GuardManager == null ||
+                !context.GuardManager.TrySetSpawnParent(guardRoot))
             {
                 Debug.LogError("LevelActorSpawner: actor roots could not be bound.", this);
                 return;
@@ -70,8 +106,13 @@ namespace SlimeBattle.Actors.Spawning
             var slimeCount = 0;
             var enemyCount = 0;
             var bounds = new EnemyActivityBounds(enemyBoundsMinimum, enemyBoundsMaximum);
-            context.BindActorPorts(new RandomWalkPerceptionSource(
-                context.SlimeManager, context.EnemyManager, context.MovementSystem, bounds), null);
+            context.BindActorPorts(new LevelPerception(
+                new ActorTargetPerceptionSource(context.SlimeManager,
+                    context.EnemyManager, context.ConfigRegistry,
+                    context.GuardManager, context.MechanismSystem),
+                new RandomWalkPerceptionSource(context.SlimeManager,
+                    context.EnemyManager, context.MovementSystem, bounds),
+                context.SlimeManager, context.MechanismSystem), null);
             foreach (var point in slimeSpawnPoints)
             {
                 if (point == null) continue;

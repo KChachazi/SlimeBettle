@@ -1,24 +1,32 @@
-# Level_test MVP 手动验收
+# Level_test 首关运行时装配与验收
 
-1. 在 Unity 中从 `Assets/Game/Scenes/Bootstrap.unity` 开始 Play（不要直接从 `Level_test` 开始；正式 `GameRoot` 在 Bootstrap）。
-2. Bootstrap 应自动进入 MainMenu。点击 Start，应进入 `Level_test`。
-3. Hierarchy 中的 `EntitiesRoot/SlimeRoot` 下应有一个 `PF_Slime_Green(Clone)`，`EntitiesRoot/EnemyRoot` 为空；史莱姆由 `LevelContext` 中的 `SlimeManager` 从正式预制体生成，不是预先摆放的场景角色。Console 应输出 `Level_test initial actors: 1 Slimes, 0 Enemies.`
-4. 场景中央的黄色 `PF_EscortWeapon` 是护送对象的静态可视预制体；生命值由 `ObjectiveSystem` 的 `WeaponConfig` 初始化为 100，不保存在视觉预制体中。
+> 2026-10-13 装配状态。从 `Assets/Game/Scenes/Bootstrap.unity` 开始 Play，经 MainMenu 进入 `Level_test`；直接从 `Level_test` 启动不会创建持久的 GameRoot。
 
-`LevelActorSpawner` 为当前测试关卡绑定只提供随机漫游点的 `IActorPerceptionSource`，并通过 `LevelContext.BindActorPorts` 将移动请求接到 MovementSystem。SlimeActor / EnemyActor 的 `BasicSlimeDecision` / `BasicEnemyDecision` 会产生 Move 意图，ActorStateMachine 接受后提交移动；MovementSystem 在 FixedUpdate 驱动动态 Rigidbody2D。进入 Play 后，观察角色的位置持续变化即可确认这条链路。随机漫游不提供敌对目标或效果端口，因此本场景不验证攻击与伤害。`StaticMovementObstacle` 是静态 BoxCollider2D 场景样例；漫游路线随机，不能保证每次运行都撞到它。`GoalPoint` 暂不触发抵达判定。史莱姆/敌人的速度配置 200/300 单位为像素/秒，运行时按各自 Sprite 的 `pixelsPerUnit` 换算为 Unity 世界单位/秒。
+## 已装配
 
-直接从 Level_test 场景启动不会创建正式 GameRoot，应从 Bootstrap 开始。
+- Bootstrap 的 LevelManager 引用首关守卫、食物、熔炉、障碍配置及守卫 prefab。MechanismSystem 拥有武器和正式机关。
+- MechanismsRoot 下只有一把正式 `PF_EscortWeaponMechanism`，初始位置 `(-5, 0)`。临时黄色精灵仅负责显示。武器带实心碰撞体、搬运触发范围和 Kinematic Rigidbody2D，避免被 MapManager 登记为自身的静态路线障碍。
+- 临时固定路线：`RouteStart (-5, 0)` → `RouteTurn (-3, 2)` → 原有 `GoalPoint (0, 2)`，ID 为 `level_test_temporary_route`。地图边界、区域、地形和原有静态障碍未改。
+- LevelActorSpawner 引用四个史莱姆出生点及一个敌人出生点。两只史莱姆位于武器搬运半径内，预计以最大速度的 50% 起步；另两只分散在后方。敌人位于 `(2.5, 1.5)`。角色由正式 Manager 在运行时生成。
+- `CFG_Guard` 首关只生成一名守卫，出生点相对武器为 `(0, -1.2)`，由 GuardManager 管理，运行时实例归入 `EntitiesRoot/GuardRoot`。
+- 场景没有独立玩家 Actor 或 PlayerRoot。PresentationRoot 承载 PlayerPresentationRoot、InputSystem、UISystem、FirstLevelPresentationRoot，以及世界坐标放置 Grid；主相机接入 CameraSystem。Grid 使用世界原点、`1×1` 单元、单次确认。运行时 BattleHUD 创建到 `UIRoot/HUDRoot`，放置选择面板和 EventSystem 创建到 `UIRoot`；UI 读取真实快照。缺省父节点仍供隔离测试夹具使用。
 
-`Level_test` 的 `ObjectiveConfig` 关闭了“史莱姆全部死亡也失败”，因此这局只在护送对象生命归零时判负；其他关卡保持现有默认规则。StatusManager 已接入 Actor 效果结算，但本场景的漫游感知没有敌对目标，护送对象也不是 Actor；Play 模式仍没有攻击护送对象的路径。EditMode 测试通过 `ObjectiveSystem` 的公开效果接口验证失败判定。
+## 人工 PlayMode 验收
 
-## 地图与状态验收
+1. 从 Bootstrap 进入首关；Console 不应有配置缺失、无效路线、武器不在起点或 Player/Grid 初始化错误。
+2. Hierarchy 中确认四只史莱姆、一只敌人和一名守卫；Console 应输出 `Level_test initial actors: 4 Slimes, 1 Enemies.`。
+3. 检查黄色武器与 HUD：初始搬运人数预计为 `2/4`，武器沿固定路线移动；脱离后速度随人数变化。
+4. 检查敌人攻击最近可攻击目标、守卫防守、武器受击、武器摧毁、史莱姆耗尽、抵达终点及结果界面。同帧胜负按已确认的成功优先处理。
+5. 检查食物、熔炉、障碍的 Grid 显示、边界、单格占用、总数上限和单次放置。障碍挡住路线时武器应停下，移除后继续。
+6. 检查暂停、恢复、失败后重开和场景退出，确认新局重建武器、守卫、史莱姆、事件与 UI 状态。
 
-`LevelRoot/MapAreas` 下有三条纵向区域，颜色仅用于测试场景辨识：
+## 本次验证记录
 
-- 蓝色 `Region_Cold`：`LowTemperature`，绑定 `status_cold`；史莱姆在区域内获得 `Cold`，状态移速倍率为 0.8。
-- 绿色 `Terrain_Swamp`：`Swamp`，地形移速倍率为 0.5；与状态倍率相乘。
-- 橙色 `Region_Warm`：`Warm`，绑定 `status_hot`；获得 `Hot` 后最大生命倍率为 0.7，并与 `Cold` 互相抵消。
+- 静态：场景 fileID 无重复且局部引用完整；新增 GUID 有对应 `.meta`；武器、路线、Bootstrap、守卫数量、Grid 与 UI 父节点引用已检查；PlayerRoot 已移除；`git diff --check` 通过。
+- 编译：`SlimeBattle.Runtime.csproj`、`SlimeBattle.P0.Tests.csproj` 与 `SlimeBattle.Placement.EditMode.Tests.csproj` 的 `dotnet build --no-restore` 均为 0 警告、0 错误；放置测试工程先执行本地 `dotnet restore --ignore-failed-sources` 补齐生成的 assets 文件。Unity 日志曾记录程序集编译和场景导入，但早于最后一次武器 prefab 修改。
+- EditMode：本次未在 Unity Test Runner 执行。
+- PlayMode / 人工运行：本次未执行。以上行为是验收目标，不代表已通过。最终武器 prefab 仍需在 Unity 重新导入并检查碰撞与路线推进。
 
-唯一史莱姆从蓝色冷区出发并随机漫游。随机路线会受静态障碍影响，不保证每次运行都立即经过所有区域；状态离开区域后按配置保留 20 秒。Play Mode 固定位置采样验证结果：冷区速度为 2.50 世界单位/秒；带 `Cold` 穿过沼泽时为 1.25，正好是中性地面速度的一半。进入暖区后 `Hot` 将最大生命从 500 调到 350，重新进入冷区后 `Cold` 替换 `Hot`，最大生命恢复到 500。
+## 后续依赖
 
-史莱姆新获得状态时，Console 应输出 `[Level_test] Slime ... gained status ...`，包含状态 ID/类型、移动倍率和最大生命倍率。该日志只由 `Level_test` 的 `LevelActorSpawner` 监听本关 Slime 状态事件输出。
+临时路线待地图负责人确定正式路线；武器黄色显示和三个结构机关 prefab 待美术精灵替换。地图原有区域、地形及静态障碍仍保留。正式场景验收前需完成上述人工 PlayMode 检查。

@@ -10,7 +10,8 @@ namespace SlimeBattle.Slimes
     {
         public SlimeSnapshot(ActorSnapshot actor, ConfigId configId,
             float currentHealth, float maxHealth, SlimeControlMode controlMode,
-            SlimeNeedState needState)
+            SlimeNeedState needState, bool isCarrying = false,
+            float pixelsPerUnit = 0f)
         {
             ActorId = actor.ActorId;
             FactionId = actor.FactionId;
@@ -22,6 +23,8 @@ namespace SlimeBattle.Slimes
             ControlMode = controlMode;
             NeedState = needState;
             StatusIds = actor.StatusIds;
+            IsCarrying = isCarrying;
+            PixelsPerUnit = pixelsPerUnit;
         }
         public ActorId ActorId { get; }
         public FactionId FactionId { get; }
@@ -33,5 +36,7 @@ namespace SlimeBattle.Slimes
         public SlimeControlMode ControlMode { get; }
         public SlimeNeedState NeedState { get; }
         public IReadOnlyList<string> StatusIds { get; }
+        public bool IsCarrying { get; }
+        public float PixelsPerUnit { get; }
     }
 }

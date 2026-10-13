@@ -1,6 +1,8 @@
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors;
 using SlimeBattle.Status;
+using SlimeBattle.Mechanisms;
+using UnityEngine;
 
 namespace SlimeBattle.World.Movement
 {
@@ -11,13 +13,16 @@ namespace SlimeBattle.World.Movement
         private readonly MovementSystem movementSystem;
         private readonly IActorActionPort effectPort;
         private readonly StatusManager statusManager;
+        private readonly MechanismSystem mechanisms;
 
         public MovementActorActionPort(MovementSystem movementSystem,
-            IActorActionPort effectPort, StatusManager statusManager = null)
+            IActorActionPort effectPort, StatusManager statusManager = null,
+            MechanismSystem mechanisms = null)
         {
             this.movementSystem = movementSystem;
             this.effectPort = effectPort;
             this.statusManager = statusManager;
+            this.mechanisms = mechanisms;
         }
 
         public string SubmitMovement(ActorMovementRequest request)
@@ -35,6 +40,17 @@ namespace SlimeBattle.World.Movement
 
         public void ApplyEffect(ActorEffectRequest request)
         {
+            if (mechanisms != null &&
+                mechanisms.TryGetWeaponSnapshot(out var weapon) &&
+                request.TargetActorId == weapon.CombatTargetId)
+            {
+                if (!weapon.IsDestroyed && !weapon.HasReachedGoal &&
+                    request.BaseAmount > 0f && !float.IsNaN(request.BaseAmount) &&
+                    !float.IsInfinity(request.BaseAmount))
+                    mechanisms.RequestWeaponDamage(request.SourceActorId,
+                        request.RequestId, Mathf.CeilToInt(request.BaseAmount));
+                return;
+            }
             if (statusManager != null)
             {
                 statusManager.ApplyEffect(new EffectRequest(request.RequestId,

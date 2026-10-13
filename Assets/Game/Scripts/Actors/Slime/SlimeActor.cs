@@ -21,18 +21,26 @@ namespace SlimeBattle.Actors.Slimes
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
         private bool disposed;
+        private bool isCarrying;
+        private float pixelsPerUnit;
 
         public event Action<SlimeActor, ResolvedEffect> Died;
         public event Action<SlimeActor> ControlModeChanged;
+        public event Action<SlimeActor> AttackedWhileCarrying;
         public ActorId ActorId => core == null ? default(ActorId) : core.GetActorId();
         public bool IsAlive => !disposed && core != null && core.IsAlive();
+        public bool IsCarrying => isCarrying;
         public string LastDecisionReason { get; private set; } = string.Empty;
         public ActorId GetActorId() => ActorId;
         public ActorType GetActorType() => ActorType.Slime;
         public FactionId GetFactionId() => core == null ? default(FactionId) : core.GetFactionId();
         bool IEffectReceiver.IsAlive() => IsAlive;
-        ActorSnapshot IEffectReceiver.GetSnapshot() => core == null
-            ? default(ActorSnapshot) : core.GetSnapshot();
+        ActorSnapshot IEffectReceiver.GetSnapshot()
+        {
+            if (core == null) return default(ActorSnapshot);
+            if (isCarrying) core.SetPosition(transform.position);
+            return core.GetSnapshot();
+        }
 
         public void Initialize(SlimeConfig slimeConfig, ActorId actorId, Vector2 position,
             FactionId factionId)
@@ -41,6 +49,8 @@ namespace SlimeBattle.Actors.Slimes
                 throw new ArgumentException("Slime initialization requires config and fresh ActorId.");
             transform.position = position;
             config = slimeConfig;
+            var sprite = GetComponent<SpriteRenderer>().sprite;
+            pixelsPerUnit = sprite == null ? 0f : sprite.pixelsPerUnit;
             core = new ActorCore(actorId, factionId, ActorType.Slime,
                 config.ConfigId, position, config.MaxHealth);
             runtime = new SlimeRuntimeData();
@@ -52,7 +62,7 @@ namespace SlimeBattle.Actors.Slimes
 
         public void Tick(ActorContext context)
         {
-            if (!IsAlive || context.Perception == null) return;
+            if (!IsAlive || isCarrying || context.Perception == null) return;
             lastActions = context.Actions;
             var snapshot = core.GetSnapshot();
             var perception = context.Perception.GetPerception(ActorId);
@@ -73,12 +83,14 @@ namespace SlimeBattle.Actors.Slimes
 
         public SlimeSnapshot GetSnapshot()
         {
+            if (isCarrying) core.SetPosition(transform.position);
             var snapshot = core.GetSnapshot();
             // NeedState 只是单值展示，不复制保存状态；完整并存状态看 StatusIds。
             var need = GetPrimaryNeed(snapshot);
             return new SlimeSnapshot(snapshot, config.ConfigId,
                 snapshot.CurrentHealth, snapshot.MaxHealth,
-                (SlimeControlMode)snapshot.ControlMode, need);
+                (SlimeControlMode)snapshot.ControlMode, need, isCarrying,
+                pixelsPerUnit);
         }
 
         private static SlimeNeedState GetPrimaryNeed(ActorSnapshot snapshot)
@@ -96,7 +108,13 @@ namespace SlimeBattle.Actors.Slimes
 
         public EffectApplyResult ApplyResolvedEffect(ResolvedEffect effect)
         {
-            if (disposed || core == null) return EffectApplyResult.Rejected("Slime is unavailable.");
+            if (disposed || core == null)
+                return EffectApplyResult.Rejected("Slime is unavailable for effects.");
+            if (isCarrying && effect.IsDamage)
+            {
+                if (effect.SourceActorId.IsValid) AttackedWhileCarrying?.Invoke(this);
+                return EffectApplyResult.Immune("Carried slime is part of the weapon.");
+            }
             var result = core.ApplyResolvedEffect(effect);
             if (result.DidKill)
             {
@@ -153,6 +171,36 @@ namespace SlimeBattle.Actors.Slimes
             runtime.GroupTarget = default(Vector2);
         }
 
+        internal bool AttachToWeapon(Transform weapon, Vector2 localOffset)
+        {
+            if (!IsAlive || isCarrying || weapon == null) return false;
+            decisionTree.Stop();
+            stateMachine.RequestInterrupt(InterruptReason.Control, lastActions);
+            isCarrying = true;
+            var body = GetComponent<Rigidbody2D>();
+            body.velocity = Vector2.zero;
+            body.simulated = false;
+            foreach (var collider in GetComponents<Collider2D>())
+                collider.enabled = false;
+            transform.SetParent(weapon, false);
+            transform.localPosition = localOffset;
+            core.SetPosition(transform.position);
+            return true;
+        }
+
+        internal bool DetachFromWeapon(Transform actorParent)
+        {
+            if (!IsAlive || !isCarrying) return false;
+            transform.SetParent(actorParent, true);
+            isCarrying = false;
+            foreach (var collider in GetComponents<Collider2D>()) collider.enabled = true;
+            GetComponent<Rigidbody2D>().simulated = true;
+            core.SetPosition(transform.position);
+            if (core.RuntimeData.ControlMode == ActorControlMode.Autonomous)
+            { decisionTree.Reset(); stateMachine.Resume(); }
+            return true;
+        }
+
         public void NotifyMovementResult(Vector2 position) { if (IsAlive) core.SetPosition(position); }
         public bool NotifyMovementCompleted(string requestId)
             => IsAlive && stateMachine.NotifyMovementCompleted(requestId);
@@ -175,6 +223,7 @@ namespace SlimeBattle.Actors.Slimes
             stateMachine?.RequestInterrupt(InterruptReason.Despawn, actions ?? lastActions);
             Died = null;
             ControlModeChanged = null;
+            AttackedWhileCarrying = null;
             disposed = true;
         }
 

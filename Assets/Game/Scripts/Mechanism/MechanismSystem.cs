@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SlimeBattle.Actors;
+using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
@@ -72,10 +73,22 @@ namespace SlimeBattle.Mechanisms
             new Dictionary<MechanismId, MechanismRuntimeData>();
         private readonly Dictionary<ConfigId, float> placementCooldowns =
             new Dictionary<ConfigId, float>();
-        private readonly HashSet<ActorId> actorsReportedFurnaceHeat = new HashSet<ActorId>();
         private readonly List<SubscriptionToken> subscriptions = new List<SubscriptionToken>();
+        private EscortWeapon weapon;
+        private Transform weaponTransform;
+        private float boardingRadius;
+        private SlimeManager carrierSlimes;
+        private EnemyManager carrierEnemies;
+        private SlimeBattle.Guards.GuardManager carrierGuards;
+        private readonly HashSet<ActorId> mustLeaveBoardingZone = new HashSet<ActorId>();
+        private readonly Dictionary<ActorId, float> guideDepartureTimers =
+            new Dictionary<ActorId, float>();
+        private readonly System.Random departureRandom = new System.Random();
         private bool paused;
         private bool disposed;
+
+        public int MaximumActivePlacedMechanisms => maximumActivePlacedMechanisms;
+        public int ActivePlacedMechanismCount => disposed ? 0 : CountActivePlacedMechanisms();
 
         internal MechanismSystem(ConfigRegistry configs, int maximumActivePlacedMechanisms,
             MapManager mapManager, StatusManager statusManager,
@@ -90,7 +103,32 @@ namespace SlimeBattle.Mechanisms
                 throw new ArgumentOutOfRangeException(nameof(maximumActivePlacedMechanisms));
             this.maximumActivePlacedMechanisms = maximumActivePlacedMechanisms;
             BindSceneMechanisms();
+            BindSceneWeapon();
             SubscribeToActorEvents();
+        }
+
+        public bool TryGetWeaponSnapshot(out EscortWeaponSnapshot snapshot)
+        {
+            snapshot = default(EscortWeaponSnapshot);
+            if (disposed || weapon == null) return false;
+            snapshot = weapon.GetSnapshot();
+            return true;
+        }
+
+        public bool RequestWeaponDamage(ActorId sourceActorId,
+            EffectRequestId requestId, int amount)
+        {
+            return !disposed && !paused && weapon != null &&
+                weapon.RequestDamage(sourceActorId, requestId, amount);
+        }
+
+        public void BindCarrierActors(SlimeManager slimes, EnemyManager enemies,
+            SlimeBattle.Guards.GuardManager guards)
+        {
+            if (disposed) return;
+            carrierSlimes = slimes;
+            carrierEnemies = enemies;
+            carrierGuards = guards;
         }
 
         public bool NotifyContact(MechanismTriggerContext context)
@@ -258,20 +296,51 @@ namespace SlimeBattle.Mechanisms
                 failureReason = "The active placed-mechanism limit was reached.";
                 return false;
             }
-            if (placementCooldowns.TryGetValue(configId, out var cooldown) && cooldown > 0f)
-            {
-                failureReason = "This mechanism is still on placement cooldown.";
-                return false;
-            }
             if (!IsFinite(position.x) || !IsFinite(position.y) ||
-                !mapManager.CanOccupy(position, new OccupancyQuery(
-                    config.PlacementRadiusWorldUnits, requireWithinBounds: true,
-                    checkStaticBlockers: true)))
+                !mapManager.TryGetMapBounds(out var bounds) || !bounds.Contains(position))
             {
-                failureReason = "The requested position is outside the map or blocked.";
+                failureReason = "The requested position is outside the map.";
                 return false;
             }
             return true;
+        }
+
+        /// <summary>Creates and registers a configured player mechanism in this level scene.</summary>
+        public MechanismPlacementResult RequestPlace(ConfigId configId, Vector2 position)
+        {
+            if (!CanPlace(configId, position, out var reason))
+                return new MechanismPlacementResult(false, default(MechanismId), reason);
+            if (!configs.TryGetMechanism(configId, out var config) ||
+                config.PlacementPrefab == null ||
+                new ConfigId(config.PlacementPrefab.ConfigId) != configId)
+                return new MechanismPlacementResult(false, default(MechanismId),
+                    "A matching mechanism prefab is required.");
+
+            var instance = UnityEngine.Object.Instantiate(config.PlacementPrefab,
+                new Vector3(position.x, position.y, 0f), Quaternion.identity);
+            SceneManager.MoveGameObjectToScene(instance.gameObject, scene);
+            var result = RequestPlace(new MechanismPlacementRequest(instance, position));
+            if (!result.Succeeded) DestroyPlacedObject(instance.gameObject);
+            return result;
+        }
+
+        public bool TryGetPlayerConfigId(MechanismKind kind, out ConfigId configId)
+        {
+            configId = default(ConfigId);
+            if (disposed || kind == MechanismKind.None ||
+                kind == MechanismKind.EscortWeapon) return false;
+            foreach (var asset in configs.Configs)
+            {
+                if (!(asset is MechanismConfig config) || !config.PlayerPlaceable ||
+                    config.Kind != kind) continue;
+                if (configId.IsValid)
+                {
+                    configId = default(ConfigId);
+                    return false;
+                }
+                configId = config.ConfigId;
+            }
+            return configId.IsValid;
         }
 
         /// <summary>Registers a prefab instance after PlacementSystem has accepted its inventory request.</summary>
@@ -332,7 +401,8 @@ namespace SlimeBattle.Mechanisms
 
             TickActivationCooldowns(deltaTime);
             TickPlacementCooldowns(deltaTime);
-            PublishFurnaceHeatResults();
+            UpdateCarriers(deltaTime);
+            weapon?.Tick(deltaTime);
         }
 
         public void Pause()
@@ -359,6 +429,13 @@ namespace SlimeBattle.Mechanisms
         public void Dispose()
         {
             if (disposed) return;
+            weapon?.Dispose();
+            weapon = null;
+            carrierSlimes = null;
+            carrierEnemies = null;
+            carrierGuards = null;
+            mustLeaveBoardingZone.Clear();
+            guideDepartureTimers.Clear();
             var snapshot = new List<MechanismRuntimeData>(mechanisms.Values);
             foreach (var mechanism in snapshot)
             {
@@ -371,7 +448,6 @@ namespace SlimeBattle.Mechanisms
             }
             mechanisms.Clear();
             placementCooldowns.Clear();
-            actorsReportedFurnaceHeat.Clear();
             if (eventBus != null)
                 foreach (var token in subscriptions) eventBus.Unsubscribe(token);
             subscriptions.Clear();
@@ -403,6 +479,131 @@ namespace SlimeBattle.Mechanisms
                         isPlayerPlaced: false);
                 }
             }
+        }
+
+        private void BindSceneWeapon()
+        {
+            if (!scene.IsValid() || !scene.isLoaded) return;
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                foreach (var authoring in root.GetComponentsInChildren<EscortWeaponAuthoring>(true))
+                {
+                    if (authoring == null || !authoring.isActiveAndEnabled ||
+                        authoring.gameObject.scene.handle != scene.handle) continue;
+                    if (weapon != null)
+                    {
+                        Debug.LogError("MechanismSystem: only one escort weapon is supported.",
+                            authoring);
+                        continue;
+                    }
+                    if (!configs.TryGetWeapon(authoring.WeaponConfigId, out var config) ||
+                        !mapManager.TryGetRoute(authoring.RouteId, out var route))
+                    {
+                        Debug.LogError("MechanismSystem: escort weapon config or route is missing.",
+                            authoring);
+                        continue;
+                    }
+                    try
+                    {
+                        weapon = new EscortWeapon(MechanismId.NewId(), config,
+                            route, authoring.transform, mapManager);
+                        weaponTransform = authoring.transform;
+                        boardingRadius = config.BoardingRadiusWorldUnits;
+                        weapon.Damaged += (snapshot, source, request, loss) =>
+                            eventBus?.Publish(new WeaponDamagedEvent(snapshot, source, request, loss));
+                        weapon.Destroyed += snapshot =>
+                            eventBus?.Publish(new WeaponDestroyedEvent(snapshot));
+                        weapon.ReachedGoal += snapshot =>
+                            eventBus?.Publish(new WeaponReachedGoalEvent(snapshot));
+                    }
+                    catch (Exception error)
+                    {
+                        Debug.LogError("MechanismSystem: " + error.Message, authoring);
+                    }
+                }
+            }
+        }
+
+        private void UpdateCarriers(float deltaTime)
+        {
+            if (weapon == null || carrierSlimes == null || weaponTransform == null) return;
+            var weaponSnapshot = weapon.GetSnapshot();
+            if (weaponSnapshot.IsDestroyed || weaponSnapshot.HasReachedGoal) return;
+            foreach (var id in new List<ActorId>(weapon.CarrierIds))
+            {
+                if (carrierSlimes.TryGetSnapshot(id, out var current) && current.IsAlive &&
+                    current.IsCarrying) continue;
+                weapon.RemoveCarrier(id);
+                mustLeaveBoardingZone.Add(id);
+                guideDepartureTimers.Remove(id);
+            }
+            weaponSnapshot = weapon.GetSnapshot();
+            var candidates = new List<SlimeSnapshot>(carrierSlimes.GetAliveSnapshots());
+            candidates.Sort((left, right) => string.CompareOrdinal(
+                left.ActorId.Value, right.ActorId.Value));
+            var radiusSquared = boardingRadius * boardingRadius;
+            foreach (var slime in candidates)
+            {
+                var inside = (slime.Position - weaponSnapshot.Position).sqrMagnitude <= radiusSquared;
+                if (!inside) mustLeaveBoardingZone.Remove(slime.ActorId);
+                if (slime.IsCarrying)
+                {
+                    if ((MustLeaveWeapon(slime) || RollGuideDeparture(slime, deltaTime)) &&
+                        carrierSlimes.TryDetachCarrier(slime.ActorId))
+                    {
+                        weapon.RemoveCarrier(slime.ActorId);
+                        mustLeaveBoardingZone.Add(slime.ActorId);
+                        guideDepartureTimers.Remove(slime.ActorId);
+                    }
+                    continue;
+                }
+                if (!inside || mustLeaveBoardingZone.Contains(slime.ActorId) ||
+                    weaponSnapshot.CarrierCount >= 4 || MustLeaveWeapon(slime)) continue;
+                if (carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform,
+                    slime.Position - weaponSnapshot.Position) && weapon.AddCarrier(slime.ActorId))
+                    weaponSnapshot = weapon.GetSnapshot();
+            }
+        }
+
+        private bool RollGuideDeparture(SlimeSnapshot slime, float deltaTime)
+        {
+            var hungry = SlimeStatusIds.Contains(slime.StatusIds, SlimeStatusIds.Hungry);
+            var cold = SlimeStatusIds.Contains(slime.StatusIds, SlimeStatusIds.Cold);
+            if (!hungry && !cold)
+            { guideDepartureTimers.Remove(slime.ActorId); return false; }
+            var guidePresent = false;
+            foreach (var source in GetGuideSourcesInRange(slime.Position, slime.PixelsPerUnit))
+                if ((hungry && source.Type == GuideSourceType.Food) ||
+                    (cold && source.Type == GuideSourceType.Warmth))
+                { guidePresent = true; break; }
+            if (!guidePresent)
+            { guideDepartureTimers.Remove(slime.ActorId); return false; }
+            guideDepartureTimers.TryGetValue(slime.ActorId, out var elapsed);
+            elapsed += deltaTime;
+            if (elapsed < 5f)
+            { guideDepartureTimers[slime.ActorId] = elapsed; return false; }
+            guideDepartureTimers[slime.ActorId] = elapsed - 5f;
+            return departureRandom.NextDouble() < .6;
+        }
+
+        private bool MustLeaveWeapon(SlimeSnapshot slime)
+        {
+            if (SlimeStatusIds.Contains(slime.StatusIds, SlimeStatusIds.Afraid)) return true;
+            if (!configs.TryGet(slime.ConfigId, out SlimeConfig slimeConfig)) return false;
+            var rangeSquared = slimeConfig.DetectionRange * slimeConfig.DetectionRange;
+            if (carrierEnemies != null)
+                foreach (var enemy in carrierEnemies.GetAliveSnapshots())
+                    if ((enemy.Position - slime.Position).sqrMagnitude <= rangeSquared)
+                        return true;
+            if (carrierGuards != null &&
+                SlimeStatusIds.Contains(slime.StatusIds, SlimeStatusIds.Agitated) &&
+                statusManager.TryGetStatus(slime.ActorId,
+                    new StatusId(SlimeStatusIds.Agitated), out var rage) &&
+                rage.ElapsedDurationSeconds >= rage.HumanAttackDelaySeconds)
+                foreach (var guard in carrierGuards.GetAliveSnapshots())
+                    if ((guard.Position - slime.Position).sqrMagnitude <= rangeSquared)
+                        return true;
+            return false;
         }
 
         private bool TryRegisterAuthoring(MechanismAuthoring authoring, MechanismId id,
@@ -464,7 +665,6 @@ namespace SlimeBattle.Mechanisms
         private bool NotifyFurnaceEntered(FurnaceRuntimeData furnace,
             MechanismTriggerContext context)
         {
-            var actorAlreadyInAnyFurnace = ActorIsInAnyFurnace(context.ActorId);
             var colliderId = context.ContactColliderId == 0
                 ? context.ActorId.GetHashCode() : context.ContactColliderId;
             if (!furnace.ContactColliders.TryGetValue(context.ActorId, out var colliders))
@@ -473,22 +673,11 @@ namespace SlimeBattle.Mechanisms
                 furnace.ContactColliders.Add(context.ActorId, colliders);
             }
             if (!colliders.Add(colliderId)) return false;
-            if (actorAlreadyInAnyFurnace) return true;
-
-            if (!statusManager.NotifyFurnaceCoreEntered(context.ActorId))
-            {
-                colliders.Remove(colliderId);
-                if (colliders.Count == 0) furnace.ContactColliders.Remove(context.ActorId);
-                return false;
-            }
+            if (colliders.Count > 1) return true;
             statusManager.NotifyGuideReached(context.ActorId, StatusGuideKind.Furnace);
-            if (statusManager.HasStatus(context.ActorId, StatusKind.Hot))
-                actorsReportedFurnaceHeat.Add(context.ActorId);
-            else
-                actorsReportedFurnaceHeat.Remove(context.ActorId);
 
             var result = new MechanismActivationResult(furnace.Id, context.ActorId,
-                true, false, "Furnace core exposure started.");
+                true, false, "Furnace guidance reached.");
             eventBus?.Publish(new MechanismTriggeredEvent(result));
             return true;
         }
@@ -503,11 +692,6 @@ namespace SlimeBattle.Mechanisms
             if (colliders.Count > 0) return true;
 
             furnace.ContactColliders.Remove(context.ActorId);
-            if (!ActorIsInAnyFurnace(context.ActorId))
-            {
-                statusManager.NotifyFurnaceCoreExited(context.ActorId);
-                actorsReportedFurnaceHeat.Remove(context.ActorId);
-            }
             return true;
         }
 
@@ -574,23 +758,6 @@ namespace SlimeBattle.Mechanisms
             }
         }
 
-        private void PublishFurnaceHeatResults()
-        {
-            foreach (var mechanism in mechanisms.Values)
-            {
-                if (!(mechanism is FurnaceRuntimeData furnace)) continue;
-                foreach (var actorId in furnace.ContactColliders.Keys)
-                {
-                    if (actorsReportedFurnaceHeat.Contains(actorId) ||
-                        !statusManager.HasStatus(actorId, StatusKind.Hot)) continue;
-                    actorsReportedFurnaceHeat.Add(actorId);
-                    var result = new MechanismActivationResult(furnace.Id, actorId,
-                        true, false, "Furnace exposure applied Hot.");
-                    eventBus?.Publish(new MechanismTriggeredEvent(result));
-                }
-            }
-        }
-
         private void SubscribeToActorEvents()
         {
             if (eventBus == null) return;
@@ -607,14 +774,12 @@ namespace SlimeBattle.Mechanisms
         private void NotifyActorRemoved(ActorId actorId)
         {
             if (!actorId.IsValid) return;
-            var wasInFurnace = false;
             foreach (var mechanism in mechanisms.Values)
             {
                 if (mechanism is FurnaceRuntimeData furnace &&
-                    furnace.ContactColliders.Remove(actorId)) wasInFurnace = true;
+                    furnace.ContactColliders.ContainsKey(actorId))
+                    furnace.ContactColliders.Remove(actorId);
             }
-            actorsReportedFurnaceHeat.Remove(actorId);
-            if (wasInFurnace) statusManager.NotifyFurnaceCoreExited(actorId);
         }
 
         private void RemoveRuntimeMechanism(MechanismRuntimeData mechanism,
@@ -644,24 +809,7 @@ namespace SlimeBattle.Mechanisms
         {
             if (!(mechanism is FurnaceRuntimeData furnace) ||
                 furnace.ContactColliders.Count == 0) return;
-            var actors = new List<ActorId>(furnace.ContactColliders.Keys);
             furnace.ContactColliders.Clear();
-            foreach (var actorId in actors)
-            {
-                if (ActorIsInAnyFurnace(actorId)) continue;
-                statusManager.NotifyFurnaceCoreExited(actorId);
-                actorsReportedFurnaceHeat.Remove(actorId);
-            }
-        }
-
-        private bool ActorIsInAnyFurnace(ActorId actorId)
-        {
-            foreach (var mechanism in mechanisms.Values)
-            {
-                if (mechanism is FurnaceRuntimeData furnace &&
-                    furnace.ContactColliders.ContainsKey(actorId)) return true;
-            }
-            return false;
         }
 
         private int CountActivePlacedMechanisms()
