@@ -13,7 +13,7 @@
 
 LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、机关和其他关卡级服务。它还创建一个位于 `Core` 的轻量关卡结果规则组件；该组件不是独立的 LevelContext Manager，不拥有武器或史莱姆运行时数据。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
 
-当前代码仍落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、旧 `ObjectiveSystem`、`MapManager`、`MovementSystem`、`StatusManager` 和 `LevelEventBus`。最新架构决策要求后续迁移为 `MechanismSystem` 拥有护送武器，Core 结果规则组件聚合结果事件；本段不把迁移写成已完成事实。MovementSystem 使用动态 `Rigidbody2D` 执行直线移动，并查询 StatusManager 的移速/定身修正；StatusManager 结算 Actor 生命与状态，消费 MapManager 区域事件。
+当前代码已落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、`GuardManager`、`MechanismSystem`、`LevelResultRules`、`MapManager`、`MovementSystem`、`StatusManager` 和 `LevelEventBus`，同时仍保留旧 `ObjectiveSystem`/目标配置的迁移痕迹。护送武器事实链路已由 `MechanismSystem` 提供，但最新第一关结果仍需迁移为史莱姆终点统计、等待窗口和 6 只目标；本段不把该迁移写成已完成事实。MovementSystem 使用动态 `Rigidbody2D` 执行直线移动，并查询 StatusManager 的移速/定身修正；StatusManager 结算 Actor 生命与状态，消费 MapManager 区域事件。
 
 `LevelContext` 从 `LevelManager` 接收正式 SlimeActor / EnemyActor 预制体，并注入两个 Manager；运行时 Actor 是预制体实例，ActorCore 和 AI 运行时对象由实例自身初始化。Dispose 时 Manager 负责销毁这些实例。
 
@@ -73,7 +73,7 @@ void Clear();
 
 ## 5. 对外事件
 
-`LevelEventBus` 本身不定义一个无限扩展的全局事件名称清单。各系统只发布已经发生且确实需要被其他系统观察的结果事件，例如 `SlimeDiedEvent`、`SlimeDepletedEvent`、`MechanismTriggeredEvent`、`WeaponDestroyedEvent` 和 `WeaponReachedGoalEvent`。Core 结果规则组件消费这些事件后发布 `LevelSucceededEvent` / `LevelFailedEvent`。
+`LevelEventBus` 本身不定义一个无限扩展的全局事件名称清单。各系统只发布已经发生且确实需要被其他系统观察的结果事件，例如 `SlimeDiedEvent`、`SlimeDepletedEvent`、终点进入事实、等待窗口结束事实、`MechanismTriggeredEvent`、`WeaponDestroyedEvent` 和 `WeaponReachedGoalEvent`。其中武器事件是兼容/后续链路；最新第一关 Core 结果规则优先消费史莱姆终点统计与等待窗口事实，再发布 `LevelSucceededEvent` / `LevelFailedEvent`。
 
 ## 6. 依赖
 

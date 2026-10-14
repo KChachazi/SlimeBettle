@@ -13,13 +13,15 @@
 
 Core 关卡结果规则组件只聚合当前关卡已经发生的结果事件，并确认本局成功或失败。它不是一个拥有玩法对象的独立系统，不保存武器、史莱姆、守卫或机关的运行时副本。
 
-首关规则已经确认：
+最新第一关规则已经确认：
 
-1. `WeaponReachedGoalEvent` 触发成功；
-2. `WeaponDestroyedEvent` 触发失败；
-3. `SlimeDepletedEvent`（最后一只史莱姆确认死亡）触发失败；
+1. 史莱姆进入终点洞穴的数量达到 6 只时满足成功条件；
+2. 等待窗口结束时进入终点洞穴的史莱姆不足 6 只，触发失败；
+3. `SlimeDepletedEvent` 等史莱姆耗尽事实可以作为失败事实，但不能绕过终点统计和等待窗口的规则；
 4. 同一局成功或失败只确认一次；
 5. `LevelManager` 只负责接收最终结果并推进结算、重开或离开流程，不复制上述规则。
+
+现有 `WeaponReachedGoalEvent` / `WeaponDestroyedEvent` 属于护送武器兼容链路。除非某一关的策划再次启用武器结果，否则它们不参与最新第一关的成功/失败判定。
 
 武器的生命、位置、运输载体、固定路线进度和抵达状态完全属于 `MechanismSystem`。
 
@@ -27,7 +29,7 @@ Core 关卡结果规则组件只聚合当前关卡已经发生的结果事件，
 
 - 订阅当前 `LevelContext` 的 `LevelEventBus`；
 - 记录本局结果阶段、结果原因和只读结果快照；
-- 接收 `WeaponDestroyedEvent`、`WeaponReachedGoalEvent` 和 `SlimeDepletedEvent`；
+- 接收史莱姆终点进入事实、等待窗口结束事实和 `SlimeDepletedEvent`；兼容关卡可额外接收武器事实；
 - 根据已确认关卡规则确认一次 `LevelSucceededEvent` 或 `LevelFailedEvent`；
 - 在暂停、重开和卸载时清理订阅与本局结果状态；
 - 为 `LevelManager`、UI 和测试提供只读结果查询。
@@ -75,9 +77,11 @@ LevelFailedEvent
 
 | 事件 | 发布者 | 含义 |
 | --- | --- | --- |
-| `WeaponDamagedEvent` | `MechanismSystem` | 护送武器已经完成一次受击/伤害结算 |
-| `WeaponDestroyedEvent` | `MechanismSystem` | 护送武器生命归零并确认摧毁 |
-| `WeaponReachedGoalEvent` | `MechanismSystem` | 护送武器到达指定终点 |
+| `SlimeReachedGoalEvent`（候选） | 史莱姆/终点规则适配 | 一只史莱姆已经进入第一关终点洞穴 |
+| `LevelWaitWindowExpiredEvent`（候选） | 关卡流程/结果规则适配 | 第一关等待窗口已经结束 |
+| `WeaponDamagedEvent` | `MechanismSystem` | 兼容护送武器已经完成一次受击/伤害结算 |
+| `WeaponDestroyedEvent` | `MechanismSystem` | 兼容护送武器生命归零并确认摧毁 |
+| `WeaponReachedGoalEvent` | `MechanismSystem` | 兼容护送武器到达指定终点 |
 | `SlimeDepletedEvent` | `SlimeManager` | 当前关卡最后一只史莱姆已经确认死亡 |
 | `LevelSucceededEvent` | Core 结果规则组件 | 本局成功已经确认 |
 | `LevelFailedEvent` | Core 结果规则组件 | 本局失败已经确认 |
@@ -87,8 +91,9 @@ LevelFailedEvent
 ## 7. 依赖与信息流
 
 ```text
-MechanismSystem
-  ├─ WeaponDamagedEvent / WeaponDestroyedEvent / WeaponReachedGoalEvent
+终点/史莱姆规则适配
+  ├─ SlimeReachedGoalEvent（候选）
+  └─ LevelWaitWindowExpiredEvent（候选）
 SlimeManager
   └─ SlimeDepletedEvent
         ↓ 当前 LevelEventBus
@@ -103,8 +108,8 @@ LevelManager / UISystem / 测试
 
 ## 8. 关键不变量
 
-1. 武器运行时数据只能由 `MechanismSystem` 修改。
-2. `WeaponDestroyedEvent`、`WeaponReachedGoalEvent` 和 `SlimeDepletedEvent` 只能由对应所有者发布。
+1. 结果规则组件不拥有武器、史莱姆、守卫或机关运行时数据。
+2. 终点进入、等待窗口和 `SlimeDepletedEvent` 只能由对应所有者发布；兼容武器事件仍由 `MechanismSystem` 发布。
 3. Core 结果规则组件每局最多发布一次成功或失败结果。
 4. `LevelManager` 不复制结果条件，不从 UI 或表现回调推断结果。
 5. `Dispose` 后旧事件、计时器和结果不能作用于新关卡。
@@ -114,6 +119,7 @@ LevelManager / UISystem / 测试
 
 - 结果组件最终类型名和是否由 `LevelContext` 直接持有字段；
 - 成功/失败事实同一帧同时到达时的优先级；
+- 终点进入事实的检测所有者、等待窗口时长、目标数量配置字段和多终点规则；
 - 多武器、多终点或后续关卡是否需要可配置结果规则；
 - 武器初始生命、受击反馈、修复机制和武器伤害入口的最终 API；
 - 旧 `ObjectiveConfig`、`ObjectiveRuntimeData` 和 `Objectives/` 目录的删除时机；
@@ -121,9 +127,10 @@ LevelManager / UISystem / 测试
 
 ## 10. 验收场景
 
-- 武器生命归零时由 `MechanismSystem` 只发布一次 `WeaponDestroyedEvent`，结果组件只确认一次失败；
-- 武器到达指定终点时由 `MechanismSystem` 发布 `WeaponReachedGoalEvent`，结果组件只确认一次成功；
+- 史莱姆进入终点洞穴时发布只读事实，达到 6 只时结果组件只确认一次成功；
+- 等待窗口结束且数量不足 6 只时结果组件只确认一次失败；
 - 最后一只史莱姆死亡时由 `SlimeManager` 发布 `SlimeDepletedEvent`，结果组件只确认一次失败；
+- 兼容武器生命归零/到达终点时由 `MechanismSystem` 只发布对应武器事实；除明确启用武器规则的关卡外，结果组件不将其解释为最新第一关结果；
 - UI、动画或场景重开回调不能重复确认结果；
 - `LevelManager` 能消费最终结果并进入结算/重开流程，结果组件本身不加载场景；
 - 重开后不存在上一局结果快照、事件订阅或武器运行时引用。

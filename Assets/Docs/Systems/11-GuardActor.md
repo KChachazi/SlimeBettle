@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.Actors.Guards
 建议实现目录：Assets/Game/Scripts/Actors/Guard/
 生命周期：由当前 LevelContext 的 GuardManager 创建和销毁
-状态：首关护送行为和免疫边界已确认；控制方式、数量和战斗细节待确认
+状态：首关免疫边界已确认；护送武器行为属于兼容链路，控制方式、数量和战斗细节待确认
 
 ## 1. 职责
 
@@ -17,7 +17,7 @@ GuardActor 表示一个守卫个体，组合通用 ActorCore、ActorDecisionTree
 - 接收来自 InputSystem 或调试工具的语义指令；
 - 通过 AttackAction 和 StatusManager 完成攻击效果。
 
-当前方案中，守卫默认围绕由 `MechanismSystem` 所有的护送武器待命，不主动无条件索敌；敌人靠近目标或攻击目标时，守卫才进入防守行为。守卫不受食物、熔炉引导、温暖或史莱姆状态影响；障碍和地形仍可以通过 MapManager/MovementSystem 影响其空间移动。
+当前兼容武器方案中，守卫可以围绕由 `MechanismSystem` 所有的护送武器待命，不主动无条件索敌；敌人靠近目标或攻击目标时，守卫才进入防守行为。最新第一关的结果目标是史莱姆进入终点洞穴，是否继续绑定武器护送行为必须由关卡配置决定。无论是否启用武器链路，守卫不受食物、熔炉引导、温暖或史莱姆状态影响；障碍和地形仍可以通过 MapManager/MovementSystem 影响其空间移动。
 
 ## 2. 核心数据
 
@@ -49,14 +49,14 @@ SubmitCommand 只提交语义指令，不允许调用方直接修改位置、生
 
 - GuardManager 提供生命周期和查询；
 - InputSystem 提供设备无关的语义指令；
-- MechanismSystem 提供护送武器位置和状态；
+- MechanismSystem 在兼容武器链路启用时提供护送武器位置和状态；
 - EnemyManager 提供敌人查询；
 - MapManager 和 MovementSystem 提供空间与移动结果；
 - StatusManager 不向守卫应用食物、温暖或史莱姆状态修正；守卫的基础生命和战斗受击入口仍需与 Actor 效果契约联调。
 
 ## 6. 关键不变量
 
-1. 守卫的默认攻击行为由护送目标和敌人状态驱动。
+1. 守卫的默认攻击行为由关卡配置的防守目标和敌人状态驱动；护送武器只是兼容方案之一。
 2. 外部控制不能绕过 ActorStateMachine 直接写入 Transform。
 3. 死亡、暂停和重开后，未执行指令必须失效。
 4. 守卫的攻击和常规受击结果遵守已确认的 Actor 效果契约，但不消费食物、温暖或状态修正。
