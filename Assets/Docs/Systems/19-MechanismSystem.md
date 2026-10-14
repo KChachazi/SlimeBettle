@@ -165,3 +165,9 @@ Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager �
 - 路线被障碍占用时，后续路线选择、等待、失败、禁止该次放置或其他规则的最终时机；
 - 兼容护送武器是否重新进入某一关、运输所需史莱姆数量和载体减速的最终参数。
 
+## 补充：机制 Prefab 与场景组合边界（2026-10-14）
+
+机制 Prefab、`MechanismAuthoring`、配置资产和场景预置点可以由负责人分别交付，再由集成测试场景通过 `[SerializeField] private` 引用组合。场景组合组件或 Placement 适配器不能直接 `Instantiate`、`Destroy` 或修改机制内部运行时数据；正式创建、替换、回收和生命周期仍由 `MechanismSystem` 负责。
+
+`MechanismSystem` 在当前 `LevelContext` 中创建运行时机关并注册地图阻挡/事件。集成测试可以使用 Mock Backend 或占位 Prefab，但必须标记 `TEST_ONLY`，不能将测试对象或手动结果调用当成正式机关创建和第一关结果通过的证据。重开、失败、结算和卸载时，场景组合层只负责清理自己的表现/临时对象，机制运行时由当前 Context 统一 Dispose。
+

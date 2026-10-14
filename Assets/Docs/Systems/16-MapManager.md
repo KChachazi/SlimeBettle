@@ -187,3 +187,9 @@ MapManager 提供敌人点 / 终点洞穴 / 三条路线 / Anchor 点位
 - **机制：**路线表示策划预绘制几何，L/SL 关联点影响路线/陷阱规则；不在地图作者脚本里配置自动绕行、替换、陷阱结算或失败策略。
 
 当前第一关草图的正式 Unity 场景尚未完成装配，因此尚未把草图坐标写入生产场景；以上规则用于场景标注、静态检查和后续运行验证。
+
+## 补充：地图 Authoring 的独立交付与组合场景（2026-10-14）
+
+小智可以在独立地图测试场景中交付 `MapBoundsAuthoring`、`MapRouteAuthoring`、`MapPointAuthoring`、地形/区域 Authoring 和 Anchor Authoring。集成测试场景（暂定 `FirstLevelComposition_TEST`）通过场景引用组合这些对象，`MapManager` 在当前关卡 Context 创建时统一扫描并建立快照。
+
+地图 Authoring 只提供空间事实，不复制 `MapManager`，也不在场景脚本中实现路线阻断、Anchor 替换、陷阱结算或 Actor 创建。Anchor 最终查询接口未确认时，可以交付 Authoring 和隔离测试，但不得要求 Placement/UI 依赖临时字段名；共享组合场景由指定集成者维护，避免多人同时编辑同一个 `.unity` 文件。

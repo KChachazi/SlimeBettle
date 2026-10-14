@@ -128,3 +128,9 @@ PlacementCancelledEvent
 当前实现使用 `SlimeBattle.Player.Placement` 命名空间，确认返回 `PlacementResult`，预览返回 `PlacementValidationResult`；本地 `Changed / PlacementCompleted` 只用于显示与请求反馈，不替代第 5 节待接入的全局领域事实。`IPlacementBackend` 的成功返回必须同步提供有效机关 ID 及对应只读快照。运行阶段守卫、边界和单格占用在最终确认时复核；其他系统尚未完成的新规则不在调用方绕过。地图点击更新并锁定预览，确认由显式按钮或公开方法提交。
 
 2026-10-12 交互修复：输入适配器在地图 PrimaryAction 后锁定当前世界格子，鼠标移向确认按钮或镜头变化不会改选；再次点击地图可替换目标。选格前仍允许悬停预览。取消、切换机关、暂停、失焦、禁用和重开清除锁定。锁定仅为输入适配层的交互状态，不改变 PlacementSystem 的公共预览/确认接口，也不替代最终合法性复核。
+
+## 补充：场景引用与集成测试边界（2026-10-14）
+
+`PlacementSystem` 是当前放置会话的 plain C# 模块，不直接作为场景组件序列化。`PlacementInputAdapter`、`FirstLevelPresentationRoot` 或专用 Backend Adapter 可以通过 `[SerializeField] private` 引用具体的 Grid、Camera、UI Prefab、地图 Authoring 适配器和实现接口的 `MonoBehaviour`，再在 `LevelStarted` 后连接当前 Context。
+
+小宸可以先用 Mock Backend 在独立测试夹具中验证输入、投影、吸附、预览、确认和清理；集成测试场景由指定集成者把真实地图事实和 `MechanismSystem` 公开请求接入。Placement/UI 不得直接序列化或访问 `LevelContext`、`MechanismSystem` 私有字段，也不得通过场景引用绕过边界、占用、替换和生命周期校验。

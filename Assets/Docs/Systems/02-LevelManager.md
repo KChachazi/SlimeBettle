@@ -103,3 +103,9 @@ P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配�
 - 是否存在主菜单、关卡选择和下一关流程。
 - 目标结果与重开/下一关 UI 的结算展示顺序。
 
+## 补充：场景装配协作边界（2026-10-14）
+
+`LevelManager` 仍是跨场景的生命周期所有者，不作为每个关卡场景的可序列化运行时服务。集成测试场景可以通过 `[SerializeField] private` 引用 `LevelManager` 组件，由场景组合组件在 `LevelStarted` 后取得当前 `LevelContext` 并连接地图、Actor、机关和表现层适配器。
+
+场景组合组件不得创建第二个 `LevelManager`、`LevelContext` 或 Manager；只能做引用校验、依赖注入、阶段转发和卸载清理。场景组合测试通过不代表正式场景已经登记 Build Settings，也不替代 `LevelManager` 对重开、暂停、结算和场景卸载的生命周期控制。
+

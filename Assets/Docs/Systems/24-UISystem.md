@@ -113,3 +113,9 @@ void Initialize(LevelManager manager, InputSystem input,
 网格、放置状态、显示与注入接口的新增契约见 `Assets/Docs/Tasks/首关最小地图-小宸实现与接入.md`。本次只修改 Player / UI 与隔离测试；当前机关创建请求和武器/Core 结果接口存在文档与代码差异，正式适配须等待所有者确认，不在调用方绕过规则。
 
 `UiState` 现有 `slimeLimit = -1 / weaponText = ""` 仍保持兼容；第一关后续快照应增加史莱姆终点统计、目标数量、等待窗口和 Anchor 预览状态，具体字段需在公共 API 评审后登记。`FirstLevelUiSnapshotSource` 读取真实存活/终点统计快照及 `MaxAliveCount`；非 20 配置显示差异，不改 Actor 或配置。`IFirstLevelStatusSource.ReadSnapshot(LevelContext)` 的旧 `WeaponText` 仅作为兼容显示，`ResultText` 必须来自 Core/LevelManager 权威状态；正式结果面板不根据武器文字或数量自行决定胜负。
+
+## 补充：UI Prefab 与场景组合边界（2026-10-14）
+
+UI、Camera、Grid、PlacementView 和选择面板可以由小宸以 Prefab/场景组件交付，在独立测试夹具中使用 Mock Backend 验证。集成测试场景通过 `[SerializeField] private` 引用具体 Presentation/UI 组件和适配器，再由 `LevelStarted` 绑定当前 Context；不把 `LevelContext`、Core 结果组件或任意 plain C# 接口直接拖入 Inspector。
+
+UI 只消费公开快照和结果事实，缺少正式接口时显示未接入/占位状态。测试按钮、模拟结果和彩色占位对象必须标记 `TEST_ONLY`，不能写入正式场景，也不能通过 UI 回调直接判定胜负、修改机关或推进 Actor。

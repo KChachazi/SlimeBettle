@@ -104,3 +104,9 @@ void Clear();
 - 是否需要在编辑器中显示当前上下文状态；
 - 异步加载和延迟初始化是否进入首个可玩版本。
 
+## 补充：场景组合与当前上下文（2026-10-14）
+
+已确认采用“独立模块/隔离测试 + 场景组合”的协作方式。场景中的 `SceneCompositionRoot`/`LevelSceneInstaller` 可以通过 `[SerializeField] private` 持有具体 `MonoBehaviour`、Prefab、Authoring 和配置引用，但不直接序列化或持有 `LevelContext`、`MapManager`、`MechanismSystem` 等 plain C# 模块。
+
+装配组件必须在明确的 `LevelStarted`/安装阶段取得当前 Context，向现有 Manager 注入场景父节点、Prefab、点位和适配器；在重开、失败、结算、禁用和场景卸载时取消订阅并清理自身临时引用。它不能创建第二个 Context、复制 Manager 数据或通过私有字段访问其他系统。`LevelEventBus` 仍只属于当前 Context，不能因为场景组合而跨场景持有。
+
