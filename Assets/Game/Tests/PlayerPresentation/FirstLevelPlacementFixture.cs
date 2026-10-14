@@ -53,7 +53,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 () => Phase, Backend, PlacementConfirmationMode.Single);
             GridView = gameObject.AddComponent<PlacementGridView>();
             GridView.Initialize(Placement, Grid);
-            Selection = PlacementSelectionView.Create(transform);
+            var selectionPrefab = Resources.Load<PlacementSelectionView>("UI/PF_PlacementSelection");
+            if (selectionPrefab == null) { throw new InvalidOperationException("Placement selection prefab is missing."); }
+            Selection = Instantiate(selectionPrefab, transform);
             Selection.Initialize(Placement);
             Adapter = gameObject.AddComponent<PlacementInputAdapter>();
             Adapter.Initialize(Input, Camera, Placement);

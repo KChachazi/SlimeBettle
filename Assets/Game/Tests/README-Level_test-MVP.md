@@ -9,7 +9,7 @@
 - 临时固定路线：`RouteStart (-5, 0)` → `RouteTurn (-3, 2)` → 原有 `GoalPoint (0, 2)`，ID 为 `level_test_temporary_route`。地图边界、区域、地形和原有静态障碍未改。
 - LevelActorSpawner 引用四个史莱姆出生点及一个敌人出生点。两只史莱姆位于武器搬运半径内，预计以最大速度的 50% 起步；另两只分散在后方。敌人位于 `(2.5, 1.5)`。角色由正式 Manager 在运行时生成。
 - `CFG_Guard` 首关只生成一名守卫，出生点相对武器为 `(0, -1.2)`，由 GuardManager 管理，运行时实例归入 `EntitiesRoot/GuardRoot`。
-- 场景没有独立玩家 Actor 或 PlayerRoot。PresentationRoot 承载 PlayerPresentationRoot、InputSystem、UISystem、FirstLevelPresentationRoot，以及世界坐标放置 Grid；主相机接入 CameraSystem。Grid 使用世界原点、`1×1` 单元、单次确认。运行时 BattleHUD 创建到 `UIRoot/HUDRoot`，放置选择面板和 EventSystem 创建到 `UIRoot`；UI 读取真实快照。缺省父节点仍供隔离测试夹具使用。
+- 场景没有独立玩家 Actor 或 PlayerRoot。PresentationRoot 承载 PlayerPresentationRoot、InputSystem、UISystem、FirstLevelPresentationRoot，以及独立的世界坐标放置 Grid；主相机接入 CameraSystem。Grid 使用世界原点、`1×1` 单元。运行时 BattleHUD 创建到 `UIRoot/HUDRoot`，uGUI 放置面板从 `PF_PlacementSelection` prefab 实例化到 `UIRoot`，EventSystem 也创建到 `UIRoot`；UI 读取真实快照。选择机关后点击合法格子立即放置，成功后退出当前选择。
 
 ## 人工 PlayMode 验收
 
@@ -17,7 +17,7 @@
 2. Hierarchy 中确认四只史莱姆、一只敌人和一名守卫；Console 应输出 `Level_test initial actors: 4 Slimes, 1 Enemies.`。
 3. 检查黄色武器与 HUD：初始搬运人数预计为 `2/4`，武器沿固定路线移动；脱离后速度随人数变化。
 4. 检查敌人攻击最近可攻击目标、守卫防守、武器受击、武器摧毁、史莱姆耗尽、抵达终点及结果界面。同帧胜负按已确认的成功优先处理。
-5. 检查食物、熔炉、障碍的 Grid 显示、边界、单格占用、总数上限和单次放置。障碍挡住路线时武器应停下，移除后继续。
+5. 从 uGUI 面板依次选择食物、熔炉、障碍，检查悬停预览、点击合法格立即放置、边界、单格占用、总数上限和单次放置。障碍挡住路线时武器应停下，移除后继续。
 6. 检查暂停、恢复、失败后重开和场景退出，确认新局重建武器、守卫、史莱姆、事件与 UI 状态。
 
 ## 本次验证记录

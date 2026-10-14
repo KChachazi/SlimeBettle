@@ -142,54 +142,40 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                     "Mouse hover projects through CameraSystem and snaps to Grid cell centre");
                 var freeColor = fixture.GridView.PreviewColor;
                 yield return Click(mouse, pixel);
-                Check(fixture.Backend.Requests == 0, "World click previews without auto-confirming or creating an object");
-                var selectedCell = fixture.Placement.GetCurrentPreview().Cell;
-                var otherPixel = fixture.Camera.WorldToScreen(new Vector3(2.2f, 0.3f));
-                yield return Move(mouse, otherPixel);
-                yield return Move(mouse, fixture.Camera.WorldToScreen(new Vector3(2.2f, -1.2f)));
-                Check(fixture.Placement.GetCurrentPreview().Cell == selectedCell,
-                    "A map click locks the cell while the mouse crosses other map cells towards Confirm");
-                yield return Click(mouse, otherPixel);
-                Check(fixture.Placement.GetCurrentPreview().Cell == new Vector3Int(2, 0, 0),
-                    "A second map click explicitly replaces the locked target");
-                yield return Click(mouse, pixel);
-                yield return Click(mouse, ButtonPoint(fixture, "PlacementConfirmButton"));
                 Check(fixture.Backend.Requests == 1 && !fixture.Placement.IsPlacing && !fixture.GridView.IsVisible,
-                    "Confirm submits exactly one request and single mode hides grid/preview");
+                    "Valid world click submits exactly one request and single mode hides grid/preview");
                 Check(fixture.Backend.ReadPlacedObjects()[0].Position == new Vector3(0.5f, 0.5f),
-                    "Confirm submits the clicked world cell rather than the last cell crossed by the pointer");
+                    "World click submits the snapped cell centre");
 
                 yield return Click(mouse, ButtonPoint(fixture, "PlacementFurnaceButton"));
                 yield return Move(mouse, pixel);
                 Check(fixture.Placement.GetCurrentPreview().Status == PlacementValidationStatus.Occupied &&
                     fixture.GridView.PreviewColor != freeColor, "An occupied cell has a distinct preview and blocks another type");
-                Check(!fixture.Placement.ConfirmPlacement().Succeeded && fixture.Backend.Requests == 1,
-                    "Occupied confirmation never reaches the backend");
+                yield return Click(mouse, pixel);
+                Check(fixture.Backend.Requests == 1 && fixture.Placement.IsPlacing,
+                    "Occupied click never reaches the backend");
                 yield return Move(mouse, fixture.Camera.WorldToScreen(new Vector3(6.2f, 0.3f)));
                 Check(fixture.Placement.GetCurrentPreview().Status == PlacementValidationStatus.OutOfBounds &&
                     fixture.GridView.PreviewColor != freeColor, "Outside map bounds has a distinct preview");
-                Check(!fixture.Placement.ConfirmPlacement().Succeeded && fixture.Backend.Requests == 1,
-                    "Out-of-bounds confirmation never reaches the backend");
+                yield return Click(mouse, fixture.Camera.WorldToScreen(new Vector3(6.2f, 0.3f)));
+                Check(fixture.Backend.Requests == 1 && fixture.Placement.IsPlacing,
+                    "Out-of-bounds click never reaches the backend");
 
                 pixel = fixture.Camera.WorldToScreen(new Vector3(1.2f, 0.3f));
                 yield return Move(mouse, pixel);
                 fixture.Backend.RejectNext = true;
-                yield return Click(mouse, ButtonPoint(fixture, "PlacementConfirmButton"));
+                yield return Click(mouse, pixel);
                 Check(fixture.Placement.IsPlacing && fixture.Placement.Hint.Contains("rejected") &&
                     fixture.Backend.ReadPlacedObjects().Count == 1, "Backend rejection keeps selection and does not occupy the cell");
-                yield return Click(mouse, ButtonPoint(fixture, "PlacementConfirmButton"));
-                Check(fixture.Backend.ReadPlacedObjects().Count == 2, "Furnace can be confirmed after a rejected request");
+                yield return Click(mouse, pixel);
+                Check(fixture.Backend.ReadPlacedObjects().Count == 2, "Furnace can be placed after a rejected request");
 
                 yield return Click(mouse, ButtonPoint(fixture, "PlacementObstacleButton"));
                 var touchPixel = fixture.Camera.WorldToScreen(new Vector3(-1.2f, -0.3f));
                 yield return Tap(touch, touchPixel);
-                Check(fixture.Placement.GetCurrentPreview().Cell == new Vector3Int(-2, -1, 0),
-                    "Touch primary action projects and snaps negative coordinates");
-                yield return Move(mouse, fixture.Camera.WorldToScreen(new Vector3(3.2f, 0.3f)));
-                Check(fixture.Placement.GetCurrentPreview().Cell == new Vector3Int(-2, -1, 0),
-                    "A touch-selected cell remains locked when a mouse moves elsewhere");
-                yield return Tap(touch, ButtonPoint(fixture, "PlacementConfirmButton"));
-                Check(fixture.Backend.ReadPlacedObjects().Count == 3, "Touch UI confirmation places the third type once");
+                Check(fixture.Backend.ReadPlacedObjects().Count == 3 &&
+                    fixture.Backend.ReadPlacedObjects()[2].Position == new Vector3(-1.5f, -0.5f),
+                    "Touch primary action places once at the snapped negative-coordinate cell");
 
                 yield return Click(mouse, ButtonPoint(fixture, "PlacementFoodButton"));
                 yield return Move(mouse, fixture.Camera.WorldToScreen(new Vector3(2.2f, -0.3f)));
@@ -213,14 +199,19 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 Check(fixture.Placement.GetCurrentPreview().Cell == fixture.Grid.WorldToCell(fixture.Camera.ScreenToWorld(fixedPixel)) &&
                     fixture.Backend.ReadPlacedObjects()[0].Position == oldPosition,
                     "Camera pan/zoom reprojects stationary pointer and preserves placed world position");
-                yield return Click(mouse, fixedPixel);
-                var lockedCenter = fixture.Placement.GetCurrentPreview().WorldCenter;
+                yield return Click(mouse, fixture.Camera.WorldToScreen(new Vector3(3.2f, -0.3f)));
+                Check(fixture.Backend.ReadPlacedObjects().Count == 4,
+                    "Map click after camera movement immediately places at a fresh world cell");
+                var placedCenter = fixture.Backend.ReadPlacedObjects()[3].Position;
                 fixture.Camera.SubmitCommand(new CameraCommand(CameraCommandKind.Pan, Vector2.left * 1.2f));
                 yield return Frames(4);
-                Check(fixture.Placement.GetCurrentPreview().WorldCenter == lockedCenter,
-                    "Camera movement preserves a clicked target in world space until another map click");
+                Check(fixture.Backend.ReadPlacedObjects()[3].Position == placedCenter,
+                    "Camera movement preserves an already placed mechanism in world space");
                 ScreenCapture.CaptureScreenshot(Path.ChangeExtension(SessionState.GetString(OutputKey, ""), ".png"));
                 yield return Frames(5);
+
+                yield return Click(mouse, ButtonPoint(fixture, "PlacementFoodButton"));
+                yield return Move(mouse, fixedPixel);
 
                 DeviceInput.QueueStateEvent(keyboard, new KeyboardState(Key.Escape));
                 yield return Frames(3);
@@ -300,8 +291,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                     fixture.Input.Unsubscribe(oldToken);
                     yield return Click(mouse, ButtonPoint(fixture, "PlacementFoodButton"));
                     yield return Tap(touch, fixture.Camera.WorldToScreen(Vector3.zero));
-                    Check(events == 1 && fixture.Placement.GetCurrentPreview().CanConfirm,
-                        "Scene reload " + (iteration + 1) + " accepts one fresh touch; old token cannot remove new subscription");
+                    Check(events == 1 && fixture.Backend.Requests == 1 && !fixture.Placement.IsPlacing,
+                        "Scene reload " + (iteration + 1) + " accepts one fresh touch placement; old token cannot remove new subscription");
                     fixture.Input.Unsubscribe(token);
                     fixture.SetPhase(iteration % 2 == 0 ? LevelState.Failed : LevelState.Succeeded);
                     yield return Frames(2);
@@ -346,7 +337,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var root = owner.AddComponent<FirstLevelPresentationRoot>();
                 var input = owner.GetComponent<SlimeBattle.Player.Input.InputSystem>();
                 var camera = cameraObject.GetComponent<CameraSystem>();
-                root.Initialize(manager, input, camera, grid, backend, PlacementConfirmationMode.Single);
+                root.Initialize(manager, input, camera, grid, backend, PlacementConfirmationMode.Single,
+                    selectionPrefab: Resources.Load<PlacementSelectionView>("UI/PF_PlacementSelection"));
                 var ui = owner.GetComponent<UISystem>();
                 var selection = owner.GetComponentInChildren<PlacementSelectionView>();
                 var view = owner.GetComponent<PlacementGridView>();

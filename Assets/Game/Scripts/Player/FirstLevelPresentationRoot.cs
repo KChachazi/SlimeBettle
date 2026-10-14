@@ -20,6 +20,7 @@ namespace SlimeBattle.Player
         [SerializeField] private MonoBehaviour placementBackend;
         [SerializeField] private MonoBehaviour statusSnapshotSource;
         [SerializeField] private Transform selectionParent;
+        [SerializeField] private PlacementSelectionView selectionPrefab;
         private PlayerInputSystem input;
         private IPlacementBackend injectedBackend;
         private IFirstLevelStatusSource statusSource;
@@ -37,9 +38,9 @@ namespace SlimeBattle.Player
             if (isInitialized) { return; }
             // LevelManager belongs to the persistent Bootstrap scene.
             if (levelManager == null) { levelManager = FindObjectOfType<LevelManager>(); }
-            if (levelManager == null || cameraSystem == null || grid == null)
+            if (levelManager == null || cameraSystem == null || grid == null || selectionPrefab == null)
             {
-                Debug.LogError("FirstLevelPresentationRoot needs explicit LevelManager, CameraSystem and Grid references.", this);
+                Debug.LogError("FirstLevelPresentationRoot needs LevelManager, CameraSystem, Grid and selection prefab references.", this);
                 enabled = false;
                 return;
             }
@@ -56,7 +57,7 @@ namespace SlimeBattle.Player
 
         public void Initialize(LevelManager manager, PlayerInputSystem input, CameraSystem camera,
             PlacementGridAuthoring grid, IPlacementBackend backend, PlacementConfirmationMode mode,
-            IFirstLevelStatusSource statusSource = null)
+            IFirstLevelStatusSource statusSource = null, PlacementSelectionView selectionPrefab = null)
         {
             Unbind();
             levelManager = manager != null ? manager : throw new ArgumentNullException(nameof(manager));
@@ -64,6 +65,8 @@ namespace SlimeBattle.Player
             if (input != GetComponent<PlayerInputSystem>()) { throw new ArgumentException("Input must belong to this presentation root."); }
             cameraSystem = camera != null ? camera : throw new ArgumentNullException(nameof(camera));
             this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
+            this.selectionPrefab = selectionPrefab != null ? selectionPrefab : this.selectionPrefab;
+            if (this.selectionPrefab == null) throw new ArgumentNullException(nameof(selectionPrefab));
             grid.ValidateConfiguration();
             if (!Enum.IsDefined(typeof(PlacementConfirmationMode), mode))
             { throw new ArgumentOutOfRangeException(nameof(mode)); }
@@ -74,7 +77,7 @@ namespace SlimeBattle.Player
             if (inputAdapter == null) { inputAdapter = gameObject.AddComponent<PlacementInputAdapter>(); }
             if (gridView == null) { gridView = gameObject.AddComponent<PlacementGridView>(); }
             if (selectionView == null)
-            { selectionView = PlacementSelectionView.Create(selectionParent != null ? selectionParent : transform); }
+            { selectionView = Instantiate(this.selectionPrefab, selectionParent != null ? selectionParent : transform); }
             isInitialized = true;
             if (isActiveAndEnabled) { Bind(); }
         }

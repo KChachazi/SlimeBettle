@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
 using SlimeBattle.Core;
 using SlimeBattle.Mechanisms;
 using SlimeBattle.Player.Placement;
@@ -215,6 +216,22 @@ namespace SlimeBattle.Tests.PlayerPresentation
             placement = NewPlacement(PlacementConfirmationMode.Single);
             Preview();
             Assert.That(placement.ConfirmPlacement().Succeeded, Is.True);
+        }
+
+        [Test]
+        public void SelectionPrefabHasEditableButtonsAndCompleteViewReferences()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Game/Resources/UI/PF_PlacementSelection.prefab");
+            Assert.IsNotNull(prefab);
+            var view = prefab.GetComponent<PlacementSelectionView>();
+            Assert.IsNotNull(view);
+            var serialized = new SerializedObject(view);
+            foreach (var name in new[] { "panel", "hint", "budget", "food", "furnace", "obstacle", "cancel" })
+                Assert.IsNotNull(serialized.FindProperty(name).objectReferenceValue, name);
+            Assert.That(prefab.GetComponentsInChildren<Button>(true).Select(button => button.name),
+                Is.EquivalentTo(new[] { "PlacementFoodButton", "PlacementFurnaceButton",
+                    "PlacementObstacleButton", "PlacementCancelButton" }));
         }
 
         [Test]

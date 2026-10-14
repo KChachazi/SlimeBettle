@@ -55,7 +55,7 @@ namespace SlimeBattle.Player.Placement
             CancelPlacement();
             if (!IsRunning) { Hint = "Placement is only available while the level is running."; Changed?.Invoke(); return; }
             SelectedItem = itemId;
-            preview = new PlacementPreview(itemId, default, default, PlacementValidationStatus.NoPosition, "Click/tap a map cell to select it, then confirm.");
+            preview = new PlacementPreview(itemId, default, default, PlacementValidationStatus.NoPosition, "Click/tap a map cell to place it.");
             Hint = preview.Message;
             Changed?.Invoke();
         }
@@ -160,7 +160,7 @@ namespace SlimeBattle.Player.Placement
                 if (!backend.IsAvailable) { return At(PlacementValidationStatus.Unavailable, "Mechanism creation API is not connected."); }
             }
             catch (Exception exception) { return At(PlacementValidationStatus.Unavailable, "Placement data unavailable: " + exception.Message); }
-            return At(PlacementValidationStatus.Free, "Free cell. Confirm to submit placement.");
+            return At(PlacementValidationStatus.Free, "Free cell. Click/tap to place.");
 
             PlacementPreview At(PlacementValidationStatus status, string message)
             { return new PlacementPreview(SelectedItem, cell, center, status, message); }
