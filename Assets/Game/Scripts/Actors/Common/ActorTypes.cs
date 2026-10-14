@@ -7,7 +7,8 @@ namespace SlimeBattle.Actors
         Unknown,
         Slime,
         Enemy,
-        Guard
+        Guard,
+        EscortWeapon
     }
 
     public enum ActorControlMode

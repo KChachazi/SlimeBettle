@@ -5,7 +5,8 @@ namespace SlimeBattle.Mechanisms
         None = 0,
         Food = 1,
         Furnace = 2,
-        Obstacle = 3
+        Obstacle = 3,
+        EscortWeapon = 4
     }
 
     public enum MechanismState

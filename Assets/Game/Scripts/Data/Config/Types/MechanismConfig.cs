@@ -15,6 +15,7 @@ namespace SlimeBattle.Data
         [SerializeField, Min(0)] private int activationLimit = 1;
         [SerializeField, Min(0f)] private float activationCooldownSeconds;
         [SerializeField, Min(0f)] private float placementCooldownSeconds;
+        [SerializeField] private MechanismAuthoring placementPrefab;
 
         public MechanismKind Kind => kind;
         public bool PlayerPlaceable => playerPlaceable;
@@ -24,6 +25,7 @@ namespace SlimeBattle.Data
         public int ActivationLimit => activationLimit;
         public float ActivationCooldownSeconds => activationCooldownSeconds;
         public float PlacementCooldownSeconds => placementCooldownSeconds;
+        public MechanismAuthoring PlacementPrefab => placementPrefab;
         public GuideSourceType GuideSourceType => kind == MechanismKind.Food
             ? GuideSourceType.Food
             : kind == MechanismKind.Furnace ? GuideSourceType.Warmth : GuideSourceType.None;
@@ -41,6 +43,12 @@ namespace SlimeBattle.Data
             activationLimit = newActivationLimit;
             activationCooldownSeconds = newActivationCooldownSeconds;
             placementCooldownSeconds = newPlacementCooldownSeconds;
+        }
+
+        public void SetPlacementPrefab(MechanismAuthoring value)
+        {
+            EnsureAuthoring();
+            placementPrefab = value;
         }
 
         protected override void ValidateSpecific(ConfigValidationReport report)
@@ -61,6 +69,8 @@ namespace SlimeBattle.Data
             if (!IsFiniteNonNegative(activationCooldownSeconds) ||
                 !IsFiniteNonNegative(placementCooldownSeconds))
                 report.AddError($"{name}: Cooldown values must be finite and non-negative.");
+            if (playerPlaceable && placementPrefab == null)
+                report.AddError($"{name}: Player-placeable mechanisms require a prefab.");
         }
 
         private static bool IsFiniteNonNegative(float value) =>

@@ -19,6 +19,8 @@ namespace SlimeBattle.Player
         [SerializeField] private BattleHudView hudView;
         [SerializeField] private MonoBehaviour uiSnapshotSource;
         [SerializeField] private bool createDefaultHud = true;
+        [SerializeField] private Transform hudParent;
+        [SerializeField] private Transform eventSystemParent;
         private PlayerInputSystem inputSystem;
         private UISystem uiSystem;
         private bool isInitialized;
@@ -59,7 +61,8 @@ namespace SlimeBattle.Player
             if (uiSystem == null) { uiSystem = GetComponent<UISystem>(); }
             cameraSystem.Initialize();
             if (view != null) { hudView = view; }
-            if (hudView == null && createDefaultHud) { hudView = BattleHudView.Create(transform); }
+            if (hudView == null && createDefaultHud)
+            { hudView = BattleHudView.Create(hudParent != null ? hudParent : transform); }
             EnsureEventSystem();
             uiSystem.Initialize(levelManager, inputSystem, source, hudView);
             isInitialized = true;
@@ -70,7 +73,7 @@ namespace SlimeBattle.Player
         {
             if (EventSystem.current != null) { return; }
             var eventObject = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            eventObject.transform.SetParent(transform, false);
+            eventObject.transform.SetParent(eventSystemParent != null ? eventSystemParent : transform, false);
         }
 
         private void OnEnable() { if (isInitialized) { Bind(); } }

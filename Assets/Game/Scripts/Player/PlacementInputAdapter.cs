@@ -9,7 +9,7 @@ using PlayerInputSystem = SlimeBattle.Player.Input.InputSystem;
 
 namespace SlimeBattle.Player.Placement
 {
-    /// <summary>Existing pointer facts -> camera projection -> placement preview. Confirmation is explicit.</summary>
+    /// <summary>Existing pointer facts -> camera projection -> immediate placement on a valid map click.</summary>
     [DefaultExecutionOrder(100)]
     public sealed class PlacementInputAdapter : MonoBehaviour
     {
@@ -19,7 +19,6 @@ namespace SlimeBattle.Player.Placement
         private InputSubscriptionToken primaryToken;
         private InputSubscriptionToken movedToken;
         private InputSubscriptionToken cancelToken;
-        private bool isTargetLocked;
         private readonly List<RaycastResult> uiHits = new List<RaycastResult>();
 
         public void Initialize(PlayerInputSystem input, CameraSystem cameraSystem, PlacementSystem placement)
@@ -33,7 +32,6 @@ namespace SlimeBattle.Player.Placement
 
         private void Bind()
         {
-            placement.Changed += OnPlacementChanged;
             primaryToken = input.Subscribe<PlayerCommandSubmittedEvent>(OnPrimary);
             movedToken = input.Subscribe<PointerMovedEvent>(OnMoved);
             cancelToken = input.Subscribe<CancelInputEvent>(_ => placement.CancelPlacement());
@@ -41,7 +39,6 @@ namespace SlimeBattle.Player.Placement
 
         private void Unbind()
         {
-            if (placement != null) { placement.Changed -= OnPlacementChanged; }
             if (input != null)
             {
                 input.Unsubscribe(primaryToken);
@@ -49,44 +46,40 @@ namespace SlimeBattle.Player.Placement
                 input.Unsubscribe(cancelToken);
             }
             primaryToken = movedToken = cancelToken = default;
-            isTargetLocked = false;
             placement?.CancelPlacement();
-        }
-
-        private void OnPlacementChanged()
-        {
-            if (!placement.IsPlacing) { isTargetLocked = false; }
         }
 
         private void OnPrimary(PlayerCommandSubmittedEvent data)
         {
             if (data.Command.Kind == PlayerCommandKind.PrimaryAction)
-            { Preview(data.Command.ScreenPosition, true); }
+            {
+                if (Preview(data.Command.ScreenPosition))
+                    placement.ConfirmPlacement();
+            }
         }
         private void OnMoved(PointerMovedEvent data) { Preview(data.Position); }
 
         private void LateUpdate()
         {
-            if (input == null || placement == null || !placement.IsPlacing || isTargetLocked) { return; }
+            if (input == null || placement == null || !placement.IsPlacing) { return; }
             var snapshot = input.ReadSnapshot();
             if (snapshot.Frame == Time.frameCount && snapshot.Mode == InputMode.Gameplay &&
                 !snapshot.PointerBlocked && snapshot.CameraDrag == Vector2.zero)
             { Preview(snapshot.PointerPosition); }
         }
 
-        private void Preview(Vector2 screenPosition, bool selectTarget = false)
+        private bool Preview(Vector2 screenPosition)
         {
-            if (!isActiveAndEnabled || !placement.IsPlacing || input.GetInputMode() != InputMode.Gameplay ||
-                isTargetLocked && !selectTarget) { return; }
+            if (!isActiveAndEnabled || !placement.IsPlacing || input.GetInputMode() != InputMode.Gameplay)
+                return false;
             if (EventSystem.current != null)
             {
                 uiHits.Clear();
                 EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current) { position = screenPosition }, uiHits);
-                foreach (var hit in uiHits) { if (hit.module is GraphicRaycaster) { return; } }
+                foreach (var hit in uiHits) { if (hit.module is GraphicRaycaster) { return false; } }
             }
             var result = placement.PreviewPlacement(cameraSystem.ScreenToWorld(screenPosition));
-            // Keep the world target while the pointer travels to Confirm. A new map click replaces it.
-            if (selectTarget) { isTargetLocked = result.Preview.HasPosition; }
+            return result.IsValid;
         }
 
         private void OnEnable() { if (placement != null && input != null) { Bind(); } }

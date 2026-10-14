@@ -672,6 +672,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ed056b746965475db4f9b38afa862b3f, type: 2}
   - {fileID: 11400000, guid: 00e9b53d84514ccc8e42d6163b0866f4, type: 2}
   - {fileID: 11400000, guid: c5e40774234244678dca8c5918f5e3d4, type: 2}
+  - {fileID: 11400000, guid: 2d7e8a2179555804c8416b9548cc665c, type: 2}
+  - {fileID: 11400000, guid: 28759e4b5692bc04188bbe2515ab0c72, type: 2}
+  - {fileID: 11400000, guid: d0408950af3c84a42bd6c936bc164fc3, type: 2}
+  - {fileID: 11400000, guid: 17c5371c36af1794d8de0ecc59cd8568, type: 2}
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001af, type: 2}
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b0, type: 2}
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b1, type: 2}
@@ -681,6 +685,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b5, type: 2}
   slimePrefab: {fileID: 8397484487815547760, guid: 71b1df1ac1746034d88152783a44ac0e, type: 3}
   enemyPrefab: {fileID: 227765413434242397, guid: f75f2bdde1ee4c64d8977434abb3c7a3, type: 3}
+  guardPrefab: {fileID: 5960317739645613653, guid: 49685e09302f3a24aa032ea9e21717c7, type: 3}
 --- !u!1 &1512871992
 GameObject:
   m_ObjectHideFlags: 0

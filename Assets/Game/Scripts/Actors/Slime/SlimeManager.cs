@@ -18,21 +18,24 @@ namespace SlimeBattle.Slimes
             new Dictionary<GroupId, SlimeGroupActor>();
         private readonly ConfigRegistry configs;
         private readonly ILevelEventBus eventBus;
+        private readonly LevelId levelId;
         private readonly int maxAliveCount;
         private readonly SlimeActor prefab;
         private readonly MovementSystem movementSystem;
         private Transform actorParent;
         private bool disposed;
         private bool paused;
+        private bool depletedPublished;
 
         public SlimeManager(ConfigRegistry configs, ILevelEventBus eventBus,
             int maxAliveCount = 30, SlimeActor prefab = null, Transform actorParent = null,
-            MovementSystem movementSystem = null)
+            MovementSystem movementSystem = null, LevelId levelId = default(LevelId))
         {
             if (maxAliveCount < 1 || maxAliveCount > 50)
                 throw new ArgumentOutOfRangeException(nameof(maxAliveCount));
             this.configs = configs ?? throw new ArgumentNullException(nameof(configs));
             this.eventBus = eventBus;
+            this.levelId = levelId;
             this.maxAliveCount = maxAliveCount;
             this.prefab = prefab;
             this.actorParent = actorParent;
@@ -76,6 +79,7 @@ namespace SlimeBattle.Slimes
             }
             actor.Died += OnActorDied;
             actor.ControlModeChanged += OnControlModeChanged;
+            actor.AttackedWhileCarrying += OnAttackedWhileCarrying;
             eventBus?.Publish(new SlimeSpawnedEvent(actor.GetSnapshot()));
             return id;
         }
@@ -85,11 +89,13 @@ namespace SlimeBattle.Slimes
             if (disposed || !actors.TryGetValue(actorId, out var actor)) return false;
             actor.Died -= OnActorDied;
             actor.ControlModeChanged -= OnControlModeChanged;
+            actor.AttackedWhileCarrying -= OnAttackedWhileCarrying;
             movementSystem?.UnregisterActor(actorId, CancelReason.Despawn);
             DestroyActor(actor);
             actors.Remove(actorId);
             RemoveFromGroups(actorId);
             eventBus?.Publish(new SlimeDespawnedEvent(actorId, reason));
+            PublishDepletedIfNeeded();
             return true;
         }
 
@@ -98,6 +104,25 @@ namespace SlimeBattle.Slimes
             snapshot = default(SlimeSnapshot);
             if (disposed || !actors.TryGetValue(actorId, out var actor)) return false;
             snapshot = actor.GetSnapshot();
+            return true;
+        }
+
+        internal bool TryAttachCarrier(ActorId actorId, Transform weapon,
+            Vector2 localOffset)
+        {
+            if (disposed || paused || !actors.TryGetValue(actorId, out var actor) ||
+                !actor.IsAlive || actor.IsCarrying || weapon == null) return false;
+            movementSystem?.UnregisterActor(actorId, CancelReason.Interrupted);
+            RemoveFromGroups(actorId);
+            return actor.AttachToWeapon(weapon, localOffset);
+        }
+
+        internal bool TryDetachCarrier(ActorId actorId)
+        {
+            if (disposed || !actors.TryGetValue(actorId, out var actor) ||
+                !actor.DetachFromWeapon(actorParent)) return false;
+            if (configs.TryGet(actor.GetSnapshot().ConfigId, out SlimeConfig config))
+                TryRegisterMovement(actor, config.MoveSpeed);
             return true;
         }
 
@@ -164,6 +189,7 @@ namespace SlimeBattle.Slimes
         public void Tick(LevelTickContext context)
         {
             if (disposed || paused || context.DeltaTime < 0f) return;
+            PublishDepletedIfNeeded();
             var actorContext = new ActorContext(context.DeltaTime, context.Perception, context.Actions);
             foreach (var actor in new List<SlimeActor>(actors.Values))
                 if (actor.IsAlive) actor.Tick(actorContext);
@@ -206,6 +232,7 @@ namespace SlimeBattle.Slimes
             {
                 actor.Died -= OnActorDied;
                 actor.ControlModeChanged -= OnControlModeChanged;
+                actor.AttackedWhileCarrying -= OnAttackedWhileCarrying;
                 movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Disposed);
                 DestroyActor(actor);
             }
@@ -234,6 +261,19 @@ namespace SlimeBattle.Slimes
             movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Death);
             RemoveFromGroups(actor.ActorId);
             eventBus?.Publish(new SlimeDiedEvent(actor.GetSnapshot(), effect));
+            PublishDepletedIfNeeded();
+        }
+
+        private void PublishDepletedIfNeeded()
+        {
+            if (depletedPublished || GetAliveCount() != 0) return;
+            depletedPublished = true;
+            eventBus?.Publish(new SlimeDepletedEvent(levelId));
+        }
+
+        private void OnAttackedWhileCarrying(SlimeActor actor)
+        {
+            TryDetachCarrier(actor.ActorId);
         }
 
         private void OnControlModeChanged(SlimeActor actor)

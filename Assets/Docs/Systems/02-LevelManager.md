@@ -75,7 +75,7 @@ LevelUnloadedEvent
 7. 将同一份已校验的 `ConfigRegistry` 交给需要配置的系统，创建并连接 LevelContext 持有的 Manager 和其他关卡服务；
 8. 发布 `LevelStartedEvent`；`Level_test` 的场景生成组件收到该事件后向正式 Manager 提交初始对象生成请求。
 
-P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配置；首关必须包含与场景名对应的 `LevelConfig`、结果规则配置、护送武器配置及所需角色配置。旧 `ObjectiveConfig` / `WeaponConfig` 仅作为迁移期间的历史类型，不应成为新实现的依赖。缺失或校验失败时发布 `LevelLoadFailedEvent`，不进入 `Running`。`Level_test` 的初始 Actor 由场景中的 `LevelActorSpawner` 在 `LevelStartedEvent` 后调用正式 Manager 公开接口生成；其他关卡仍需自行配置初始对象来源。
+P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配置；最新第一关必须包含与场景名对应的 `LevelConfig`、终点统计/等待窗口结果配置及所需角色、地形、路线和机关配置。护送武器配置仅在兼容武器链路启用的关卡中需要；旧 `ObjectiveConfig` / `WeaponConfig` 仅作为迁移期间的历史类型，不应成为最新第一关结果规则的新依赖。缺失或校验失败时发布 `LevelLoadFailedEvent`，不进入 `Running`。`Level_test` 的初始 Actor 由场景中的 `LevelActorSpawner` 在 `LevelStartedEvent` 后调用正式 Manager 公开接口生成；其他关卡仍需自行配置初始对象来源。
 
 `LevelManager` 还在 Inspector 中持有正式 `SlimeActor` 与 `EnemyActor` 预制体引用，并传给 `LevelContext`。`LevelContext` 再注入对应 Manager；缺少预制体时不进入运行态。当前 Bootstrap 场景已绑定 `PF_Slime_Green`、`PF_Enemy_Basic` 和 `Level_test` 所需的五个配置资产。Bootstrap 中的 `BootstrapMenuLoader` 加载 MainMenu，菜单 Start 按钮通过 `GameRoot.RequestEnterLevel` 请求进入 `Level_test`。
 
@@ -102,4 +102,10 @@ P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配�
 - 是否需要异步加载进度 UI；
 - 是否存在主菜单、关卡选择和下一关流程。
 - 目标结果与重开/下一关 UI 的结算展示顺序。
+
+## 补充：场景装配协作边界（2026-10-14）
+
+`LevelManager` 仍是跨场景的生命周期所有者，不作为每个关卡场景的可序列化运行时服务。集成测试场景可以通过 `[SerializeField] private` 引用 `LevelManager` 组件，由场景组合组件在 `LevelStarted` 后取得当前 `LevelContext` 并连接地图、Actor、机关和表现层适配器。
+
+场景组合组件不得创建第二个 `LevelManager`、`LevelContext` 或 Manager；只能做引用校验、依赖注入、阶段转发和卸载清理。场景组合测试通过不代表正式场景已经登记 Build Settings，也不替代 `LevelManager` 对重开、暂停、结算和场景卸载的生命周期控制。
 
