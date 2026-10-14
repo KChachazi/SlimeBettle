@@ -11,7 +11,7 @@
 
 `LevelContext` 是当前关卡的运行时边界，保存本局系统之间的明确引用和关卡级资源。`LevelEventBus` 是该上下文内部的类型化通知通道。
 
-LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、机关和其他关卡级服务。它还创建一个位于 `Core` 的轻量关卡结果规则组件；该组件不是独立的 LevelContext Manager，不拥有武器或史莱姆运行时数据。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
+LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、机关和其他关卡级服务。`MapManager` 与 `MechanismSystem` 在逻辑上组成 Map 领域的两个子模块，其中 `MechanismSystem` 由小智负责维护，但仍由 LevelContext 分别创建、注入和销毁。它还创建一个位于 `Core` 的轻量关卡结果规则组件；该组件不是独立的 LevelContext Manager，不拥有武器或史莱姆运行时数据。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
 
 当前代码已落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、`GuardManager`、`MechanismSystem`、`LevelResultRules`、`MapManager`、`MovementSystem`、`StatusManager` 和 `LevelEventBus`，同时仍保留旧 `ObjectiveSystem`/目标配置的迁移痕迹。护送武器事实链路已由 `MechanismSystem` 提供，但最新第一关结果仍需迁移为史莱姆终点统计、等待窗口和 6 只目标；本段不把该迁移写成已完成事实。MovementSystem 使用动态 `Rigidbody2D` 执行直线移动，并查询 StatusManager 的移速/定身修正；StatusManager 结算 Actor 生命与状态，消费 MapManager 区域事件。
 
@@ -85,7 +85,7 @@ void Clear();
 
 1. 创建上下文和 EventBus；
 2. 由 `LevelManager` 收集并注册本关配置、调用 `ValidateAll()`，再创建地图查询服务；
-3. 创建 MapManager、StatusManager、MovementSystem、SlimeManager、EnemyManager 和 MechanismSystem；StatusManager 订阅区域事件，MovementSystem 接收其移动修正查询；
+3. 创建 Map 领域的 MapManager 和 MechanismSystem，再创建 StatusManager、MovementSystem、SlimeManager、EnemyManager；StatusManager 订阅区域事件，MovementSystem 接收其移动修正查询；
 4. 创建 Core 结果规则组件，并让它订阅本局 LevelEventBus；
 5. 创建输入、放置、镜头、UI、表现及已确认的机关适配；
 6. 由 `LevelManager` 向需要配置的系统传入同一份已校验的 `ConfigRegistry`，并注入其他明确引用；
