@@ -20,7 +20,11 @@ namespace SlimeBattle.World
         }
 
         [SerializeField] private string routeId;
+        [SerializeField] private MapRouteRole role;
+        [SerializeField] private string mergePointId;
         [SerializeField] private List<WaypointEntry> waypoints = new List<WaypointEntry>();
+        [SerializeField] private List<string> blockingAnchorIds = new List<string>();
+        [SerializeField] private List<string> relatedPointIds = new List<string>();
 
         internal MapRouteId RouteId => new MapRouteId(routeId);
 
@@ -80,15 +84,54 @@ namespace SlimeBattle.World
                     i, position, entry.IsGoal));
             }
 
-            if (goalCount != 1)
+            var expectedGoalCount = role == MapRouteRole.Branch ? 0 : 1;
+            if (goalCount != expectedGoalCount)
             {
-                error = "A fixed route requires exactly one goal waypoint.";
+                error = role == MapRouteRole.Branch
+                    ? "A branch route ends at a merge point and must not mark a goal waypoint."
+                    : "A complete fixed route requires exactly one goal waypoint.";
                 return false;
             }
 
-            snapshot = new MapRouteSnapshot(RouteId, result);
+            if (!TryBuildIds<PlacementAnchorId>(blockingAnchorIds, out var anchors,
+                    out error, "blocking anchor") ||
+                !TryBuildIds<MapPointId>(relatedPointIds, out var relatedPoints,
+                    out error, "related point"))
+                return false;
+
+            snapshot = new MapRouteSnapshot(RouteId, result, role,
+                new MapPointId(mergePointId), anchors, relatedPoints);
             error = string.Empty;
-            return snapshot.IsValid;
+            if (!snapshot.IsValid)
+            {
+                error = "Route role, merge point, or associated IDs are invalid.";
+                return false;
+            }
+            return true;
+        }
+
+        private static bool TryBuildIds<TId>(List<string> values,
+            out List<TId> result, out string error, string label)
+        {
+            result = new List<TId>();
+            error = string.Empty;
+            if (values == null) return true;
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < values.Count; i++)
+            {
+                var value = values[i];
+                if (string.IsNullOrWhiteSpace(value) || !seen.Add(value.Trim()))
+                {
+                    error = $"Route {label} ID at index {i} is empty or duplicated.";
+                    return false;
+                }
+                if (typeof(TId) == typeof(PlacementAnchorId))
+                    result.Add((TId)(object)new PlacementAnchorId(value));
+                else if (typeof(TId) == typeof(MapPointId))
+                    result.Add((TId)(object)new MapPointId(value));
+            }
+            return true;
         }
 
         private static bool IsFinite(float value) =>
