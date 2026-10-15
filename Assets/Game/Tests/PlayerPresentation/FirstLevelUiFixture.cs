@@ -18,6 +18,10 @@ namespace SlimeBattle.Tests.PlayerPresentation
     {
         [SerializeField] private BattleHudView hudPrefab;
         [SerializeField] private PlacementSelectionView selectionPrefab;
+        [SerializeField] private GameObject sceneryPrefab;
+        [SerializeField] private Sprite foodSprite;
+        [SerializeField] private Sprite furnaceSprite;
+        [SerializeField] private Sprite obstacleSprite;
         public BattleHudView Hud { get; private set; }
         public PlacementSelectionView Selection { get; private set; }
         public PlacementSystem Placement { get; private set; }
@@ -28,8 +32,10 @@ namespace SlimeBattle.Tests.PlayerPresentation
         public TestPlacementBackend Backend { get; private set; }
         public LevelState Phase { get; private set; } = LevelState.Running;
         private PlacementInputAdapter adapter;
+        private FirstLevelSceneryView scenery;
         private void Awake()
         {
+            if (sceneryPrefab != null) scenery=Instantiate(sceneryPrefab,transform).GetComponent<FirstLevelSceneryView>();
             if (EventSystem.current == null)
             { new GameObject("TEST_ONLY_EventSystem",typeof(EventSystem),typeof(InputSystemUIInputModule)).transform.SetParent(transform); }
             var gridObject = new GameObject("TEST_ONLY_Grid",typeof(Grid),typeof(PlacementGridAuthoring));
@@ -39,10 +45,11 @@ namespace SlimeBattle.Tests.PlayerPresentation
             cameraObject.transform.SetParent(transform,false); Camera=cameraObject.GetComponent<CameraSystem>();
             cameraObject.GetComponent<Camera>().backgroundColor=new Color(0.22f,0.32f,0.23f);
             cameraObject.GetComponent<Camera>().orthographicSize=6; Camera.Initialize();
-            Backend=new TestPlacementBackend(transform);
+            if(scenery!=null) scenery.FitToCamera(cameraObject.GetComponent<Camera>());
+            Backend=new TestPlacementBackend(transform,foodSprite,furnaceSprite,obstacleSprite);
             Placement=new PlacementSystem(Grid,()=>new MapBounds(new Vector2(-7,-4),new Vector2(7,4)),()=>Phase,Backend,PlacementConfirmationMode.Single);
             Input=gameObject.AddComponent<PlayerInputSystem>(); Input.Enable(); Input.SetInputMode(InputMode.Gameplay);
-            GridView=gameObject.AddComponent<PlacementGridView>(); GridView.Initialize(Placement,Grid);
+            GridView=GetComponent<PlacementGridView>() ?? gameObject.AddComponent<PlacementGridView>(); GridView.Initialize(Placement,Grid);
             adapter=gameObject.AddComponent<PlacementInputAdapter>(); adapter.Initialize(Input,Camera,Placement);
             Hud=Instantiate(hudPrefab,transform); Selection=Instantiate(selectionPrefab,transform); Selection.Initialize(Placement);
             foreach(var button in Hud.GetComponentsInChildren<Button>(true))
@@ -79,19 +86,19 @@ namespace SlimeBattle.Tests.PlayerPresentation
             canvas.GetComponent<Canvas>().sortingOrder=50;
             var scaler=canvas.GetComponent<CanvasScaler>(); scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution=new Vector2(1280,720); scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
-            TestButton(canvas.transform,"TEST_ONLY Success",-110,()=>SetPhase(LevelState.Succeeded));
-            TestButton(canvas.transform,"TEST_ONLY Failure",110,()=>SetPhase(LevelState.Failed));
+            TestButton(canvas.transform,"TEST_ONLY Success",-86,()=>SetPhase(LevelState.Succeeded));
+            TestButton(canvas.transform,"TEST_ONLY Failure",86,()=>SetPhase(LevelState.Failed));
         }
         private static void TestButton(Transform parent,string label,float x,UnityEngine.Events.UnityAction action)
         {
-            var go=new GameObject(label,typeof(RectTransform),typeof(Image),typeof(Button)); go.transform.SetParent(parent,false);
+            var go=new GameObject(label,typeof(RectTransform),typeof(StorybookSurface),typeof(Button)); go.transform.SetParent(parent,false);
             var rect=(RectTransform)go.transform; rect.anchorMin=rect.anchorMax=new Vector2(0.5f,1);
-            rect.anchoredPosition=new Vector2(x,-28); rect.sizeDelta=new Vector2(205,32);
-            go.GetComponent<Image>().color=new Color(0.13f,0.21f,0.16f); go.GetComponent<Button>().onClick.AddListener(action);
+            rect.anchoredPosition=new Vector2(x,-18); rect.sizeDelta=new Vector2(160,26);
+            go.GetComponent<Image>().color=new Color(0.98f,0.945f,0.82f); go.GetComponent<Button>().onClick.AddListener(action);
             var text=new GameObject("Label",typeof(RectTransform),typeof(Text)).GetComponent<Text>(); text.transform.SetParent(go.transform,false);
             text.rectTransform.anchorMin=Vector2.zero; text.rectTransform.anchorMax=Vector2.one;
             text.rectTransform.offsetMin=text.rectTransform.offsetMax=Vector2.zero;
-            text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.text=label; text.fontSize=14;
+            text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.text=label; text.fontSize=12; text.color=new Color(0.28f,0.23f,0.15f);
             text.alignment=TextAnchor.MiddleCenter; text.raycastTarget=false;
         }
         private void OnDisable()

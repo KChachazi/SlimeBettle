@@ -146,8 +146,12 @@ namespace SlimeBattle.Tests.PlayerPresentation
         private readonly List<PlacementObjectSnapshot> snapshots = new List<PlacementObjectSnapshot>();
         private readonly Dictionary<MechanismId, GameObject> visuals = new Dictionary<MechanismId, GameObject>();
         private readonly Transform parent;
+        private readonly Sprite foodSprite;
+        private readonly Sprite furnaceSprite;
+        private readonly Sprite obstacleSprite;
         private Sprite sprite;
-        public TestPlacementBackend(Transform parent = null) { this.parent = parent; }
+        public TestPlacementBackend(Transform parent = null, Sprite foodSprite = null, Sprite furnaceSprite = null, Sprite obstacleSprite = null)
+        { this.parent = parent; this.foodSprite = foodSprite; this.furnaceSprite = furnaceSprite; this.obstacleSprite = obstacleSprite; }
         public bool IsAvailable { get; set; } = true;
         public bool RejectNext { get; set; }
         public bool ThrowOnRequest { get; set; }
@@ -178,6 +182,12 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 renderer.sortingOrder = 105;
                 renderer.color = request.Item == PlacementItemId.Food ? Color.green :
                     request.Item == PlacementItemId.Furnace ? new Color(1f, 0.6f, 0.2f) : Color.gray;
+                var illustration = request.Item == PlacementItemId.Food ? foodSprite : request.Item == PlacementItemId.Furnace ? furnaceSprite : obstacleSprite;
+                if (illustration != null)
+                {
+                    renderer.sprite = illustration; renderer.color = Color.white;
+                    item.transform.localScale = Vector3.one * (0.9f / Mathf.Max(illustration.bounds.size.x, illustration.bounds.size.y));
+                }
                 visuals.Add(id, item);
             }
             return new PlacementResult(true, id, "TEST backend accepted");
@@ -186,14 +196,16 @@ namespace SlimeBattle.Tests.PlayerPresentation
         public void Remove(MechanismId id)
         {
             snapshots.RemoveAll(item => item.Id == id);
-            if (visuals.TryGetValue(id, out var visual)) { UnityEngine.Object.Destroy(visual); visuals.Remove(id); }
+            if (visuals.TryGetValue(id, out var visual)) { Release(visual); visuals.Remove(id); }
         }
         public void Dispose()
         {
-            foreach (var item in visuals.Values.ToArray()) { if (item != null) { UnityEngine.Object.Destroy(item); } }
+            foreach (var item in visuals.Values.ToArray()) { if (item != null) { Release(item); } }
             visuals.Clear();
             snapshots.Clear();
-            if (sprite != null) { UnityEngine.Object.Destroy(sprite); sprite = null; }
+            if (sprite != null) { Release(sprite); sprite = null; }
         }
+        private static void Release(UnityEngine.Object item)
+        { if (Application.isPlaying) UnityEngine.Object.Destroy(item); else UnityEngine.Object.DestroyImmediate(item); }
     }
 }

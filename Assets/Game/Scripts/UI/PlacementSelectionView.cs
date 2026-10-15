@@ -17,6 +17,9 @@ namespace SlimeBattle.UI
         [SerializeField] private Button obstacle;
         [SerializeField] private Button cancel;
         [SerializeField] private bool useChineseLabels;
+        [SerializeField] private GameObject foodSelected;
+        [SerializeField] private GameObject furnaceSelected;
+        [SerializeField] private GameObject obstacleSelected;
         public bool IsVisible => panel != null && panel.activeInHierarchy;
 
         public void Initialize(PlacementSystem placement)
@@ -71,14 +74,17 @@ namespace SlimeBattle.UI
             Highlight(food, PlacementItemId.Food);
             Highlight(furnace, PlacementItemId.Furnace);
             Highlight(obstacle, PlacementItemId.Obstacle);
+            if (foodSelected != null) foodSelected.SetActive(placement.SelectedItem == PlacementItemId.Food);
+            if (furnaceSelected != null) furnaceSelected.SetActive(placement.SelectedItem == PlacementItemId.Furnace);
+            if (obstacleSelected != null) obstacleSelected.SetActive(placement.SelectedItem == PlacementItemId.Obstacle);
         }
 
         private void Highlight(Button button, PlacementItemId item)
         {
             if (button.targetGraphic == null) { return; }
             button.targetGraphic.color = placement.SelectedItem == item
-                ? (useChineseLabels ? new Color(0.68f, 0.86f, 0.65f) : new Color(0.15f, 0.65f, 0.45f))
-                : (useChineseLabels ? new Color(0.96f, 0.94f, 0.85f) : new Color(0.14f, 0.24f, 0.32f));
+                ? (useChineseLabels ? new Color(1f, 0.88f, 0.56f) : new Color(0.15f, 0.65f, 0.45f))
+                : (useChineseLabels ? new Color(0.98f, 0.945f, 0.82f) : new Color(0.14f, 0.24f, 0.32f));
         }
     }
 }

@@ -221,11 +221,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 12d1d654e8c14cb2bff8787330a16e14, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  gridColor: {r: 0.69, g: 0.82, b: 0.6, a: 0.35}
-  freeColor: {r: 0.2, g: 0.95, b: 0.55, a: 0.7}
-  occupiedColor: {r: 1, g: 0.35, b: 0.25, a: 0.75}
+  gridColor: {r: 0.22, g: 0.32, b: 0.13, a: 0.28}
+  freeColor: {r: 0.84, g: 1, b: 0.28, a: 0.42}
+  occupiedColor: {r: 0.98, g: 0.34, b: 0.2, a: 0.48}
   outsideColor: {r: 0.8, g: 0.35, b: 1, a: 0.75}
-  lineWidth: 0.025
+  lineWidth: 0.022
 --- !u!114 &1924769653964830997
 MonoBehaviour:
   m_ObjectHideFlags: 0

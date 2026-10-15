@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "date": "2026-10-15",
   "unityVersion": "2022.3.62f2c1 (92e6e6be66dc)",
-  "baseCommit": "a2e41a156e8b063d0426a1f8ffa0a9f481aed004",
+  "baseCommit": "13658046ae9d27f931aa6695a57422c19211a590",
   "branch": "xchen/feat-first-level-ui-prefabs",
-  "scope": "First-level UI components, prefabs and isolated fixtures; no formal scene integration.",
-  "compile": "Passed",
+  "scope": "First-level storybook UI, optional decorative scenery and TEST_ONLY sprite visuals; no formal scene or gameplay rules changed.",
+  "compile": "Passed: latest prefab/scene preparation and rendered previews compiled in Unity 2022.3.62f2c1.",
   "editMode": {
     "passed": 32,
     "cases": [
@@ -55,23 +55,27 @@
     "failed": 0
   },
   "visualReview": {
+    "preview": "Assets/Game/Tests/PlayerPresentation/FirstLevelUI.png",
+    "renderer": "Unity Camera in isolated Editor Preview Scene and live Editor Game view",
     "states": [
-      "Running",
+      "Idle",
+      "Placing",
       "Paused",
       "Succeeded",
       "Failed"
     ],
-    "result": "Reviewed: no clipped Chinese, missing icons or overlapping UI",
-    "renderer": "Unity Camera in isolated Editor Preview Scene",
+    "testData": true,
+    "placementPreview": "Assets/Game/Tests/PlayerPresentation/FirstLevelUI-Placement.png",
     "dimensions": [
       "1280x720",
       "1024x768",
-      "1920x1080"
+      "1920x1080",
+      "1920x820",
+      "Editor Free Aspect"
     ],
-    "testData": true,
-    "preview": "Assets/Game/Tests/PlayerPresentation/FirstLevelUI.png"
+    "result": "Reviewed: complete alpha icons, readable Chinese, no UI overlap and scenery covers the viewport"
   },
-  "interactionScope": "Real uGUI Button events and EventSystem raycasts; no physical device input claimed.",
+  "interactionScope": "Real uGUI Button events, EventSystem raycasts and live Windows native pointer input through sky; no mobile input claimed.",
   "protectedPaths": "No changes in formal Scenes, Core, Mechanism, World, Actors, Status or ProjectSettings.",
   "unverified": [
     "New Core cave statistics and waiting window",
@@ -80,5 +84,21 @@
     "Physical pointer, mobile touch and device safe areas",
     "Full project test suite"
   ],
-  "fontSha256": "2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B"
+  "fontSha256": "2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B",
+  "manualChecks": [
+    "Native click selects Food, shows highlight/badge and grid",
+    "Native click on meadow creates TEST_ONLY food illustration at the selected cell",
+    "Native pause displays the storybook modal",
+    "Native restart clears mock objects and restores idle tools",
+    "Live Free Aspect and enlarged Game view show no scenery letterboxing"
+  ],
+  "artwork": {
+    "files": [
+      "Assets/Game/UI/Art/ForestClearing-v1.png",
+      "Assets/Game/UI/Art/StorybookIcons-v1.png"
+    ],
+    "prompts": "Assets/Game/UI/Art/generation-prompts.json",
+    "scope": "Decorative art only; no Map, Anchor, goal, actor or collision facts.",
+    "tool": "built-in image_gen.imagegen"
+  }
 }

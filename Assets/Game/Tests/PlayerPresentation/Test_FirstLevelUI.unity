@@ -122,7 +122,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1242674842
+--- !u!1 &540815877
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -130,8 +130,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1242674844}
-  - component: {fileID: 1242674843}
+  - component: {fileID: 540815880}
+  - component: {fileID: 540815879}
+  - component: {fileID: 540815878}
   m_Layer: 0
   m_Name: TEST_ONLY_FirstLevelUI
   m_TagString: Untagged
@@ -139,13 +140,30 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1242674843
+--- !u!114 &540815878
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242674842}
+  m_GameObject: {fileID: 540815877}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12d1d654e8c14cb2bff8787330a16e14, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  gridColor: {r: 0.22, g: 0.32, b: 0.13, a: 0.28}
+  freeColor: {r: 0.84, g: 1, b: 0.28, a: 0.42}
+  occupiedColor: {r: 0.98, g: 0.34, b: 0.2, a: 0.48}
+  outsideColor: {r: 0.8, g: 0.35, b: 1, a: 0.75}
+  lineWidth: 0.022
+--- !u!114 &540815879
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 540815877}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c28d8c12fe4a5ae4aaa9dc01195b3e38, type: 3}
@@ -153,13 +171,17 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   hudPrefab: {fileID: 3622582143924751736, guid: ad8592757d9daa84c9a5b850fd079777, type: 3}
   selectionPrefab: {fileID: 725035375293035589, guid: 3797d666ee068b042a40d17f20dc1eff, type: 3}
---- !u!4 &1242674844
+  sceneryPrefab: {fileID: 8384203275141681075, guid: 091c909beec8be142b8ff0ec96a3c9a8, type: 3}
+  foodSprite: {fileID: -7798774717832287345, guid: 234ad648d539cca4dad0b3e09db1597e, type: 3}
+  furnaceSprite: {fileID: 5957728970166404150, guid: 234ad648d539cca4dad0b3e09db1597e, type: 3}
+  obstacleSprite: {fileID: -7564446808143134212, guid: 234ad648d539cca4dad0b3e09db1597e, type: 3}
+--- !u!4 &540815880
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1242674842}
+  m_GameObject: {fileID: 540815877}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -172,4 +194,4 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1242674844}
+  - {fileID: 540815880}
