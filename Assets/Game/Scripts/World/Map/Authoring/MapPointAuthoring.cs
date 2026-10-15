@@ -8,6 +8,7 @@ namespace SlimeBattle.World
         [SerializeField] private string pointId;
         [SerializeField] private MapPointKind kind;
         [SerializeField] private string configId;
+        [SerializeField, Min(0f)] private float interactionRadiusPixels;
 
         internal MapPointId PointId => new MapPointId(pointId);
         internal MapPointKind Kind => kind;
@@ -27,8 +28,16 @@ namespace SlimeBattle.World
                 return false;
             }
 
+            if (float.IsNaN(interactionRadiusPixels) ||
+                float.IsInfinity(interactionRadiusPixels) || interactionRadiusPixels < 0f)
+            {
+                error = "Interaction radius must be finite and non-negative.";
+                return false;
+            }
+
             var worldPosition = transform.position;
-            snapshot = new MapPointSnapshot(PointId, kind, worldPosition, configId);
+            snapshot = new MapPointSnapshot(PointId, kind, worldPosition, configId,
+                interactionRadiusPixels);
             error = string.Empty;
             return true;
         }
