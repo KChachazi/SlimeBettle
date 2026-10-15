@@ -186,7 +186,7 @@ namespace SlimeBattle.UI
             Refresh(new UiState(levelManager.GetCurrentLevelId(), levelManager.GetLevelState(),
                 display.ObjectiveText, display.SlimeCount, display.EnemyCount,
                 string.IsNullOrEmpty(loadFailureHint) ? display.Hint : loadFailureHint, display.ResultText,
-                display.SlimeLimit, display.WeaponText));
+                display.SlimeLimit, display.WeaponText, display.GoalText, display.WaitingText, display.RouteHint));
         }
 
         private void SetPanel(UiPanelId panel, bool shouldOpen)

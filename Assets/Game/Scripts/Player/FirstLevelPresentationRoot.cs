@@ -21,6 +21,7 @@ namespace SlimeBattle.Player
         [SerializeField] private MonoBehaviour statusSnapshotSource;
         [SerializeField] private Transform selectionParent;
         [SerializeField] private PlacementSelectionView selectionPrefab;
+        [SerializeField] private PlacementSelectionView selectionInstance;
         private PlayerInputSystem input;
         private IPlacementBackend injectedBackend;
         private IFirstLevelStatusSource statusSource;
@@ -38,7 +39,7 @@ namespace SlimeBattle.Player
             if (isInitialized) { return; }
             // LevelManager belongs to the persistent Bootstrap scene.
             if (levelManager == null) { levelManager = FindObjectOfType<LevelManager>(); }
-            if (levelManager == null || cameraSystem == null || grid == null || selectionPrefab == null)
+            if (levelManager == null || cameraSystem == null || grid == null || (selectionPrefab == null && selectionInstance == null))
             {
                 Debug.LogError("FirstLevelPresentationRoot needs LevelManager, CameraSystem, Grid and selection prefab references.", this);
                 enabled = false;
@@ -66,7 +67,7 @@ namespace SlimeBattle.Player
             cameraSystem = camera != null ? camera : throw new ArgumentNullException(nameof(camera));
             this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
             this.selectionPrefab = selectionPrefab != null ? selectionPrefab : this.selectionPrefab;
-            if (this.selectionPrefab == null) throw new ArgumentNullException(nameof(selectionPrefab));
+            if (this.selectionPrefab == null && selectionInstance == null) throw new ArgumentNullException(nameof(selectionPrefab));
             grid.ValidateConfiguration();
             if (!Enum.IsDefined(typeof(PlacementConfirmationMode), mode))
             { throw new ArgumentOutOfRangeException(nameof(mode)); }
@@ -74,10 +75,10 @@ namespace SlimeBattle.Player
             injectedBackend = backend;
             backendContext = manager.GetCurrentContext();
             this.statusSource = statusSource ?? new FirstLevelRuntimeStatusSource();
-            if (inputAdapter == null) { inputAdapter = gameObject.AddComponent<PlacementInputAdapter>(); }
-            if (gridView == null) { gridView = gameObject.AddComponent<PlacementGridView>(); }
+            if (inputAdapter == null) { inputAdapter = GetComponent<PlacementInputAdapter>() ?? gameObject.AddComponent<PlacementInputAdapter>(); }
+            if (gridView == null) { gridView = GetComponent<PlacementGridView>() ?? gameObject.AddComponent<PlacementGridView>(); }
             if (selectionView == null)
-            { selectionView = Instantiate(this.selectionPrefab, selectionParent != null ? selectionParent : transform); }
+            { selectionView = selectionInstance != null ? selectionInstance : Instantiate(this.selectionPrefab, selectionParent != null ? selectionParent : transform); }
             isInitialized = true;
             if (isActiveAndEnabled) { Bind(); }
         }

@@ -16,6 +16,7 @@ namespace SlimeBattle.UI
         [SerializeField] private Button furnace;
         [SerializeField] private Button obstacle;
         [SerializeField] private Button cancel;
+        [SerializeField] private bool useChineseLabels;
         public bool IsVisible => panel != null && panel.activeInHierarchy;
 
         public void Initialize(PlacementSystem placement)
@@ -61,11 +62,11 @@ namespace SlimeBattle.UI
         private void Render()
         {
             panel.SetActive(isActiveAndEnabled && placement.IsRunning);
-            hint.text = placement.Hint;
+            hint.text = useChineseLabels ? FirstLevelUiText.PlacementHint(placement) : placement.Hint;
             var capacity = placement.GetBudgetSnapshot();
             budget.text = capacity.HasData
-                ? "Placed: " + capacity.ActiveCount + " / " + capacity.MaximumActiveCount
-                : "Placed: unavailable";
+                ? (useChineseLabels ? "已放置  " : "Placed: ") + capacity.ActiveCount + " / " + capacity.MaximumActiveCount
+                : (useChineseLabels ? "放置配额未接入" : "Placed: unavailable");
             cancel.interactable = placement.IsPlacing;
             Highlight(food, PlacementItemId.Food);
             Highlight(furnace, PlacementItemId.Furnace);
@@ -74,8 +75,10 @@ namespace SlimeBattle.UI
 
         private void Highlight(Button button, PlacementItemId item)
         {
-            button.GetComponent<Image>().color = placement.SelectedItem == item
-                ? new Color(0.15f, 0.65f, 0.45f) : new Color(0.14f, 0.24f, 0.32f);
+            if (button.targetGraphic == null) { return; }
+            button.targetGraphic.color = placement.SelectedItem == item
+                ? (useChineseLabels ? new Color(0.68f, 0.86f, 0.65f) : new Color(0.15f, 0.65f, 0.45f))
+                : (useChineseLabels ? new Color(0.96f, 0.94f, 0.85f) : new Color(0.14f, 0.24f, 0.32f));
         }
     }
 }

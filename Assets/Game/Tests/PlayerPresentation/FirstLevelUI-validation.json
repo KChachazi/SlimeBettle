@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-15",
+  "unityVersion": "2022.3.62f2c1 (92e6e6be66dc)",
+  "baseCommit": "a2e41a156e8b063d0426a1f8ffa0a9f481aed004",
+  "branch": "xchen/feat-first-level-ui-prefabs",
+  "scope": "First-level UI components, prefabs and isolated fixtures; no formal scene integration.",
+  "compile": "Passed",
+  "editMode": {
+    "passed": 32,
+    "cases": [
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.GoalWindowAndRouteDisplayAreReadOnlyAndResultFollowsPhase",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.HudMissingDataDoesNotBecomeZeroOrDeclareAResult",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.InspectorBindingsAreCompleteAndPlayerHasOneOfEachView",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(\"PF_FirstLevelHUD.prefab\")",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(\"PF_FirstLevelPlacementSelection.prefab\")",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(\"PF_FirstLevelPlayer.prefab\")",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.ReinitializingCompositionReusesInspectorComponentsAndEmbeddedViews",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.AuthoredOriginSizeRotationAndScaleRoundTrip",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell(\"rejected\")",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell(\"exception\")",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell(\"malformed\")",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BoundsAndPhaseAreRecheckedAtConfirm",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ContinuousModeRetainsSelectionAndTracksOccupiedCell",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.DisposeDropsStateAndOldInstanceCannotAffectNewSession",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(-0.01f,-1)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(0.0f,0)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(0.999f,0)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(1.0f,1)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.HudDisplaysReadOnlyLimitAndWeaponAndRetainsOldConstructor",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.MissingBoundsAndMissingBackendRemainUnavailable",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OccupancyIsRecheckedAtConfirmAndRemovalReleasesCell",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm(-5.01f)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm(5.01f)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm(5.0f)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerSharingAnInsideCellIsStillRejected",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ReentrantConfirmIsRejectedAndPhaseChangeClearsContinuousSelection",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.SelectionNeedsPositionAndConfirmation",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.SelectionPrefabHasEditableButtonsAndCompleteViewReferences",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Food)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Furnace)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Obstacle)",
+      "SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.UnsupportedGridAndNonfinitePointerFailClosed"
+    ],
+    "failed": 0
+  },
+  "playMode": {
+    "passed": 4,
+    "cases": [
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.PauseResultsAndRestartClearPlacementAndPreserveSingleViews",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.RebindingAndReenablingDoNotDuplicateListeners",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.ThreeSelectionButtonsSubmitOnlyPlacementState",
+      "SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.ToolbarAndModalBlockRaycastsWhileMapRemainsClickable"
+    ],
+    "failed": 0
+  },
+  "visualReview": {
+    "states": [
+      "Running",
+      "Paused",
+      "Succeeded",
+      "Failed"
+    ],
+    "result": "Reviewed: no clipped Chinese, missing icons or overlapping UI",
+    "renderer": "Unity Camera in isolated Editor Preview Scene",
+    "dimensions": [
+      "1280x720",
+      "1024x768",
+      "1920x1080"
+    ],
+    "testData": true,
+    "preview": "Assets/Game/Tests/PlayerPresentation/FirstLevelUI.png"
+  },
+  "interactionScope": "Real uGUI Button events and EventSystem raycasts; no physical device input claimed.",
+  "protectedPaths": "No changes in formal Scenes, Core, Mechanism, World, Actors, Status or ProjectSettings.",
+  "unverified": [
+    "New Core cave statistics and waiting window",
+    "Snap Anchor query/type/replacement API",
+    "Formal first-level scene integration and automatic outcome",
+    "Physical pointer, mobile touch and device safe areas",
+    "Full project test suite"
+  ],
+  "fontSha256": "2C76254F6FC379FDDFCE0A7E84FB5385BB135D3E399294F6EEB6680D0365B74B"
+}

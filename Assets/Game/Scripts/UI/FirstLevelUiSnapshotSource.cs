@@ -6,10 +6,18 @@ namespace SlimeBattle.UI
     /// <summary>Read-only display data supplied by the mechanism/Core owners' future public adapters.</summary>
     public readonly struct FirstLevelStatusSnapshot
     {
-        public FirstLevelStatusSnapshot(string weaponText, string resultText = "")
-        { WeaponText = weaponText ?? string.Empty; ResultText = resultText ?? string.Empty; }
+        public FirstLevelStatusSnapshot(string weaponText, string resultText = "", string goalText = "",
+            string waitingText = "", string routeHint = "")
+        {
+            WeaponText = weaponText ?? string.Empty; ResultText = resultText ?? string.Empty;
+            GoalText = goalText ?? string.Empty; WaitingText = waitingText ?? string.Empty;
+            RouteHint = routeHint ?? string.Empty;
+        }
         public string WeaponText { get; }
         public string ResultText { get; }
+        public string GoalText { get; }
+        public string WaitingText { get; }
+        public string RouteHint { get; }
     }
 
     public interface IFirstLevelStatusSource
@@ -29,13 +37,14 @@ namespace SlimeBattle.UI
             var status = statusSource != null ? statusSource.ReadSnapshot(context) : default;
             var slimes = context.SlimeManager;
             var enemies = context.EnemyManager;
-            var limit = slimes != null ? slimes.MaxAliveCount : 20;
-            var hint = placement?.Hint ?? "Choose Food, Furnace or Obstacle.";
-            if (slimes != null && limit != 20) { hint += " First-level LevelConfig limit must be 20 (current: " + limit + ")."; }
-            return new UiState(context.GetLevelId(), context.GetLevelState(), "Escort the weapon to the goal.",
+            var limit = slimes != null ? slimes.MaxAliveCount : -1;
+            // PlacementSelectionView owns placement hints; the HUD reserves this slot for integration notices.
+            var hint = slimes != null && limit != 20 ? "First-level limit should be 20 (configured: " + limit + ")." :
+                placement == null ? "Placement module is not connected." : string.Empty;
+            return new UiState(context.GetLevelId(), context.GetLevelState(), "Guide at least 6 slimes into the goal cave.",
                 slimes != null ? slimes.GetAliveSnapshots().Count : -1,
                 enemies != null ? enemies.GetAliveSnapshots().Count : -1, hint,
-                status.ResultText, limit, string.IsNullOrEmpty(status.WeaponText) ? "ESCORT WEAPON  -- (data not connected)" : status.WeaponText);
+                status.ResultText, limit, status.WeaponText, status.GoalText, status.WaitingText, status.RouteHint);
         }
     }
 }

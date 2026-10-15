@@ -10,7 +10,8 @@ namespace SlimeBattle.UI
     {
         public UiState(LevelId levelId, LevelState levelState, string objectiveText,
             int slimeCount = -1, int enemyCount = -1, string hint = "", string resultText = "",
-            int slimeLimit = -1, string weaponText = "")
+            int slimeLimit = -1, string weaponText = "", string goalText = "",
+            string waitingText = "", string routeHint = "")
         {
             LevelId = levelId;
             LevelState = levelState;
@@ -21,6 +22,9 @@ namespace SlimeBattle.UI
             ResultText = resultText ?? string.Empty;
             SlimeLimit = slimeLimit;
             WeaponText = weaponText ?? string.Empty;
+            GoalText = goalText ?? string.Empty;
+            WaitingText = waitingText ?? string.Empty;
+            RouteHint = routeHint ?? string.Empty;
         }
         public LevelId LevelId { get; }
         public LevelState LevelState { get; }
@@ -31,6 +35,10 @@ namespace SlimeBattle.UI
         public string ResultText { get; }
         public int SlimeLimit { get; }
         public string WeaponText { get; }
+        // Optional display strings only. Core/Map remain the owners of these facts.
+        public string GoalText { get; }
+        public string WaitingText { get; }
+        public string RouteHint { get; }
     }
 
     public readonly struct UiPanelOpenedEvent

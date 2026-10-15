@@ -1,0 +1,7 @@
+{
+  "name": "SlimeBattle.FirstLevelUI.PlayMode.Tests",
+  "references": ["SlimeBattle.Runtime", "SlimeBattle.PlayerPresentation.TestFixtures", "Unity.InputSystem", "UnityEngine.UI"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
