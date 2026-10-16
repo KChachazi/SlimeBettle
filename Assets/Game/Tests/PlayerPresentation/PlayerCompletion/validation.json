@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-16",
+  "unityVersion": "2022.3.62f2c1",
+  "mergeCommit": "50fd34a",
+  "originMaster": "21a0409",
+  "compilationPassed": true,
+  "testResults": [
+    {
+      "startTimeUtc": "2026-10-16 07:26:22Z",
+      "passed": 53,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "EditMode.xml",
+      "endTimeUtc": "2026-10-16 07:26:23Z"
+    },
+    {
+      "startTimeUtc": "2026-10-16 07:17:29Z",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "FormalIntegration.xml",
+      "endTimeUtc": "2026-10-16 07:17:30Z"
+    },
+    {
+      "startTimeUtc": "2026-10-16 07:18:41Z",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "PlayMode.xml",
+      "endTimeUtc": "2026-10-16 07:18:42Z"
+    }
+  ],
+  "playerStaticAssertions": 20,
+  "guiLifecycle": {
+    "passed": 57,
+    "evidence": "PlacementLifecycle.json",
+    "initialAttempt": "Failed at Food selection; complete rerun passed with Unity focused.",
+    "failed": 0
+  },
+  "scope": {
+    "productionGameplayOwnersChanged": false,
+    "earlierAuthorizedColorUiPreserved": true,
+    "buildSettingsChanged": false,
+    "formalScenesSavedThisRound": false
+  },
+  "remainingDependencies": [
+    "Atomic safe Anchor replacement from Mechanism owner",
+    "Real goal-cave count, waiting-window and current result source from integration/Core owners",
+    "Android device and safe-area validation"
+  ],
+  "sourceSha256": {
+    "Assets/Game/Scripts/Player/PlacementSystem.cs": "ee1abd1668adbb5773d0dd2da96d9dc0b7037d76381eae57d7871753515612c7",
+    "Assets/Game/Scripts/Player/PlacementTypes.cs": "7d30d516f8b3779bbd59bfc0332f7575d0c00631b6afc3f26825db45479ebba0",
+    "Assets/Game/Scripts/Player/PlacementGridView.cs": "99730ae882b82af34012f3ae0b547b0fc423f78129375f9e5493fcef585f2ae2",
+    "Assets/Game/Scripts/Player/FirstLevelPresentationRoot.cs": "788313c525797d6861e7a9a026aa5cd99b3baa995f27df017dc3e38c6e9b34a8",
+    "Assets/Game/Scripts/UI/FirstLevelUiSnapshotSource.cs": "9829c0fcb45946cd24b1958e3cb66cf45a6f49eac22386e646d1a0718ee53852"
+  }
+}

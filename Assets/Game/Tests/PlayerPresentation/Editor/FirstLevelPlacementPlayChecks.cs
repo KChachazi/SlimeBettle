@@ -9,6 +9,7 @@ using SlimeBattle.Player.Input;
 using SlimeBattle.Player.Placement;
 using SlimeBattle.Presentation.Camera;
 using SlimeBattle.UI;
+using SlimeBattle.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -338,7 +339,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var input = owner.GetComponent<SlimeBattle.Player.Input.InputSystem>();
                 var camera = cameraObject.GetComponent<CameraSystem>();
                 root.Initialize(manager, input, camera, grid, backend, PlacementConfirmationMode.Single,
-                    selectionPrefab: Resources.Load<PlacementSelectionView>("UI/PF_PlacementSelection"));
+                    selectionPrefab: Resources.Load<PlacementSelectionView>("UI/PF_PlacementSelection"),
+                    anchorMapDefinition: AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset"));
                 var ui = owner.GetComponent<UISystem>();
                 var selection = owner.GetComponentInChildren<PlacementSelectionView>();
                 var view = owner.GetComponent<PlacementGridView>();
@@ -387,10 +389,13 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 yield return Frames(2);
                 root.Placement.BeginPlacement(PlacementItemId.Food);
                 root.Placement.PreviewPlacement(Vector3.zero);
-                Check(!oldPlacement.IsPlacing && root.Placement != oldPlacement &&
-                    root.Placement.GetCurrentPreview().Status == PlacementValidationStatus.Unavailable &&
-                    !root.Placement.ConfirmPlacement().Succeeded && backend.Requests == 1,
-                    "Real LevelManager restart replaces the context and refuses to reuse the old creation backend");
+                var formalResult = root.Placement.ConfirmPlacement();
+                var currentMechanisms = manager.GetCurrentContext().MechanismSystem;
+                Check(!oldPlacement.IsPlacing && root.Placement != oldPlacement && backend.Requests == 1 &&
+                    formalResult.Succeeded && new MechanismPlacementBackend(currentMechanisms).ReadPlacedObjects()
+                        .Any(item => item.Id.Equals(formalResult.MechanismId)),
+                    "Real restart drops the old TEST_ONLY backend and creates through the new context's formal MechanismSystem");
+                currentMechanisms.RequestRemove(formalResult.MechanismId);
                 root.Initialize(manager, input, camera, grid, nextBackend, PlacementConfirmationMode.Single);
                 root.Placement.BeginPlacement(PlacementItemId.Obstacle);
                 root.Placement.PreviewPlacement(Vector3.zero);

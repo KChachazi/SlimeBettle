@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-suite type="TestSuite" id="1107" name="SlimeBattle-TapTapGamejam" fullname="SlimeBattle-TapTapGamejam" runstate="Runnable" testcasecount="77" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.419923" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+  <properties />
+  <test-suite type="Assembly" id="1206" name="SlimeBattle.Placement.EditMode.Tests.dll" fullname="Library/ScriptAssemblies/SlimeBattle.Placement.EditMode.Tests.dll" runstate="Runnable" testcasecount="33" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.379326" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="_PID" value="43712" />
+      <property name="_APPDOMAIN" value="Unity Child Domain" />
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="TestSuite" id="1207" name="SlimeBattle" fullname="SlimeBattle" runstate="Runnable" testcasecount="33" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.378406" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties />
+      <test-suite type="TestSuite" id="1208" name="Tests" fullname="SlimeBattle.Tests" runstate="Runnable" testcasecount="33" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.378046" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1209" name="PlayerPresentation" fullname="SlimeBattle.Tests.PlayerPresentation" runstate="Runnable" testcasecount="33" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.377668" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestFixture" id="1166" name="FirstLevelUiEditModeTests" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.224093" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1172" name="GoalWindowAndRouteDisplayAreReadOnlyAndResultFollowsPhase" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.GoalWindowAndRouteDisplayAreReadOnlyAndResultFollowsPhase" methodname="GoalWindowAndRouteDisplayAreReadOnlyAndResultFollowsPhase" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="946264882" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.062202" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1171" name="HudMissingDataDoesNotBecomeZeroOrDeclareAResult" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.HudMissingDataDoesNotBecomeZeroOrDeclareAResult" methodname="HudMissingDataDoesNotBecomeZeroOrDeclareAResult" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="1181680322" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.016543" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1173" name="InspectorBindingsAreCompleteAndPlayerHasOneOfEachView" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.InspectorBindingsAreCompleteAndPlayerHasOneOfEachView" methodname="InspectorBindingsAreCompleteAndPlayerHasOneOfEachView" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="1774689928" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.007786" asserts="0">
+              <properties />
+            </test-case>
+            <test-suite type="ParameterizedMethod" id="1170" name="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.018913" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1167" name="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(&quot;PF_FirstLevelHUD.prefab&quot;)" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(&quot;PF_FirstLevelHUD.prefab&quot;)" methodname="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="1841895518" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.007350" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1168" name="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(&quot;PF_FirstLevelPlacementSelection.prefab&quot;)" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(&quot;PF_FirstLevelPlacementSelection.prefab&quot;)" methodname="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="1492402073" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.000756" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1169" name="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(&quot;PF_FirstLevelPlayer.prefab&quot;)" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.PrefabsHaveNoMissingScriptsAndUseBundledChineseFont(&quot;PF_FirstLevelPlayer.prefab&quot;)" methodname="PrefabsHaveNoMissingScriptsAndUseBundledChineseFont" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="2006571007" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:02Z" duration="0.002420" asserts="0">
+                <properties />
+              </test-case>
+            </test-suite>
+            <test-case id="1174" name="ReinitializingCompositionReusesInspectorComponentsAndEmbeddedViews" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.ReinitializingCompositionReusesInspectorComponentsAndEmbeddedViews" methodname="ReinitializingCompositionReusesInspectorComponentsAndEmbeddedViews" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="689243266" result="Passed" start-time="2026-10-16 06:05:02Z" end-time="2026-10-16 06:05:03Z" duration="0.086490" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1175" name="UnimplementedLevelsCannotBeStartedByTheSelectionButton" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests.UnimplementedLevelsCannotBeStartedByTheSelectionButton" methodname="UnimplementedLevelsCannotBeStartedByTheSelectionButton" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiEditModeTests" runstate="Runnable" seed="1763181774" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.011216" asserts="0">
+              <properties />
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1176" name="PlacementEditModeTests" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" testcasecount="25" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.151588" total="25" passed="25" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1182" name="AuthoredOriginSizeRotationAndScaleRoundTrip" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.AuthoredOriginSizeRotationAndScaleRoundTrip" methodname="AuthoredOriginSizeRotationAndScaleRoundTrip" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="2107950048" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.005562" asserts="0">
+              <properties />
+            </test-case>
+            <test-suite type="ParameterizedMethod" id="1199" name="BackendFailureNeverReservesCell" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.011248" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1196" name="BackendFailureNeverReservesCell(&quot;rejected&quot;)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell(&quot;rejected&quot;)" methodname="BackendFailureNeverReservesCell" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="817049905" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.004113" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1197" name="BackendFailureNeverReservesCell(&quot;exception&quot;)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell(&quot;exception&quot;)" methodname="BackendFailureNeverReservesCell" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1296710464" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000974" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1198" name="BackendFailureNeverReservesCell(&quot;malformed&quot;)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BackendFailureNeverReservesCell(&quot;malformed&quot;)" methodname="BackendFailureNeverReservesCell" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1583475204" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000354" asserts="0">
+                <properties />
+              </test-case>
+            </test-suite>
+            <test-case id="1195" name="BoundsAndPhaseAreRecheckedAtConfirm" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.BoundsAndPhaseAreRecheckedAtConfirm" methodname="BoundsAndPhaseAreRecheckedAtConfirm" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1513370573" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001550" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1201" name="ContinuousModeRetainsSelectionAndTracksOccupiedCell" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ContinuousModeRetainsSelectionAndTracksOccupiedCell" methodname="ContinuousModeRetainsSelectionAndTracksOccupiedCell" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="916590630" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001624" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1203" name="DisposeDropsStateAndOldInstanceCannotAffectNewSession" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.DisposeDropsStateAndOldInstanceCannotAffectNewSession" methodname="DisposeDropsStateAndOldInstanceCannotAffectNewSession" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="945235016" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.002132" asserts="0">
+              <properties />
+            </test-case>
+            <test-suite type="ParameterizedMethod" id="1181" name="GridUsesFloorForPositiveAndNegativeCoordinates" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.007812" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1177" name="GridUsesFloorForPositiveAndNegativeCoordinates(-0.01f,-1)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(-0.01f,-1)" methodname="GridUsesFloorForPositiveAndNegativeCoordinates" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1076580166" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001190" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1178" name="GridUsesFloorForPositiveAndNegativeCoordinates(0.0f,0)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(0.0f,0)" methodname="GridUsesFloorForPositiveAndNegativeCoordinates" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1254074792" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000361" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1179" name="GridUsesFloorForPositiveAndNegativeCoordinates(0.999f,0)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(0.999f,0)" methodname="GridUsesFloorForPositiveAndNegativeCoordinates" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="984105546" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000251" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1180" name="GridUsesFloorForPositiveAndNegativeCoordinates(1.0f,1)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.GridUsesFloorForPositiveAndNegativeCoordinates(1.0f,1)" methodname="GridUsesFloorForPositiveAndNegativeCoordinates" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="128597481" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000240" asserts="0">
+                <properties />
+              </test-case>
+            </test-suite>
+            <test-case id="1205" name="HudDisplaysReadOnlyLimitAndWeaponAndRetainsOldConstructor" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.HudDisplaysReadOnlyLimitAndWeaponAndRetainsOldConstructor" methodname="HudDisplaysReadOnlyLimitAndWeaponAndRetainsOldConstructor" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1089808867" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.013029" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1200" name="MissingBoundsAndMissingBackendRemainUnavailable" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.MissingBoundsAndMissingBackendRemainUnavailable" methodname="MissingBoundsAndMissingBackendRemainUnavailable" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="21524147" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001564" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1194" name="OccupancyIsRecheckedAtConfirmAndRemovalReleasesCell" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OccupancyIsRecheckedAtConfirmAndRemovalReleasesCell" methodname="OccupancyIsRecheckedAtConfirmAndRemovalReleasesCell" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="730224359" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.003408" asserts="0">
+              <properties />
+            </test-case>
+            <test-suite type="ParameterizedMethod" id="1192" name="OutsidePointerOrSnappedCenterCannotConfirm" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.013662" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1189" name="OutsidePointerOrSnappedCenterCannotConfirm(-5.01f)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm(-5.01f)" methodname="OutsidePointerOrSnappedCenterCannotConfirm" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="898526651" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001716" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1190" name="OutsidePointerOrSnappedCenterCannotConfirm(5.01f)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm(5.01f)" methodname="OutsidePointerOrSnappedCenterCannotConfirm" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="478829026" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000474" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1191" name="OutsidePointerOrSnappedCenterCannotConfirm(5.0f)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerOrSnappedCenterCannotConfirm(5.0f)" methodname="OutsidePointerOrSnappedCenterCannotConfirm" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1811057629" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000334" asserts="0">
+                <properties />
+              </test-case>
+            </test-suite>
+            <test-case id="1193" name="OutsidePointerSharingAnInsideCellIsStillRejected" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.OutsidePointerSharingAnInsideCellIsStillRejected" methodname="OutsidePointerSharingAnInsideCellIsStillRejected" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="801225263" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001092" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1202" name="ReentrantConfirmIsRejectedAndPhaseChangeClearsContinuousSelection" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ReentrantConfirmIsRejectedAndPhaseChangeClearsContinuousSelection" methodname="ReentrantConfirmIsRejectedAndPhaseChangeClearsContinuousSelection" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="36951630" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.001206" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1184" name="SelectionNeedsPositionAndConfirmation" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.SelectionNeedsPositionAndConfirmation" methodname="SelectionNeedsPositionAndConfirmation" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="505002940" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.002106" asserts="0">
+              <properties />
+            </test-case>
+            <test-case id="1204" name="SelectionPrefabHasEditableButtonsAndCompleteViewReferences" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.SelectionPrefabHasEditableButtonsAndCompleteViewReferences" methodname="SelectionPrefabHasEditableButtonsAndCompleteViewReferences" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1072203029" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.019690" asserts="0">
+              <properties />
+            </test-case>
+            <test-suite type="ParameterizedMethod" id="1188" name="ThreeTypesSubmitSnappedRequestsAndSingleModeExits" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.014445" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1185" name="ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Food)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Food)" methodname="ThreeTypesSubmitSnappedRequestsAndSingleModeExits" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="345586521" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.003594" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1186" name="ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Furnace)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Furnace)" methodname="ThreeTypesSubmitSnappedRequestsAndSingleModeExits" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1653072937" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000638" asserts="0">
+                <properties />
+              </test-case>
+              <test-case id="1187" name="ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Obstacle)" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.ThreeTypesSubmitSnappedRequestsAndSingleModeExits(Obstacle)" methodname="ThreeTypesSubmitSnappedRequestsAndSingleModeExits" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="796560650" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.000407" asserts="0">
+                <properties />
+              </test-case>
+            </test-suite>
+            <test-case id="1183" name="UnsupportedGridAndNonfinitePointerFailClosed" fullname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests.UnsupportedGridAndNonfinitePointerFailClosed" methodname="UnsupportedGridAndNonfinitePointerFailClosed" classname="SlimeBattle.Tests.PlayerPresentation.PlacementEditModeTests" runstate="Runnable" seed="1865368888" result="Passed" start-time="2026-10-16 06:05:03Z" end-time="2026-10-16 06:05:03Z" duration="0.003104" asserts="0">
+              <properties />
+            </test-case>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-suite>

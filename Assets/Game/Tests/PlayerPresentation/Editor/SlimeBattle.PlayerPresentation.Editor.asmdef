@@ -5,7 +5,8 @@
         "SlimeBattle.Runtime",
         "SlimeBattle.PlayerPresentation.TestFixtures",
         "Unity.InputSystem",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "Unity.2D.Sprite.Editor"
     ],
     "includePlatforms": [
         "Editor"

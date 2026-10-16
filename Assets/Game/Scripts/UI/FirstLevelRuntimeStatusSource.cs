@@ -8,9 +8,9 @@ namespace SlimeBattle.UI
         {
             if (context == null) return new FirstLevelStatusSnapshot("ESCORT WEAPON  --");
             var resultText = context.GetLevelState() == LevelState.Succeeded
-                ? "Escort complete"
+                ? "Level complete"
                 : context.GetLevelState() == LevelState.Failed
-                    ? "Escort failed" : string.Empty;
+                    ? "Level failed" : string.Empty;
             if (context.MechanismSystem == null ||
                 !context.MechanismSystem.TryGetWeaponSnapshot(out var weapon))
                 return new FirstLevelStatusSnapshot("ESCORT WEAPON  --", resultText);

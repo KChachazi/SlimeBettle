@@ -241,3 +241,14 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 返回值补充：`PreviewPlacement` → `PlacementValidationResult`（Preview / IsValid / Reason）；`ConfirmPlacement` → `PlacementResult`（Succeeded / MechanismId / Reason）。`PlacementSystem.Changed / PlacementCompleted` 为本地刷新／尝试结果事件，不是全局领域事实。backend 成功返回要求同步生效且 ID 有效，仅用于其注入时的当前关卡；新 Context 须重新注入。Anchor 替换必须能表达旧对象回收、新对象创建失败和最终占用结果；具体 payload 待评审。`IFirstLevelStatusSource` 返回 `FirstLevelStatusSnapshot`（结果文本和首关史莱姆终点统计；旧 WeaponText 仅兼容显示）。详细边界、降级与生命周期见实现与接入文档。
 
 2026-10-12 交互修正：PlacementInputAdapter 在地图 PrimaryAction 后锁定目标世界格子，移动鼠标到 CONFIRM 或移动镜头不会改选，再次点击地图可替换。锁定不新增公开 API；直接调用 PlacementSystem.PreviewPlacement / ConfirmPlacement 的契约不变。
+
+## 小宸首关当前接入补充（2026-10-16）
+
+- 当前地图点击/轻触直接提交合法放置，取代上方历史的锁定/确认按钮交互；预览/确认方法仍分开，便于适配器和测试复用。
+- `PlacementSystem` 构造参数尾部新增可选 `Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors = null`、`float anchorPixelsPerWorldUnit = 0f`。旧无 Anchor 调用兼容；有 Anchor 必须显式提供同一地图定义的像素比例。
+- 消费已合入的 `MapManager.GetPlacementAnchors()`；`PlacementPreview.Anchor` 携带原地图快照，`PlacementRequest.AnchorId` 为尾部可选参数。不重新定义地图 ID/角色/允许类型/替换事实。
+- `PlacementValidationStatus` 追加 `AnchorFree / TypeMismatch / ReplacementDenied / ReplacementUnavailable`，保留旧枚举数值。确认重新读取快照；已占用且配置允许替换时，当前因缺少公开安全事务而拒绝，保留旧机关。
+- `FirstLevelPresentationRoot.Initialize` 尾部可选 `FirstLevelMapDefinition anchorMapDefinition = null`，Prefab 显式引用 `MAP_FirstLevel`。重开默认使用新 Context 的正式 MechanismPlacementBackend；不复用旧注入后端。
+- `IFirstLevelStatusSource` 已支持 GoalText / WaitingText / RouteHint；缺少上游路线提示时，HUD 仅显示当前 Anchor 的真实关联 ID，不推断路线状态。终点人数和窗口无真实来源时继续未接入。
+
+以上是 Player/UI 本地兼容扩展及已有公开查询的接入通知；没有新增机关安全替换协议或候选终点事件实现，跨系统替换/结果契约仍待所属负责人提供。

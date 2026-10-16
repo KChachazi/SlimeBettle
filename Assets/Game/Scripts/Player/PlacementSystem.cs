@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SlimeBattle.Core;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.World;
 using UnityEngine;
 
@@ -14,6 +15,13 @@ namespace SlimeBattle.Player.Placement
         private readonly Func<LevelState> readPhase;
         private readonly IPlacementBackend backend;
         private readonly PlacementConfirmationMode confirmationMode;
+        private readonly Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors;
+        private readonly float anchorPixelsPerWorldUnit;
+        private readonly List<PlacementAnchorSnapshot> anchors = new List<PlacementAnchorSnapshot>();
+        private readonly List<Vector3> placedPositions = new List<Vector3>();
+        private bool hasAnchorChanges;
+        private string anchorError;
+        private string placementError;
         private readonly HashSet<Vector3Int> occupied = new HashSet<Vector3Int>();
         private Vector3 pointerWorld;
         private bool hasPosition;
@@ -24,7 +32,8 @@ namespace SlimeBattle.Player.Placement
         private PlacementPreview preview;
 
         public PlacementSystem(PlacementGridAuthoring grid, Func<MapBounds?> readBounds,
-            Func<LevelState> readPhase, IPlacementBackend backend, PlacementConfirmationMode confirmationMode)
+            Func<LevelState> readPhase, IPlacementBackend backend, PlacementConfirmationMode confirmationMode,
+            Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors = null, float anchorPixelsPerWorldUnit = 0f)
         {
             this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
             this.readBounds = readBounds ?? throw new ArgumentNullException(nameof(readBounds));
@@ -33,6 +42,8 @@ namespace SlimeBattle.Player.Placement
             if (!Enum.IsDefined(typeof(PlacementConfirmationMode), confirmationMode))
             { throw new ArgumentOutOfRangeException(nameof(confirmationMode)); }
             this.confirmationMode = confirmationMode;
+            this.readAnchors = readAnchors;
+            this.anchorPixelsPerWorldUnit = anchorPixelsPerWorldUnit;
             grid.ValidateConfiguration();
         }
 
@@ -46,6 +57,7 @@ namespace SlimeBattle.Player.Placement
         public PlacementBudgetSnapshot GetBudgetSnapshot() { return isDisposed ? default : backend.GetBudgetSnapshot(); }
         public IReadOnlyCollection<Vector3Int> GetOccupiedCells() { return new List<Vector3Int>(occupied).AsReadOnly(); }
         public MapBounds? GetMapBounds() { return isDisposed ? null : readBounds(); }
+        public IReadOnlyList<PlacementAnchorSnapshot> GetAnchors() { return anchors.AsReadOnly(); }
 
         public void BeginPlacement(PlacementItemId itemId)
         {
@@ -55,6 +67,8 @@ namespace SlimeBattle.Player.Placement
             CancelPlacement();
             if (!IsRunning) { Hint = "Placement is only available while the level is running."; Changed?.Invoke(); return; }
             SelectedItem = itemId;
+            ReadAnchorData();
+            ReadPlacedData();
             preview = new PlacementPreview(itemId, default, default, PlacementValidationStatus.NoPosition, "Click/tap a map cell to place it.");
             Hint = preview.Message;
             Changed?.Invoke();
@@ -70,11 +84,12 @@ namespace SlimeBattle.Player.Placement
             pointerWorld = worldPosition;
             hasPosition = true;
             var next = Evaluate(worldPosition);
-            var changed = hasOccupancyChanges || next.Cell != preview.Cell || next.Status != preview.Status ||
+            var changed = hasAnchorChanges || hasOccupancyChanges || next.Cell != preview.Cell || next.Status != preview.Status ||
                 next.WorldCenter != preview.WorldCenter || next.Item != preview.Item || next.Message != preview.Message;
             preview = next;
             if (changed) { Hint = preview.Message; Changed?.Invoke(); }
             hasOccupancyChanges = false;
+            hasAnchorChanges = false;
             return new PlacementValidationResult(preview);
         }
 
@@ -85,7 +100,8 @@ namespace SlimeBattle.Player.Placement
             { return Reject("Choose an item and a map cell while the level is running."); }
             preview = Evaluate(pointerWorld);
             if (!preview.CanConfirm) { return Reject(preview.Message); }
-            var request = new PlacementRequest(SelectedItem, preview.Cell, preview.WorldCenter);
+            var request = new PlacementRequest(SelectedItem, preview.Cell, preview.WorldCenter,
+                preview.Anchor?.AnchorId ?? default);
             var requestRevision = revision;
             PlacementResult result;
             isConfirming = true;
@@ -131,31 +147,51 @@ namespace SlimeBattle.Player.Placement
             if (isDisposed) { return; }
             if (!IsRunning) { if (IsPlacing) { CancelPlacement(); } return; }
             if (IsPlacing && hasPosition) { PreviewPlacement(pointerWorld); }
+            else if (IsPlacing)
+            {
+                ReadAnchorData(); ReadPlacedData();
+                if (hasAnchorChanges || hasOccupancyChanges) { hasAnchorChanges = hasOccupancyChanges = false; Changed?.Invoke(); }
+            }
         }
 
         private PlacementPreview Evaluate(Vector3 worldPosition)
         {
+            PlacementAnchorSnapshot? anchor = null;
             Vector3Int cell;
             Vector3 center;
             try { cell = grid.WorldToCell(worldPosition); center = grid.GetCellCenter(cell); }
             catch (ArgumentException exception)
             { return new PlacementPreview(SelectedItem, default, default, PlacementValidationStatus.InvalidPosition, exception.Message); }
+            ReadAnchorData();
+            ReadPlacedData();
             var bounds = readBounds();
             if (!bounds.HasValue) { return At(PlacementValidationStatus.Unavailable, "Map bounds are not configured."); }
-            if (!bounds.Value.Contains(worldPosition) || !bounds.Value.Contains(center))
+            if (!bounds.Value.Contains(worldPosition))
             { return At(PlacementValidationStatus.OutOfBounds, "Outside map bounds."); }
+            if (anchorError != null) { return At(PlacementValidationStatus.Unavailable, anchorError); }
+            var nearestDistance = float.PositiveInfinity;
+            foreach (var candidate in anchors)
+            {
+                var distance = Vector2.SqrMagnitude((Vector2)worldPosition - candidate.Position);
+                var radius = candidate.SnapRadiusPixels / anchorPixelsPerWorldUnit;
+                // Sorted IDs provide a deterministic winner when two distances are equal.
+                if (distance <= radius * radius && distance < nearestDistance)
+                { nearestDistance = distance; anchor = candidate; }
+            }
+            if (anchor.HasValue)
+            {
+                center = new Vector3(anchor.Value.Position.x, anchor.Value.Position.y, grid.GetCellCenter(cell).z);
+                cell = grid.WorldToCell(center);
+            }
+            if (!bounds.Value.Contains(center)) { return At(PlacementValidationStatus.OutOfBounds, "Outside map bounds."); }
             try
             {
-                var snapshots = backend.ReadPlacedObjects();
-                if (snapshots == null) { return At(PlacementValidationStatus.Unavailable, "Placement snapshots are unavailable."); }
-                var nextOccupied = new HashSet<Vector3Int>();
-                foreach (var item in snapshots)
+                if (placementError != null) { return At(PlacementValidationStatus.Unavailable, placementError); }
+                if (anchor.HasValue)
                 {
-                    if (item.Id.IsValid) { nextOccupied.Add(grid.WorldToCell(item.Position)); }
+                    var status = GetAnchorStatus(anchor.Value);
+                    return At(status, AnchorMessage(anchor.Value, status));
                 }
-                hasOccupancyChanges = !occupied.SetEquals(nextOccupied);
-                occupied.Clear();
-                occupied.UnionWith(nextOccupied);
                 if (occupied.Contains(cell)) { return At(PlacementValidationStatus.Occupied, "This cell is occupied."); }
                 if (!backend.IsAvailable) { return At(PlacementValidationStatus.Unavailable, "Mechanism creation API is not connected."); }
             }
@@ -163,7 +199,109 @@ namespace SlimeBattle.Player.Placement
             return At(PlacementValidationStatus.Free, "Free cell. Click/tap to place.");
 
             PlacementPreview At(PlacementValidationStatus status, string message)
-            { return new PlacementPreview(SelectedItem, cell, center, status, message); }
+            { return new PlacementPreview(SelectedItem, cell, center, status, message, anchor); }
+        }
+
+        private void ReadPlacedData()
+        {
+            var previousError = placementError;
+            try
+            {
+                var snapshots = backend.ReadPlacedObjects();
+                if (snapshots == null) { throw new InvalidOperationException("Placement snapshots are unavailable."); }
+                var next = new HashSet<Vector3Int>();
+                var nextPositions = new List<Vector3>();
+                foreach (var item in snapshots)
+                {
+                    if (!item.Id.IsValid) { continue; }
+                    next.Add(grid.WorldToCell(item.Position)); nextPositions.Add(item.Position);
+                }
+                hasOccupancyChanges |= !occupied.SetEquals(next);
+                var samePositions = placedPositions.Count == nextPositions.Count;
+                for (var i = 0; samePositions && i < nextPositions.Count; i++) { samePositions = placedPositions[i] == nextPositions[i]; }
+                hasOccupancyChanges |= !samePositions;
+                placedPositions.Clear(); placedPositions.AddRange(nextPositions);
+                occupied.Clear(); occupied.UnionWith(next); placementError = null;
+            }
+            catch (Exception exception)
+            {
+                hasOccupancyChanges |= occupied.Count > 0;
+                occupied.Clear(); placedPositions.Clear(); placementError = "Placement data unavailable: " + exception.Message;
+            }
+            hasOccupancyChanges |= previousError != placementError;
+        }
+
+        private void ReadAnchorData()
+        {
+            if (readAnchors == null) { return; }
+            var previousError = anchorError;
+            try
+            {
+                var source = readAnchors();
+                if (source == null) { throw new InvalidOperationException("Anchor snapshots are unavailable."); }
+                if (source.Count > 0 && (float.IsNaN(anchorPixelsPerWorldUnit) ||
+                    float.IsInfinity(anchorPixelsPerWorldUnit) || anchorPixelsPerWorldUnit <= 0f))
+                { throw new InvalidOperationException("Anchor design pixels per world unit are not configured."); }
+                var next = new List<PlacementAnchorSnapshot>(source);
+                next.Sort((a, b) => string.CompareOrdinal(a.AnchorId.Value, b.AnchorId.Value));
+                for (var i = 0; i < next.Count; i++)
+                {
+                    if (!next[i].IsValid || i > 0 && next[i].AnchorId.Equals(next[i - 1].AnchorId))
+                    { throw new InvalidOperationException("Anchor snapshots contain invalid or duplicate definitions."); }
+                }
+                var same = anchors.Count == next.Count;
+                for (var i = 0; same && i < next.Count; i++) { same = SameAnchor(anchors[i], next[i]); }
+                hasAnchorChanges |= !same;
+                anchors.Clear(); anchors.AddRange(next); anchorError = null;
+            }
+            catch (Exception exception)
+            {
+                hasAnchorChanges |= anchors.Count > 0;
+                anchors.Clear(); anchorError = "Anchor data unavailable: " + exception.Message;
+            }
+            hasAnchorChanges |= previousError != anchorError;
+        }
+
+        private static bool SameAnchor(PlacementAnchorSnapshot a, PlacementAnchorSnapshot b)
+        {
+            if (!a.AnchorId.Equals(b.AnchorId) || a.Role != b.Role || a.Position != b.Position ||
+                a.SnapRadiusPixels != b.SnapRadiusPixels || a.AllowsReplacement != b.AllowsReplacement ||
+                !a.AssociatedRouteId.Equals(b.AssociatedRouteId) || !a.AssociatedPointId.Equals(b.AssociatedPointId) ||
+                a.AcceptedMechanismKinds.Count != b.AcceptedMechanismKinds.Count) { return false; }
+            for (var i = 0; i < a.AcceptedMechanismKinds.Count; i++)
+            { if (a.AcceptedMechanismKinds[i] != b.AcceptedMechanismKinds[i]) { return false; } }
+            return true;
+        }
+
+        /// <summary>Local view feedback from the most recently read map and mechanism snapshots.</summary>
+        public PlacementValidationStatus GetAnchorStatus(PlacementAnchorSnapshot anchor)
+        {
+            if (!IsPlacing || anchorError != null || placementError != null) { return PlacementValidationStatus.Unavailable; }
+            var kind = SelectedItem == PlacementItemId.Food ? MechanismKind.Food :
+                SelectedItem == PlacementItemId.Furnace ? MechanismKind.Furnace : MechanismKind.Obstacle;
+            if (!anchor.Accepts(kind)) { return PlacementValidationStatus.TypeMismatch; }
+            foreach (var position in placedPositions)
+            {
+                if (Vector2.SqrMagnitude((Vector2)position - anchor.Position) <= 0.00000001f)
+                { return anchor.AllowsReplacement ? PlacementValidationStatus.ReplacementUnavailable : PlacementValidationStatus.ReplacementDenied; }
+            }
+            if (occupied.Contains(grid.WorldToCell(anchor.Position))) { return PlacementValidationStatus.Occupied; }
+            try { return backend.IsAvailable ? PlacementValidationStatus.AnchorFree : PlacementValidationStatus.Unavailable; }
+            catch (Exception) { return PlacementValidationStatus.Unavailable; }
+        }
+
+        private static string AnchorMessage(PlacementAnchorSnapshot anchor, PlacementValidationStatus status)
+        {
+            var name = "吸附点 " + anchor.AnchorId.Value + "：";
+            switch (status)
+            {
+                case PlacementValidationStatus.AnchorFree: return name + "可放置，点击地图放置。";
+                case PlacementValidationStatus.TypeMismatch: return name + "不接受所选机关类型。";
+                case PlacementValidationStatus.ReplacementDenied: return name + "已占用，地图配置禁止替换。";
+                case PlacementValidationStatus.ReplacementUnavailable: return name + "已占用，安全替换接口未接入，保留原机关。";
+                case PlacementValidationStatus.Occupied: return name + "所在格已被其他机关占用。";
+                default: return name + "机关创建接口未接入。";
+            }
         }
 
         private PlacementResult Reject(string message)
@@ -181,6 +319,8 @@ namespace SlimeBattle.Player.Placement
             CancelPlacement();
             isDisposed = true;
             occupied.Clear();
+            anchors.Clear();
+            placedPositions.Clear();
             Changed?.Invoke();
             Changed = null;
             PlacementCompleted = null;

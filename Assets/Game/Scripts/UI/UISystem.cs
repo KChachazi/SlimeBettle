@@ -144,6 +144,7 @@ namespace SlimeBattle.UI
         {
             // A lifecycle cancellation must not toggle pause. Only the key edge does.
             if (!eventData.IsUserRequested) { return; }
+            if(view!=null && view.TryCloseReferencePage()) return;
             var current = levelManager.GetLevelState();
             if (current == LevelState.Running) { SubmitCommand(UiCommand.Pause); }
             else if (current == LevelState.Paused) { SubmitCommand(UiCommand.Resume); }
@@ -186,7 +187,7 @@ namespace SlimeBattle.UI
             Refresh(new UiState(levelManager.GetCurrentLevelId(), levelManager.GetLevelState(),
                 display.ObjectiveText, display.SlimeCount, display.EnemyCount,
                 string.IsNullOrEmpty(loadFailureHint) ? display.Hint : loadFailureHint, display.ResultText,
-                display.SlimeLimit, display.WeaponText));
+                display.SlimeLimit, display.WeaponText, display.GoalText, display.WaitingText, display.RouteHint));
         }
 
         private void SetPanel(UiPanelId panel, bool shouldOpen)

@@ -19,12 +19,21 @@ namespace SlimeBattle.UI
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button pauseRestartButton;
         [SerializeField] private Button resultRestartButton;
+        [SerializeField] private bool useChineseLabels;
+        [SerializeField] private Text goalText;
+        [SerializeField] private Text waitingText;
+        [SerializeField] private Text routeHintText;
+        [SerializeField] private Text resultCountsText;
+        [SerializeField] private Text resultDetailText;
+        [SerializeField] private ReferenceUiView referencePages;
+        private bool isPauseVisible;
         private UISystem owner;
 
         public void Bind(UISystem uiSystem)
         {
             Unbind();
             owner = uiSystem;
+            if(referencePages!=null) referencePages.Initialize(owner.SubmitCommand);
             if (isActiveAndEnabled) { AddListeners(); }
         }
 
@@ -41,6 +50,7 @@ namespace SlimeBattle.UI
         {
             RemoveListeners();
             owner = null;
+            if(referencePages!=null) referencePages.Initialize(null);
         }
 
         private void RemoveListeners()
@@ -54,26 +64,34 @@ namespace SlimeBattle.UI
         public void Render(UiState state, bool showHud, bool showPause, bool showResult, bool isPending)
         {
             if (hudPanel != null) { hudPanel.SetActive(showHud); }
-            if (pausePanel != null) { pausePanel.SetActive(showPause); }
+            isPauseVisible=showPause;
+            if(referencePages!=null) referencePages.SetLevelState(state.LevelState);
+            UpdatePauseVisibility();
             if (resultPanel != null) { resultPanel.SetActive(showResult); }
-            if (objectiveText != null) { objectiveText.text = state.ObjectiveText; }
+            if (objectiveText != null) { objectiveText.text = useChineseLabels ? FirstLevelUiText.Hint(state.ObjectiveText) : state.ObjectiveText; }
             if (countsText != null)
             {
-                countsText.text = "SLIMES  " + Count(state.SlimeCount) +
+                countsText.text = useChineseLabels ? "史莱姆数量 " + Count(state.SlimeCount) + " / " + Count(state.SlimeLimit) : "SLIMES  " + Count(state.SlimeCount) +
                     (state.SlimeLimit > 0 ? " / " + state.SlimeLimit : string.Empty) + "    ENEMIES  " + Count(state.EnemyCount) +
                     "    /    " + state.LevelState;
             }
-            if (weaponText != null) { weaponText.text = state.WeaponText; }
-            if (hintText != null) { hintText.text = state.Hint; }
+            if (weaponText != null) { weaponText.text = state.WeaponText; weaponText.gameObject.SetActive(!string.IsNullOrEmpty(state.WeaponText)); }
+            if (hintText != null) { hintText.text = useChineseLabels ? FirstLevelUiText.Hint(state.Hint) : state.Hint; }
+            if (goalText != null) { goalText.text = string.IsNullOrEmpty(state.GoalText) ? "到达洞穴  -- / 6 · 未接入" : state.GoalText; }
+            if (waitingText != null) { waitingText.text = string.IsNullOrEmpty(state.WaitingText) ? "等待窗口  -- · 未接入" : state.WaitingText; }
+            if (routeHintText != null) { routeHintText.text = string.IsNullOrEmpty(state.RouteHint) ? "路线 / Anchor 提示未接入" : state.RouteHint; }
+            if (resultCountsText != null) { resultCountsText.text = (goalText != null ? goalText.text : state.GoalText) + "\n" + (waitingText != null ? waitingText.text : state.WaitingText); }
             if (resultText != null)
             {
-                resultText.text = (state.LevelState == LevelState.Succeeded ? "LEVEL COMPLETE" : "LEVEL FAILED") +
-                    (string.IsNullOrEmpty(state.ResultText) ? string.Empty : "\n\n" + state.ResultText);
+                resultText.text = (useChineseLabels ? (state.LevelState == LevelState.Succeeded ? "引导成功" : "再试一次吧") :
+                    (state.LevelState == LevelState.Succeeded ? "LEVEL COMPLETE" : "LEVEL FAILED")) +
+                    (resultDetailText != null || string.IsNullOrEmpty(state.ResultText) ? string.Empty : "\n\n" + state.ResultText);
             }
+            if (resultDetailText != null) { resultDetailText.text = useChineseLabels ? FirstLevelUiText.Hint(state.ResultText) : state.ResultText; }
             if (pauseButton != null) { pauseButton.interactable = state.LevelState == LevelState.Running && !isPending; }
             if (resumeButton != null) { resumeButton.interactable = state.LevelState == LevelState.Paused && !isPending; }
-            if (pauseRestartButton != null) { pauseRestartButton.interactable = !isPending; }
-            if (resultRestartButton != null) { resultRestartButton.interactable = !isPending; }
+            if (pauseRestartButton != null) { pauseRestartButton.interactable = !isPending && state.LevelState == LevelState.Paused; }
+            if (resultRestartButton != null) { resultRestartButton.interactable = !isPending && (state.LevelState == LevelState.Succeeded || state.LevelState == LevelState.Failed); }
         }
 
         public static BattleHudView Create(Transform parent, Font font = null)
@@ -121,11 +139,14 @@ namespace SlimeBattle.UI
             return view;
         }
 
-        private void Pause() { owner?.SubmitCommand(UiCommand.Pause); }
-        private void Resume() { owner?.SubmitCommand(UiCommand.Resume); }
+        public bool TryCloseReferencePage()
+        { if(referencePages==null || !referencePages.IsOpen) return false; referencePages.Close(); return true; }
+        private void Pause() { if(referencePages!=null) referencePages.OpenSettings(); else owner?.SubmitCommand(UiCommand.Pause); }
+        private void Resume() { referencePages?.CloseSilently(); owner?.SubmitCommand(UiCommand.Resume); }
         private void Restart() { owner?.SubmitCommand(UiCommand.Restart); }
-        private void OnEnable() { if (owner != null) { AddListeners(); } }
-        private void OnDisable() { RemoveListeners(); }
+        private void UpdatePauseVisibility() { if(pausePanel!=null) pausePanel.SetActive(isPauseVisible && (referencePages==null || !referencePages.IsOpen)); }
+        private void OnEnable() { if (owner != null) { AddListeners(); } if(referencePages!=null) referencePages.VisibilityChanged+=UpdatePauseVisibility; }
+        private void OnDisable() { RemoveListeners(); if(referencePages!=null) referencePages.VisibilityChanged-=UpdatePauseVisibility; }
         private static string Count(int value) { return value < 0 ? "--" : value.ToString(); }
 
         private static RectTransform Panel(string name, Transform parent, Vector2 anchorMin,
