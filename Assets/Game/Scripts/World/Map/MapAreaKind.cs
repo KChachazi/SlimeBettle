@@ -5,6 +5,7 @@ namespace SlimeBattle.World
         Road = 0,
         Terrain = 1,
         Region = 2,
-        Placement = 3
+        Placement = 3,
+        Goal = 4
     }
 }

@@ -10,6 +10,13 @@ namespace SlimeBattle.World
         Hindrance = 5,
         Trap = 6,
         RandomEvent = 7,
-        FixedEvent = 8
+        FixedEvent = 8,
+        GuardSpawn = 9,
+        Supply = 10,
+        Tutorial = 11,
+        Fork = 12,
+        Merge = 13,
+        Goal = 14,
+        Mechanism = 15
     }
 }

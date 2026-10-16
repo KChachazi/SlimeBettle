@@ -22,8 +22,38 @@ namespace SlimeBattle.World
                 Snapshot = snapshot;
             }
 
+            public AreaBinding(MapAreaVolumeSnapshot volume)
+            {
+                Snapshot = volume.Area;
+                Center = volume.Center;
+                Radius = volume.Radius;
+                HasCircleVolume = true;
+            }
+
             public MapAreaAuthoring Authoring { get; }
             public MapAreaSnapshot Snapshot { get; }
+            private Vector2 Center { get; }
+            private float Radius { get; }
+            private bool HasCircleVolume { get; }
+
+            public bool Contains(Vector2 position)
+            {
+                if (HasCircleVolume) return (position - Center).sqrMagnitude <= Radius * Radius;
+                var collider = Authoring == null ? null : Authoring.AreaCollider;
+                return collider != null && collider.enabled &&
+                    collider.gameObject.activeInHierarchy && collider.OverlapPoint(position);
+            }
+
+            public bool TryGetCenter(out Vector2 center)
+            {
+                center = Center;
+                if (HasCircleVolume) return true;
+                var collider = Authoring == null ? null : Authoring.AreaCollider;
+                if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy)
+                    return false;
+                center = collider.bounds.center;
+                return true;
+            }
         }
 
         private readonly HashSet<Collider2D> movementBlockers = new HashSet<Collider2D>();
@@ -33,6 +63,8 @@ namespace SlimeBattle.World
             new Dictionary<MapPointId, MapPointSnapshot>();
         private readonly Dictionary<MapRouteId, MapRouteSnapshot> routes =
             new Dictionary<MapRouteId, MapRouteSnapshot>();
+        private readonly Dictionary<PlacementAnchorId, PlacementAnchorSnapshot> placementAnchors =
+            new Dictionary<PlacementAnchorId, PlacementAnchorSnapshot>();
         private readonly Dictionary<MapPointKind, List<MapPointSnapshot>> pointsByKind =
             new Dictionary<MapPointKind, List<MapPointSnapshot>>();
         private readonly Dictionary<ActorId, HashSet<MapAreaId>> actorAreas =
@@ -83,12 +115,7 @@ namespace SlimeBattle.World
             var speedMultiplier = 1f;
             foreach (var binding in areas.Values)
             {
-                var collider = binding.Authoring == null ? null : binding.Authoring.AreaCollider;
-                if (collider == null || !collider.enabled ||
-                    !collider.gameObject.activeInHierarchy || !collider.OverlapPoint(worldPosition))
-                {
-                    continue;
-                }
+                if (!binding.Contains(worldPosition)) continue;
 
                 found.Add(binding.Snapshot);
                 if (binding.Snapshot.Kind == MapAreaKind.Terrain)
@@ -173,6 +200,27 @@ namespace SlimeBattle.World
             return false;
         }
 
+        public bool TryGetPlacementAnchor(PlacementAnchorId anchorId,
+            out PlacementAnchorSnapshot anchor)
+        {
+            if (IsBound && anchorId.IsValid &&
+                placementAnchors.TryGetValue(anchorId, out anchor)) return true;
+
+            anchor = default(PlacementAnchorSnapshot);
+            return false;
+        }
+
+        public IReadOnlyList<PlacementAnchorSnapshot> GetPlacementAnchors()
+        {
+            if (!IsBound || placementAnchors.Count == 0)
+                return Array.Empty<PlacementAnchorSnapshot>();
+
+            var result = new List<PlacementAnchorSnapshot>(placementAnchors.Values);
+            result.Sort((left, right) => string.CompareOrdinal(
+                left.AnchorId.Value, right.AnchorId.Value));
+            return result.AsReadOnly();
+        }
+
         public IReadOnlyList<MapPointSnapshot> GetMapPoints(MapPointKind kind)
         {
             if (!IsBound || !pointsByKind.TryGetValue(kind, out var matches))
@@ -196,13 +244,7 @@ namespace SlimeBattle.World
             center = default(Vector2);
             if (!IsBound || !areaId.IsValid || !areas.TryGetValue(areaId, out var binding))
                 return false;
-
-            var collider = binding.Authoring == null ? null : binding.Authoring.AreaCollider;
-            if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy)
-                return false;
-
-            center = collider.bounds.center;
-            return true;
+            return binding.TryGetCenter(out center);
         }
 
         public bool RegisterMovementBlocker(Collider2D collider)
@@ -262,6 +304,7 @@ namespace SlimeBattle.World
             points.Clear();
             routes.Clear();
             pointsByKind.Clear();
+            placementAnchors.Clear();
             actorAreas.Clear();
             mapBounds = null;
             scene = default(Scene);
@@ -273,13 +316,8 @@ namespace SlimeBattle.World
             var result = new HashSet<MapAreaId>();
             foreach (var pair in areas)
             {
-                var collider = pair.Value.Authoring == null
-                    ? null : pair.Value.Authoring.AreaCollider;
-                if (collider != null && collider.enabled &&
-                    collider.gameObject.activeInHierarchy && collider.OverlapPoint(position))
-                {
+                if (pair.Value.Contains(position))
                     result.Add(pair.Key);
-                }
             }
 
             return result;
@@ -292,6 +330,7 @@ namespace SlimeBattle.World
             scene = activeScene;
             MapBoundsAuthoring foundBounds = null;
             var routeAuthorings = new List<MapRouteAuthoring>();
+            var layoutAuthorings = new List<MapLayoutAuthoring>();
             foreach (var root in scene.GetRootGameObjects())
             {
                 foreach (var authoring in root.GetComponentsInChildren<MapBoundsAuthoring>(true))
@@ -354,6 +393,29 @@ namespace SlimeBattle.World
                         routeAuthorings.Add(authoring);
                 }
 
+                foreach (var authoring in root.GetComponentsInChildren<MapLayoutAuthoring>(true))
+                {
+                    if (IsSceneAuthoring(authoring) && authoring.isActiveAndEnabled)
+                        layoutAuthorings.Add(authoring);
+                }
+
+                foreach (var authoring in root.GetComponentsInChildren<PlacementAnchorAuthoring>(true))
+                {
+                    if (!IsSceneAuthoring(authoring) || !authoring.isActiveAndEnabled) continue;
+                    if (!authoring.TryGetSnapshot(out var snapshot, out var error))
+                    {
+                        Debug.LogError($"Invalid placement anchor on '{authoring.name}': {error}", authoring);
+                        continue;
+                    }
+                    if (placementAnchors.ContainsKey(snapshot.AnchorId))
+                    {
+                        Debug.LogError($"Duplicate placement anchor ID '{snapshot.AnchorId}' in scene '{scene.name}'.",
+                            authoring);
+                        continue;
+                    }
+                    placementAnchors.Add(snapshot.AnchorId, snapshot);
+                }
+
                 foreach (var collider in root.GetComponentsInChildren<Collider2D>(true))
                 {
                     if (IsSolidStaticCollider(collider)) movementBlockers.Add(collider);
@@ -364,6 +426,28 @@ namespace SlimeBattle.World
             {
                 if (foundBounds.TryGetWorldBounds(out var bounds)) mapBounds = bounds;
                 else Debug.LogError($"MapBoundsAuthoring on '{foundBounds.name}' has invalid size.", foundBounds);
+            }
+
+            if (layoutAuthorings.Count > 1)
+                Debug.LogError($"Scene '{scene.name}' contains more than one MapLayoutAuthoring.");
+            if (layoutAuthorings.Count > 0)
+            {
+                var layoutAuthoring = layoutAuthorings[0];
+                if (foundBounds != null)
+                {
+                    Debug.LogError("A scene cannot combine MapLayoutAuthoring and MapBoundsAuthoring; " +
+                        "the offline layout supplies its own bounds.", layoutAuthoring);
+                }
+                else if (layoutAuthoring.TryGetSnapshot(out var layout, out var layoutError))
+                {
+                    mapBounds = layout.Bounds;
+                    BindLayoutAreas(layout.Areas, layoutAuthoring);
+                    BindLayoutPoints(layout.Points, layoutAuthoring);
+                    BindLayoutRoutes(layout.Routes, layoutAuthoring);
+                    BindLayoutAnchors(layout.Anchors, layoutAuthoring);
+                }
+                else Debug.LogError($"Invalid map layout on '{layoutAuthoring.name}': {layoutError}",
+                    layoutAuthoring);
             }
 
             foreach (var authoring in routeAuthorings)
@@ -391,6 +475,124 @@ namespace SlimeBattle.World
             foreach (var group in pointsByKind.Values)
                 group.Sort((left, right) => string.CompareOrdinal(
                     left.PointId.Value, right.PointId.Value));
+            ValidateMapReferences();
+        }
+
+        private void BindLayoutAreas(IReadOnlyList<MapAreaVolumeSnapshot> layoutAreas,
+            MapLayoutAuthoring source)
+        {
+            foreach (var volume in layoutAreas)
+            {
+                var id = volume.Area.AreaId;
+                if (areas.ContainsKey(id))
+                {
+                    Debug.LogError($"Duplicate map area ID '{id}' in scene '{scene.name}'.", source);
+                    continue;
+                }
+                areas.Add(id, new AreaBinding(volume));
+            }
+        }
+
+        private void BindLayoutPoints(IReadOnlyList<MapPointSnapshot> layoutPoints,
+            MapLayoutAuthoring source)
+        {
+            foreach (var point in layoutPoints)
+            {
+                if (points.ContainsKey(point.PointId))
+                {
+                    Debug.LogError($"Duplicate map point ID '{point.PointId}' in scene '{scene.name}'.", source);
+                    continue;
+                }
+                points.Add(point.PointId, point);
+                if (!pointsByKind.TryGetValue(point.Kind, out var group))
+                {
+                    group = new List<MapPointSnapshot>();
+                    pointsByKind.Add(point.Kind, group);
+                }
+                group.Add(point);
+            }
+        }
+
+        private void BindLayoutRoutes(IReadOnlyList<MapRouteSnapshot> layoutRoutes,
+            MapLayoutAuthoring source)
+        {
+            foreach (var route in layoutRoutes)
+            {
+                if (mapBounds.HasValue && HasPointOutsideBounds(route, mapBounds.Value))
+                {
+                    Debug.LogError($"Map route '{route.RouteId}' contains a waypoint outside the map bounds.",
+                        source);
+                    continue;
+                }
+                if (routes.ContainsKey(route.RouteId))
+                    Debug.LogError($"Duplicate map route ID '{route.RouteId}' in scene '{scene.name}'.",
+                        source);
+                else routes.Add(route.RouteId, route);
+            }
+        }
+
+        private void BindLayoutAnchors(
+            IReadOnlyList<PlacementAnchorSnapshot> layoutAnchors, MapLayoutAuthoring source)
+        {
+            foreach (var anchor in layoutAnchors)
+            {
+                if (placementAnchors.ContainsKey(anchor.AnchorId))
+                    Debug.LogError($"Duplicate placement anchor ID '{anchor.AnchorId}' in scene '{scene.name}'.",
+                        source);
+                else placementAnchors.Add(anchor.AnchorId, anchor);
+            }
+        }
+
+        private void ValidateMapReferences()
+        {
+            var waypointIds = new HashSet<MapRouteWaypointId>();
+            foreach (var route in routes.Values)
+            {
+                foreach (var waypoint in route.Waypoints)
+                    if (!waypointIds.Add(waypoint.WaypointId))
+                        Debug.LogError($"Map route '{route.RouteId}' reuses route waypoint ID " +
+                            $"'{waypoint.WaypointId}' used by another route.");
+
+                if (route.Role == MapRouteRole.Branch &&
+                    (!points.TryGetValue(route.MergePointId, out var merge) ||
+                     merge.Kind != MapPointKind.Merge))
+                    Debug.LogError($"Route '{route.RouteId}' references a missing or non-merge point '" +
+                        route.MergePointId + "'.");
+                else if (route.Role == MapRouteRole.Branch &&
+                    points.TryGetValue(route.MergePointId, out var mergePoint))
+                {
+                    if ((route.EndWaypoint.Position - mergePoint.Position).sqrMagnitude > 0.000001f)
+                        Debug.LogError($"Route '{route.RouteId}' does not end at its merge point " +
+                            $"'{route.MergePointId}'.");
+
+                    var joinsSharedMain = routes.Values.Any(candidate =>
+                        candidate.Role == MapRouteRole.Main &&
+                        candidate.Waypoints.Any(waypoint =>
+                            (waypoint.Position - mergePoint.Position).sqrMagnitude <= 0.000001f));
+                    if (!joinsSharedMain)
+                        Debug.LogError($"Route '{route.RouteId}' merge point '{route.MergePointId}' " +
+                            "is not represented on a shared main route.");
+                }
+
+                foreach (var anchorId in route.BlockingAnchorIds)
+                    if (!placementAnchors.ContainsKey(anchorId))
+                        Debug.LogError($"Route '{route.RouteId}' references missing anchor '{anchorId}'.");
+                foreach (var pointId in route.RelatedPointIds)
+                    if (!points.ContainsKey(pointId))
+                        Debug.LogError($"Route '{route.RouteId}' references missing point '{pointId}'.");
+            }
+
+            foreach (var anchor in placementAnchors.Values)
+            {
+                if (anchor.Role == PlacementAnchorRole.RouteBlock &&
+                    !routes.ContainsKey(anchor.AssociatedRouteId))
+                    Debug.LogError($"Anchor '{anchor.AnchorId}' references missing route '" +
+                        anchor.AssociatedRouteId + "'.");
+                if (anchor.Role != PlacementAnchorRole.RouteBlock &&
+                    !points.ContainsKey(anchor.AssociatedPointId))
+                    Debug.LogError($"Anchor '{anchor.AnchorId}' references missing point '" +
+                        anchor.AssociatedPointId + "'.");
+            }
         }
 
         private bool IsSceneAuthoring(Component component)
