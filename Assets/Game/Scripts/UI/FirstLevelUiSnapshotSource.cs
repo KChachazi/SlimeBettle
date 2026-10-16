@@ -44,7 +44,17 @@ namespace SlimeBattle.UI
             return new UiState(context.GetLevelId(), context.GetLevelState(), "Guide at least 6 slimes into the goal cave.",
                 slimes != null ? slimes.GetAliveSnapshots().Count : -1,
                 enemies != null ? enemies.GetAliveSnapshots().Count : -1, hint,
-                status.ResultText, limit, status.WeaponText, status.GoalText, status.WaitingText, status.RouteHint);
+                status.ResultText, limit, status.WeaponText, status.GoalText, status.WaitingText,
+                !string.IsNullOrEmpty(status.RouteHint) ? status.RouteHint : ReadAnchorHint());
+        }
+
+        private string ReadAnchorHint()
+        {
+            var anchor = placement?.GetCurrentPreview().Anchor;
+            if (!anchor.HasValue) { return string.Empty; }
+            var value = anchor.Value;
+            return "吸附点 " + value.AnchorId.Value + (value.AssociatedRouteId.IsValid ?
+                " · 关联路线 " + value.AssociatedRouteId.Value : " · 关联点位 " + value.AssociatedPointId.Value);
         }
     }
 }

@@ -42,6 +42,32 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Button("CancelButton").onClick.Invoke(); yield return null;
             Assert.That(fixture.Placement.IsPlacing,Is.False); Assert.That(fixture.GridView.IsVisible,Is.False);
         }
+        [UnityTest] public IEnumerator AnchorViewsSnapToExactMapPositionAndClearOnCancelAndPause()
+        {
+            Button("ObstacleButton").onClick.Invoke(); yield return null;
+            Assert.That(fixture.GridView.VisibleAnchorCount,Is.EqualTo(2));
+            fixture.Placement.PreviewPlacement(new Vector3(-3f,1.8f));
+            var preview=fixture.Placement.GetCurrentPreview();
+            Assert.That(preview.Status,Is.EqualTo(PlacementValidationStatus.AnchorFree));
+            Assert.That(preview.WorldCenter,Is.EqualTo(new Vector3(-3.2f,1.7f)));
+            var visual=GameObject.Find("PlacementAnchor_L1");
+            Assert.That(visual.transform.position,Is.EqualTo(preview.WorldCenter));
+            Assert.That(fixture.Placement.ConfirmPlacement().Succeeded,Is.True);
+            yield return null;
+            Assert.That(fixture.GridView.VisibleAnchorCount,Is.Zero);
+            Button("ObstacleButton").onClick.Invoke(); fixture.Placement.PreviewPlacement(new Vector3(-3f,1.8f));
+            Assert.That(fixture.Placement.GetCurrentPreview().Status,Is.EqualTo(PlacementValidationStatus.ReplacementUnavailable));
+            Assert.That(fixture.Placement.ConfirmPlacement().Succeeded,Is.False);
+            Assert.That(fixture.Backend.ReadPlacedObjects().Count,Is.EqualTo(1));
+            fixture.SetPhase(LevelState.Paused); yield return null;
+            Assert.That(fixture.GridView.VisibleAnchorCount,Is.Zero);
+            Assert.That(GameObject.Find("PlacementAnchor_L1"),Is.Null);
+            fixture.Restart(); Button("FoodButton").onClick.Invoke();
+            fixture.Placement.PreviewPlacement(new Vector3(-3f,1.8f));
+            Assert.That(fixture.Placement.GetCurrentPreview().Status,Is.EqualTo(PlacementValidationStatus.TypeMismatch));
+            Button("CancelButton").onClick.Invoke(); yield return null;
+            Assert.That(fixture.GridView.VisibleAnchorCount,Is.Zero);
+        }
         [UnityTest] public IEnumerator RebindingAndReenablingDoNotDuplicateListeners()
         {
             fixture.Selection.Initialize(fixture.Placement); fixture.Selection.Initialize(fixture.Placement);
@@ -88,6 +114,33 @@ namespace SlimeBattle.Tests.PlayerPresentation
             fixture.SetPhase(LevelState.Paused); Canvas.ForceUpdateCanvases(); yield return null; hits.Clear();
             EventSystem.current.RaycastAll(pointer,hits);
             Assert.That(hits.Any(h=>h.module is GraphicRaycaster),Is.True,"Modal must block the same map point.");
+        }
+        [UnityTest] public IEnumerator ReferencePagesPauseAndReturnWithoutPlacingOrResumingAnExistingPause()
+        {
+            var pages=fixture.Hud.GetComponent<ReferenceUiView>();
+            foreach(var entry in new[]{("BagButton","BagBackButton",ReferenceUiView.Page.Bag),
+                ("CatalogButton","CatalogBackButton",ReferenceUiView.Page.Catalog)})
+            {
+                Button("FoodButton").onClick.Invoke();
+                Button(entry.Item1).onClick.Invoke(); yield return null;
+                Assert.That(pages.CurrentPage,Is.EqualTo(entry.Item3));
+                Assert.That(fixture.Phase,Is.EqualTo(LevelState.Paused));
+                Assert.That(fixture.Placement.IsPlacing,Is.False);
+                Assert.That(fixture.Backend.Requests,Is.Zero);
+                var hits=new List<RaycastResult>();
+                EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current) { position=new Vector2(Screen.width*0.5f,Screen.height*0.5f) },hits);
+                Assert.That(hits.Any(h=>h.module is GraphicRaycaster),Is.True);
+                Button(entry.Item2).onClick.Invoke(); yield return null;
+                Assert.That(pages.IsOpen,Is.False);
+                Assert.That(fixture.Phase,Is.EqualTo(LevelState.Running));
+            }
+            fixture.SetPhase(LevelState.Paused); pages.OpenSettings();
+            pages.OpenVolume(); pages.BackToSettings(); pages.Close(); yield return null;
+            Assert.That(fixture.Phase,Is.EqualTo(LevelState.Paused),"Closing settings must preserve a preexisting pause.");
+            fixture.SetPhase(LevelState.Succeeded); yield return null;
+            Assert.That(pages.IsOpen,Is.False,"An authoritative result must clear auxiliary pages.");
+            pages.OpenBag();
+            Assert.That(pages.IsOpen,Is.False,"Auxiliary pages must not cover a result or loading transition.");
         }
     }
 }

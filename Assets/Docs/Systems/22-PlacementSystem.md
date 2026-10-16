@@ -1,13 +1,15 @@
 # 22 PlacementSystem 放置系统设计
 
-系统编号：`PLAYER-02`  
-系统名称：`PlacementSystem`  
-默认命名空间：`SlimeBattle.Player.Placement`  
-建议实现目录：`Assets/Game/Scripts/Player/`  
-生命周期：当前关卡上下文生命周期  
+系统编号：`PLAYER-02`
+系统名称：`PlacementSystem`
+默认命名空间：`SlimeBattle.Player.Placement`
+建议实现目录：`Assets/Game/Scripts/Player/`
+生命周期：当前关卡上下文生命周期
 状态：首关采用 Grid + Snap Anchor + 独立网格可视化；普通格子/Anchor 替换边界已确认，交互与资源规则仍待联调
 
 协作边界：`MechanismSystem` 是 Map 领域下辖子模块，由小智维护；本系统只通过其公开放置、替换、回收和快照接口协作，不访问机关内部状态。
+
+2026-10-16 实现状态：已消费现有 MapManager 的 Anchor 只读快照，支持像素比例换算、最近点吸附、类型限制、独立标记和确认复核；点击地图即提交。`PlacementPreview.Anchor` / `PlacementRequest.AnchorId` 保留原地图身份。当前没有公开的安全替换事务，因此已占用 Anchor 区分配置禁止替换与安全替换未接入，两者均拒绝并保留旧对象。下文的替换职责仍是目标设计，不能视为已实现。接口兼容细节见小宸实现与接入通知及全局 API 表 2026-10-16 补充。
 
 ## 1. 职责
 

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-16",
+  "unityVersion": "2022.3.62f2c1",
+  "originMaster": "21a0409",
+  "mergeCommit": "50fd34a",
+  "visualDirection": "User reference compositions with full-color forest, cream paper, cocoa and olive panels, gold selection, bundled handwriting font.",
+  "compilation": { "success": true },
+  "editMode": { "passed": 33, "failed": 0, "skipped": 0, "evidence": "ReferenceUI/EditMode.xml" },
+  "playMode": { "passed": 5, "failed": 0, "skipped": 0, "evidence": "ReferenceUI/PlayMode.xml" },
+  "verified": [
+    "Prefab references, Chinese font coverage, unknown data and authoritative result display",
+    "Existing placement selection, cancellation, listener rebinding and fixture restart cleanup",
+    "Auxiliary pages pause the running fixture, block map raycasts, cancel placement and resume on close",
+    "Closing a page opened while already paused does not resume the level",
+    "Auxiliary pages cannot cover a result or loading transition",
+    "Unavailable levels cannot be launched by the selection button",
+    "Unity-rendered layout review: gameplay, placement, pause, results, bag, catalog, settings, subpages, main menu and level selection"
+  ],
+  "layoutSizes": ["1280x720", "1024x768", "1920x1080", "1920x820"],
+  "previews": [
+    "FirstLevelUI.png",
+    "FirstLevelUI-Placement.png",
+    "ReferenceUI/MainMenu.png",
+    "ReferenceUI/Levels.png",
+    "ReferenceUI/LevelSelected.png",
+    "ReferenceUI/Bag.png",
+    "ReferenceUI/Catalog.png",
+    "ReferenceUI/Settings.png",
+    "ReferenceUI/Pause.png"
+  ],
+  "scope": {
+    "mainMenuSceneUpdated": true,
+    "buildSettingsChanged": false,
+    "sharedGameplayRulesChanged": false,
+    "generatedGrayscaleDraftUsed": false
+  },
+  "limitations": [
+    "PlayMode uses TEST_ONLY fixture counts, mechanisms and results; production level lifecycle and objective integration are not established by these tests.",
+    "Bag and save slots are presentation-only; there is no inventory or gameplay save data source.",
+    "Continue and unavailable levels are disabled, and no completion markers are fabricated.",
+    "Remove only explains that the feature is unavailable; no mechanism is destroyed.",
+    "Modal blur uses the existing forest illustration rather than a live scene capture.",
+    "Android touch input and device safe areas require device validation."
+  ]
+}

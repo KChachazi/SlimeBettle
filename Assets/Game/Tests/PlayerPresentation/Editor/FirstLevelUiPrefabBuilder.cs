@@ -27,12 +27,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         public const string ForestPath = "Assets/Game/UI/Art/ForestClearing-v1.png";
         public const string CaptureFolder = "UserSettings/CodexVisualPolish";
         public const string ScenePath = "Assets/Game/Tests/PlayerPresentation/Test_FirstLevelUI.unity";
-        private static Font font;
-        private static readonly Color Paper = new Color(0.98f, 0.945f, 0.82f);
-        private static readonly Color Ink = new Color(0.28f, 0.23f, 0.15f);
-        private static readonly Color Muted = new Color(0.47f, 0.43f, 0.31f);
-        private static readonly Color Green = new Color(0.80f, 0.85f, 0.55f);
-        private static readonly Color Wood = new Color(0.43f, 0.32f, 0.22f);
+
 
         [MenuItem("SlimeBattle/UI/Rebuild First Level Prefabs")]
         public static void Build()
@@ -40,7 +35,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             if (EditorApplication.isPlayingOrWillChangePlaymode) { throw new InvalidOperationException("Exit Play Mode before authoring prefabs."); }
             System.IO.Directory.CreateDirectory(Folder);
             ImportArt();
-            font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Game/UI/Fonts/NotoSansCJKsc-Regular.otf");
+            var font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Game/UI/Fonts/NotoSansCJKsc-Regular.otf");
             if (font == null) { throw new InvalidOperationException("Import the bundled Noto Chinese font first."); }
             var selection = BuildSelection();
             PrefabUtility.SaveAsPrefabAsset(selection.gameObject, SelectionPath);
@@ -50,104 +45,13 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             UnityEngine.Object.DestroyImmediate(hud.gameObject);
             BuildPlayer();
             BuildScenery();
+            ReferenceUiPrefabBuilder.BuildMainMenu();
             AssetDatabase.SaveAssets();
             Debug.Log("First-level UI prefabs authored successfully.");
         }
 
-        private static PlacementSelectionView BuildSelection()
-        {
-            var canvas = CanvasRoot("PF_FirstLevelPlacementSelection", 21);
-            var view = canvas.gameObject.AddComponent<PlacementSelectionView>();
-            var safe = Safe(canvas);
-            var panel = Rect("PlacementPanel", safe); Stretch(panel);
-            var sidebar = Panel("Sidebar", panel, new Vector2(1,0.5f), new Vector2(-128,10), new Vector2(222,434), Wood);
-            sidebar.GetComponent<StorybookSurface>().Surface=StorybookSurface.SurfaceKind.Wood;
-            var header=Panel("ToolHeader",sidebar,Vector2.one*0.5f,new Vector2(0,178),new Vector2(183,45),Paper);
-            header.localRotation=Quaternion.Euler(0,0,-1.4f);
-            Label("Heading", header, "布 置 环 境", Vector2.zero, new Vector2(165,32), 22, Ink);
-            var food = MechanismButton(sidebar, "Food", "食物", "用香气引导小伙伴", 105, FirstLevelUiIcon.IconKind.Food);
-            var furnace = MechanismButton(sidebar, "Furnace", "熔炉", "点亮一处温暖", 3, FirstLevelUiIcon.IconKind.Furnace);
-            var obstacle = MechanismButton(sidebar, "Obstacle", "障碍", "为旅途换一个方向", -99, FirstLevelUiIcon.IconKind.Obstacle);
-            var cancel = Button("CancelButton", sidebar, "取消放置", new Vector2(0,-178), new Vector2(176,42), new Color(0.88f,0.85f,0.70f));
-            var budgetCard=Panel("BudgetCard",sidebar,Vector2.one*0.5f,new Vector2(0,-238),new Vector2(212,28),Paper);
-            var budget = Label("Budget", budgetCard, "放置配额未接入", Vector2.zero, new Vector2(194,22), 12, Muted);
-            var hintCard = Panel("PlacementHint", panel, new Vector2(0.5f,0), new Vector2(60,61), new Vector2(490,72), Paper);
-            var hint = Label("Hint", hintCard, "选择右侧机关，再点击地图放置", new Vector2(0,10), new Vector2(450,30), 18, Ink);
-            Label("Gesture", hintCard, "选择机关  ·  点击地图放下  ·  取消退出", new Vector2(0,-18), new Vector2(450,22), 13, Muted);
-            Set(view, "panel", panel.gameObject); Set(view, "hint", hint); Set(view, "budget", budget);
-            Set(view, "food", food); Set(view, "furnace", furnace); Set(view, "obstacle", obstacle); Set(view, "cancel", cancel);
-            Set(view,"foodSelected",food.transform.Find("Selected").gameObject);
-            Set(view,"furnaceSelected",furnace.transform.Find("Selected").gameObject);
-            Set(view,"obstacleSelected",obstacle.transform.Find("Selected").gameObject);
-            SetBool(view, "useChineseLabels", true);
-            return view;
-        }
-
-        private static BattleHudView BuildHud()
-        {
-            var canvas = CanvasRoot("PF_FirstLevelHUD", 20);
-            var view = canvas.gameObject.AddComponent<BattleHudView>();
-            var safe = Safe(canvas);
-            var hud = Rect("HUD", safe);
-            Stretch(hud);
-            var pause = Button("PauseButton", hud, "", new Vector2(57,-57), new Vector2(62,64), Paper);
-            Anchor(pause.transform, new Vector2(0,1));
-            Icon(pause.transform, FirstLevelUiIcon.IconKind.Pause, Vector2.zero, new Vector2(26,26));
-            var titleCard=Panel("ChapterCard",hud,new Vector2(0,1),new Vector2(232,-58),new Vector2(268,66),Paper);
-            titleCard.localRotation=Quaternion.Euler(0,0,0.7f);
-            var chapter = Label("Chapter", titleCard, "第一关 · 林间归途", new Vector2(0,9), new Vector2(240,32), 24, Ink);
-            Label("Tagline", titleCard, "观 察  ·  布 置  ·  引 导", new Vector2(0,-18), new Vector2(240,22), 12, Muted);
-            var countCard = Panel("SlimeCounter", hud, new Vector2(1,1), new Vector2(-172,-59), new Vector2(296,76), Paper);
-            Icon(countCard, FirstLevelUiIcon.IconKind.Slime, new Vector2(-117,3), new Vector2(78,78));
-            Label("CounterHeading",countCard,"同行的小伙伴",new Vector2(30,20),new Vector2(202,22),12,Muted);
-            var counts = Label("Counts", countCard, "史莱姆  -- / --", new Vector2(30,-7), new Vector2(210,36), 24, Ink);
-            var mission = Panel("MissionCard", hud, new Vector2(0,0), new Vector2(191,111), new Vector2(334,174), Paper);
-            var missionHeading=Panel("MissionHeading",mission,Vector2.one*0.5f,new Vector2(-83,66),new Vector2(116,27),Green);
-            Label("MissionTitle",missionHeading,"本 关 目 标",Vector2.zero,new Vector2(106,23),13,Ink);
-            var objective = Label("Objective", mission, "引导至少 6 只史莱姆进入终点洞穴", new Vector2(0,28), new Vector2(300,40), 16, Ink);
-            var goal = Label("Goal", mission, "到达洞穴  -- / 6 · 未接入", new Vector2(0,-9), new Vector2(300,27), 19, Ink);
-            var waiting = Label("WaitingWindow", mission, "等待窗口  -- · 未接入", new Vector2(0,-39), new Vector2(300,24), 14, Muted);
-            var route = Label("RouteHint", mission, "路线 / Anchor 提示未接入", new Vector2(0,-64), new Vector2(300,20), 12, Muted);
-            var weapon = Label("LegacyWeapon", hud, "", new Vector2(0,-122), new Vector2(600,34), 15, Paper);
-            Anchor(weapon.transform, new Vector2(0.5f,1)); weapon.gameObject.SetActive(false);
-            var hint = Label("FlowHint", hud, "等待关卡数据接入", new Vector2(70,110), new Vector2(500,36), 15, Paper);
-            Anchor(hint.transform, new Vector2(0.5f,0));
-
-            var pausePanel = Modal("PausePanel", canvas);
-            var pauseCard = Panel("Card", pausePanel.transform, Vector2.one*0.5f, Vector2.zero, new Vector2(486,424), Paper);
-            Icon(pauseCard, FirstLevelUiIcon.IconKind.Slime, new Vector2(0,126), new Vector2(116,110));
-            Label("Heading", pauseCard, "歇一会儿", new Vector2(0,50), new Vector2(400,48), 34, Ink);
-            Label("Description", pauseCard, "林间的风很轻，小伙伴们在等你", new Vector2(0,4), new Vector2(410,30), 16, Muted);
-            var resume = Button("ResumeButton", pauseCard, "继续冒险", new Vector2(0,-65), new Vector2(304,58), Green);
-            var pauseRestart = Button("RestartButton", pauseCard, "重新开始", new Vector2(0,-135), new Vector2(304,48), new Color(0.90f,0.86f,0.72f));
-
-            var resultPanel = Modal("ResultPanel", canvas);
-            var resultCard = Panel("Card", resultPanel.transform, Vector2.one*0.5f, Vector2.zero, new Vector2(566,486), Paper);
-            Icon(resultCard, FirstLevelUiIcon.IconKind.Slime, new Vector2(0,167), new Vector2(120,112));
-            var result = Label("Result", resultCard, "", new Vector2(0,89), new Vector2(500,48), 34, Ink);
-            var detailViewport = Rect("ResultReasonViewport",resultCard); detailViewport.anchoredPosition=new Vector2(0,16);
-            detailViewport.sizeDelta=new Vector2(500,76); detailViewport.gameObject.AddComponent<RectMask2D>();
-            detailViewport.gameObject.AddComponent<Image>().color=Color.clear;
-            var resultDetail=Label("ResultDetail",detailViewport,"",Vector2.zero,new Vector2(480,76),17,Muted);
-            resultDetail.resizeTextForBestFit=false;
-            resultDetail.rectTransform.anchorMin=new Vector2(0,1); resultDetail.rectTransform.anchorMax=new Vector2(1,1);
-            resultDetail.rectTransform.pivot=new Vector2(0.5f,1); resultDetail.rectTransform.sizeDelta=new Vector2(-16,76);
-            resultDetail.alignment=TextAnchor.UpperCenter;
-            var fitter=resultDetail.gameObject.AddComponent<ContentSizeFitter>(); fitter.verticalFit=ContentSizeFitter.FitMode.PreferredSize;
-            var scroll=detailViewport.gameObject.AddComponent<ScrollRect>(); scroll.viewport=detailViewport;
-            scroll.content=resultDetail.rectTransform; scroll.horizontal=false; scroll.vertical=true; scroll.scrollSensitivity=24;
-            scroll.movementType=ScrollRect.MovementType.Clamped;
-            var resultCounts = Label("ResultCounts", resultCard, "", new Vector2(0,-60), new Vector2(500,70), 18, Muted);
-            var resultRestart = Button("RestartButton", resultCard, "再来一次", new Vector2(0,-156), new Vector2(300,56), Green);
-            Set(view,"hudPanel",hud.gameObject); Set(view,"pausePanel",pausePanel); Set(view,"resultPanel",resultPanel);
-            Set(view,"objectiveText",objective); Set(view,"countsText",counts); Set(view,"weaponText",weapon); Set(view,"hintText",hint);
-            Set(view,"goalText",goal); Set(view,"waitingText",waiting); Set(view,"routeHintText",route); Set(view,"resultCountsText",resultCounts);
-            Set(view,"resultText",result); Set(view,"resultDetailText",resultDetail); Set(view,"pauseButton",pause); Set(view,"resumeButton",resume);
-            Set(view,"pauseRestartButton",pauseRestart); Set(view,"resultRestartButton",resultRestart); SetBool(view,"useChineseLabels",true);
-            pausePanel.SetActive(false); resultPanel.SetActive(false);
-            return view;
-        }
-
+        private static PlacementSelectionView BuildSelection() => ReferenceUiPrefabBuilder.BuildSelection();
+        private static BattleHudView BuildHud() => ReferenceUiPrefabBuilder.BuildHud();
         private static void BuildPlayer()
         {
             var root = new GameObject("PF_FirstLevelPlayer");
@@ -167,6 +71,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             Set(player,"cameraSystem",cameraObject.GetComponent<CameraSystem>()); Set(player,"hudView",hud.GetComponent<BattleHudView>());
             SetBool(player,"createDefaultHud",false);
             Set(first,"cameraSystem",cameraObject.GetComponent<CameraSystem>()); Set(first,"grid",gridObject.GetComponent<PlacementGridAuthoring>());
+            Set(first,"anchorMapDefinition",AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset"));
             Set(first,"placementBackend",backend); Set(first,"statusSnapshotSource",status);
             Set(first,"selectionInstance",selection.GetComponent<PlacementSelectionView>());
             PrefabUtility.SaveAsPrefabAsset(root,PlayerPath);
@@ -179,6 +84,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var forest=(TextureImporter)AssetImporter.GetAtPath(ForestPath);
             forest.textureType=TextureImporterType.Sprite; forest.spriteImportMode=SpriteImportMode.Single;
             forest.spritePixelsPerUnit=100; forest.mipmapEnabled=false; forest.maxTextureSize=2048;
+            forest.filterMode=FilterMode.Bilinear;
             forest.textureCompression=TextureImporterCompression.Uncompressed; forest.SaveAndReimport();
             AssetDatabase.ImportAsset(AtlasPath,ImportAssetOptions.ForceSynchronousImport);
             var atlas=(TextureImporter)AssetImporter.GetAtPath(AtlasPath);
@@ -240,6 +146,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         public static void PreparePolishedPreview()
         { CreateTestScene(); CaptureLayouts(); }
 
+        [MenuItem("SlimeBattle/UI/Open Reference UI Preview")]
         public static void OpenPolishedPreview()
         {
             EditorSceneManager.OpenScene(ScenePath);
@@ -268,7 +175,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             backend.RequestPlacement(new PlacementRequest(PlacementItemId.Food,new Vector3Int(-2,0,0),new Vector3(-1.5f,0.5f,0)));
             backend.RequestPlacement(new PlacementRequest(PlacementItemId.Furnace,new Vector3Int(2,1,0),new Vector3(2.5f,1.5f,0)));
             backend.RequestPlacement(new PlacementRequest(PlacementItemId.Obstacle,new Vector3Int(0,-2,0),new Vector3(0.5f,-1.5f,0)));
-            var placement=new PlacementSystem(grid,()=>new MapBounds(new Vector2(-7,-4),new Vector2(7,4)),()=>phase,backend,PlacementConfirmationMode.Single);
+            var placement=new PlacementSystem(grid,()=>new MapBounds(new Vector2(-7,-4),new Vector2(7,4)),()=>phase,backend,PlacementConfirmationMode.Single,
+                FirstLevelUiFixture.CreateAnchorExamples,100f);
             var gridView=owner.AddComponent<PlacementGridView>(); StyleGrid(gridView); gridView.Initialize(placement,grid); selection.Initialize(placement);
             var cameraObject=new GameObject("TEST_ONLY_CaptureCamera",typeof(Camera)); cameraObject.transform.SetParent(owner.transform);
             cameraObject.transform.position=new Vector3(0,0,-10); var camera=cameraObject.GetComponent<Camera>();
@@ -295,6 +203,10 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                         state==LevelState.Paused,state!=LevelState.Paused,false);
                     Capture(camera,new Vector2Int(1280,720),CaptureFolder+"/UI-"+state+".png");
                 }
+                phase=LevelState.Running; placement.BeginPlacement(PlacementItemId.Obstacle);
+                placement.PreviewPlacement(new Vector3(-3f,1.8f));
+                hud.Render(new UiState(default,phase,"TEST_ONLY · Anchor 布局验证",12,slimeLimit:20),true,false,false,false);
+                Capture(camera,new Vector2Int(1280,720),CaptureFolder+"/UI-Anchor.png");
             }
             finally
             {
@@ -325,79 +237,6 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             }
         }
 
-        private static RectTransform CanvasRoot(string name, int order)
-        {
-            var root = new GameObject(name,typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));
-            root.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay; root.GetComponent<Canvas>().sortingOrder = order;
-            var scaler = root.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280,720); scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
-            return (RectTransform)root.transform;
-        }
-        private static RectTransform Safe(Transform parent)
-        { var safe = Rect("SafeArea",parent); Stretch(safe); safe.gameObject.AddComponent<UiSafeArea>(); return safe; }
-        private static RectTransform Rect(string name,Transform parent)
-        { var go=new GameObject(name,typeof(RectTransform)); go.transform.SetParent(parent,false); return (RectTransform)go.transform; }
-        private static void Stretch(RectTransform rect)
-        { rect.anchorMin=Vector2.zero; rect.anchorMax=Vector2.one; rect.offsetMin=rect.offsetMax=Vector2.zero; }
-        private static void Anchor(Transform item,Vector2 anchor)
-        { var rect=(RectTransform)item; rect.anchorMin=rect.anchorMax=anchor; }
-        private static RectTransform Panel(string name,Transform parent,Vector2 anchor,Vector2 position,Vector2 size,Color color)
-        {
-            var rect=Rect(name,parent); rect.anchorMin=rect.anchorMax=anchor; rect.anchoredPosition=position; rect.sizeDelta=size;
-            var image=rect.gameObject.AddComponent<StorybookSurface>(); image.color=color;
-            return rect;
-        }
-        private static Text Label(string name,Transform parent,string content,Vector2 position,Vector2 size,int fontSize,Color color)
-        {
-            var rect=Rect(name,parent); rect.anchorMin=rect.anchorMax=Vector2.one*0.5f; rect.anchoredPosition=position; rect.sizeDelta=size;
-            var text=rect.gameObject.AddComponent<Text>(); text.font=font; text.text=content; text.fontSize=fontSize; text.color=color;
-            text.alignment=TextAnchor.MiddleCenter; text.raycastTarget=false; text.supportRichText=false;
-            text.horizontalOverflow=HorizontalWrapMode.Wrap; text.verticalOverflow=VerticalWrapMode.Truncate;
-            text.resizeTextForBestFit=true; text.resizeTextMinSize=Mathf.Min(fontSize,Mathf.Max(10,fontSize-4)); text.resizeTextMaxSize=fontSize;
-            return text;
-        }
-        private static Button Button(string name,Transform parent,string label,Vector2 position,Vector2 size,Color color)
-        {
-            var rect=Panel(name,parent,Vector2.one*0.5f,position,size,color);
-            var button=rect.gameObject.AddComponent<Button>(); button.targetGraphic=rect.GetComponent<Image>();
-            var colors=button.colors; colors.highlightedColor=new Color(0.94f,1f,0.88f); colors.pressedColor=new Color(0.78f,0.88f,0.70f);
-            colors.disabledColor=new Color(0.77f,0.78f,0.71f,0.65f); button.colors=colors;
-            var navigation=button.navigation; navigation.mode=Navigation.Mode.None; button.navigation=navigation;
-            rect.gameObject.AddComponent<StorybookButtonMotion>();
-            if (!string.IsNullOrEmpty(label)) Label("Label",rect,label,Vector2.zero,size-new Vector2(12,4),20,Ink);
-            return button;
-        }
-        private static Button MechanismButton(Transform parent,string name,string title,string caption,float y,FirstLevelUiIcon.IconKind icon)
-        {
-            var button=Button(name+"Button",parent,"",new Vector2(0,y),new Vector2(186,92),Paper);
-            Icon(button.transform,icon,new Vector2(-51,9),new Vector2(70,66));
-            Label("Label",button.transform,title,new Vector2(39,9),new Vector2(82,34),25,Ink);
-            Label("Caption",button.transform,caption,new Vector2(0,-29),new Vector2(166,20),12,Muted);
-            var selected=Panel("Selected",button.transform,Vector2.one*0.5f,new Vector2(56,39),new Vector2(60,22),Green);
-            Label("SelectedLabel",selected,"已选择",Vector2.zero,new Vector2(54,19),11,Ink);
-            selected.gameObject.SetActive(false);
-            return button;
-        }
-        private static void Icon(Transform parent,FirstLevelUiIcon.IconKind kind,Vector2 position,Vector2 size)
-        {
-            var rect=Rect("Icon_"+kind,parent); rect.anchorMin=rect.anchorMax=Vector2.one*0.5f; rect.anchoredPosition=position; rect.sizeDelta=size;
-            if(kind==FirstLevelUiIcon.IconKind.Pause || kind==FirstLevelUiIcon.IconKind.Cancel)
-            {
-                var graphic=rect.gameObject.AddComponent<FirstLevelUiIcon>(); graphic.Icon=kind; graphic.raycastTarget=false;
-            }
-            else
-            {
-                var image=rect.gameObject.AddComponent<Image>(); image.sprite=Art(kind.ToString()); image.preserveAspect=true; image.raycastTarget=false;
-            }
-        }
-        private static GameObject Modal(string name,Transform parent)
-        {
-            var rect=Rect(name,parent); Stretch(rect);
-            var canvas=rect.gameObject.AddComponent<Canvas>(); canvas.overrideSorting=true; canvas.sortingOrder=40;
-            rect.gameObject.AddComponent<GraphicRaycaster>();
-            var image=rect.gameObject.AddComponent<Image>(); image.color=new Color(0.13f,0.17f,0.10f,0.72f);
-            return rect.gameObject;
-        }
         private static void Set(UnityEngine.Object owner,string field,UnityEngine.Object value)
         { var so=new SerializedObject(owner); so.FindProperty(field).objectReferenceValue=value; so.ApplyModifiedPropertiesWithoutUndo(); }
         private static void SetBool(UnityEngine.Object owner,string field,bool value)

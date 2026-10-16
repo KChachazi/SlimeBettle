@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SlimeBattle.Core;
 using SlimeBattle.Player.Placement;
 using SlimeBattle.Presentation.Camera;
@@ -16,6 +17,7 @@ namespace SlimeBattle.Player
         [SerializeField] private LevelManager levelManager;
         [SerializeField] private CameraSystem cameraSystem;
         [SerializeField] private PlacementGridAuthoring grid;
+        [SerializeField] private FirstLevelMapDefinition anchorMapDefinition;
         [SerializeField] private PlacementConfirmationMode confirmationMode;
         [SerializeField] private MonoBehaviour placementBackend;
         [SerializeField] private MonoBehaviour statusSnapshotSource;
@@ -58,7 +60,8 @@ namespace SlimeBattle.Player
 
         public void Initialize(LevelManager manager, PlayerInputSystem input, CameraSystem camera,
             PlacementGridAuthoring grid, IPlacementBackend backend, PlacementConfirmationMode mode,
-            IFirstLevelStatusSource statusSource = null, PlacementSelectionView selectionPrefab = null)
+            IFirstLevelStatusSource statusSource = null, PlacementSelectionView selectionPrefab = null,
+            FirstLevelMapDefinition anchorMapDefinition = null)
         {
             Unbind();
             levelManager = manager != null ? manager : throw new ArgumentNullException(nameof(manager));
@@ -66,6 +69,7 @@ namespace SlimeBattle.Player
             if (input != GetComponent<PlayerInputSystem>()) { throw new ArgumentException("Input must belong to this presentation root."); }
             cameraSystem = camera != null ? camera : throw new ArgumentNullException(nameof(camera));
             this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
+            if (anchorMapDefinition != null) { this.anchorMapDefinition = anchorMapDefinition; }
             this.selectionPrefab = selectionPrefab != null ? selectionPrefab : this.selectionPrefab;
             if (this.selectionPrefab == null && selectionInstance == null) throw new ArgumentNullException(nameof(selectionPrefab));
             grid.ValidateConfiguration();
@@ -98,7 +102,8 @@ namespace SlimeBattle.Player
             var context = levelManager.GetCurrentContext();
             var backend = context == backendContext && injectedBackend != null ? injectedBackend :
                 new MechanismPlacementBackend(context?.MechanismSystem);
-            Placement = new PlacementSystem(grid, ReadBounds, levelManager.GetLevelState, backend, confirmationMode);
+            Placement = new PlacementSystem(grid, ReadBounds, levelManager.GetLevelState, backend, confirmationMode,
+                ReadAnchors, anchorMapDefinition != null ? anchorMapDefinition.DesignPixelsPerUnityUnit : 0f);
             var source = new FirstLevelUiSnapshotSource(Placement, statusSource);
             GetComponent<PlayerPresentationRoot>().Initialize(levelManager, cameraSystem, source);
             gridView.Initialize(Placement, grid);
@@ -114,6 +119,11 @@ namespace SlimeBattle.Player
         {
             var map = levelManager.GetCurrentContext()?.MapManager;
             return map != null && map.TryGetMapBounds(out var bounds) ? bounds : (MapBounds?)null;
+        }
+
+        private IReadOnlyList<PlacementAnchorSnapshot> ReadAnchors()
+        {
+            return levelManager.GetCurrentContext()?.MapManager?.GetPlacementAnchors();
         }
 
         private void ApplyMapBounds()

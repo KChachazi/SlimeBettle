@@ -1,5 +1,7 @@
 using System.Linq;
+using System.Collections.Generic;
 using SlimeBattle.Core;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.Player.Input;
 using SlimeBattle.Player.Placement;
 using SlimeBattle.Presentation.Camera;
@@ -47,14 +49,21 @@ namespace SlimeBattle.Tests.PlayerPresentation
             cameraObject.GetComponent<Camera>().orthographicSize=6; Camera.Initialize();
             if(scenery!=null) scenery.FitToCamera(cameraObject.GetComponent<Camera>());
             Backend=new TestPlacementBackend(transform,foodSprite,furnaceSprite,obstacleSprite);
-            Placement=new PlacementSystem(Grid,()=>new MapBounds(new Vector2(-7,-4),new Vector2(7,4)),()=>Phase,Backend,PlacementConfirmationMode.Single);
+            Placement=new PlacementSystem(Grid,()=>new MapBounds(new Vector2(-7,-4),new Vector2(7,4)),()=>Phase,Backend,PlacementConfirmationMode.Single,
+                CreateAnchorExamples,100f);
             Input=gameObject.AddComponent<PlayerInputSystem>(); Input.Enable(); Input.SetInputMode(InputMode.Gameplay);
             GridView=GetComponent<PlacementGridView>() ?? gameObject.AddComponent<PlacementGridView>(); GridView.Initialize(Placement,Grid);
             adapter=gameObject.AddComponent<PlacementInputAdapter>(); adapter.Initialize(Input,Camera,Placement);
             Hud=Instantiate(hudPrefab,transform); Selection=Instantiate(selectionPrefab,transform); Selection.Initialize(Placement);
+            var pages=Hud.GetComponent<ReferenceUiView>();
+            if(pages!=null) pages.Initialize(command=>
+            {
+                if(command==UiCommand.Pause) SetPhase(LevelState.Paused);
+                if(command==UiCommand.Resume) SetPhase(LevelState.Running);
+            });
             foreach(var button in Hud.GetComponentsInChildren<Button>(true))
             {
-                if(button.name=="PauseButton") button.onClick.AddListener(()=>SetPhase(LevelState.Paused));
+                if(button.name=="PauseButton") button.onClick.AddListener(()=> { if(pages!=null) pages.OpenSettings(); else SetPhase(LevelState.Paused); });
                 if(button.name=="ResumeButton") button.onClick.AddListener(()=>SetPhase(LevelState.Running));
                 if(button.name=="RestartButton") button.onClick.AddListener(Restart);
             }
@@ -64,6 +73,15 @@ namespace SlimeBattle.Tests.PlayerPresentation
         {
             Phase=phase; Input.SetInputMode(phase==LevelState.Running?InputMode.Gameplay:InputMode.UiOnly);
             Placement.CancelPlacement(); Render();
+        }
+        public static IReadOnlyList<PlacementAnchorSnapshot> CreateAnchorExamples()
+        {
+            return new[] {
+                new PlacementAnchorSnapshot(new PlacementAnchorId("L1"),PlacementAnchorRole.RouteBlock,new Vector2(-3.2f,1.7f),80f,
+                    new[]{MechanismKind.Obstacle},true,new MapRouteId("TEST_Route1"),default),
+                new PlacementAnchorSnapshot(new PlacementAnchorId("SL1"),PlacementAnchorRole.TrapMitigation,new Vector2(2.6f,-1.2f),80f,
+                    new[]{MechanismKind.Obstacle},true,default,new MapPointId("TEST_Trap1"))
+            };
         }
         public void Restart()
         {

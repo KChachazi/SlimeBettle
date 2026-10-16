@@ -27,7 +27,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
             foreach(var label in prefab.GetComponentsInChildren<Text>(true))
             {
                 Assert.IsNotNull(label.font,label.name);
-                Assert.That(AssetDatabase.GetAssetPath(label.font),Does.EndWith("NotoSansCJKsc-Regular.otf"));
+                Assert.That(AssetDatabase.GetAssetPath(label.font),Does.StartWith("Assets/Game/UI/Fonts/"));
+                Assert.That(label.font.HasCharacter('设'),Is.True,"Bundled font must cover Chinese UI labels.");
                 Assert.That(label.raycastTarget,Is.False,label.name);
             }
             foreach(var icon in prefab.GetComponentsInChildren<FirstLevelUiIcon>(true))
@@ -38,7 +39,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         {
             var hud=InstantiateHud();
             hud.Render(new UiState(default,LevelState.Running,"测试",0,weaponText:"weapon destroyed"),true,false,false,false);
-            Assert.That(Label(hud,"Counts").text,Is.EqualTo("史莱姆  0 / --"));
+            Assert.That(Label(hud,"Counts").text,Is.EqualTo("史莱姆数量 0 / --"));
             Assert.That(Label(hud,"Goal").text,Does.Contain("未接入"));
             Assert.That(Label(hud,"WaitingWindow").text,Does.Contain("未接入"));
             Assert.That(Find(hud,"ResultPanel").activeSelf,Is.False);
@@ -61,7 +62,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(Find(hud,"ResultPanel").GetComponentsInChildren<Button>().All(b=>!b.interactable),Is.True);
             var reason=string.Concat(Enumerable.Repeat("公开结果原因需要完整保留。",80));
             hud.Render(new UiState(default,LevelState.Failed,"objective",resultText:reason),true,false,true,false);
-            var scroll=hud.GetComponentInChildren<ScrollRect>();
+            var scroll=hud.GetComponentsInChildren<ScrollRect>(true).Single();
             Assert.That(scroll.GetComponent<Image>().raycastTarget,Is.True);
             Assert.That(scroll.content.GetComponent<Text>().text,Is.EqualTo(reason));
             Assert.That(scroll.content.GetComponent<ContentSizeFitter>().verticalFit,Is.EqualTo(ContentSizeFitter.FitMode.PreferredSize));
@@ -104,5 +105,16 @@ namespace SlimeBattle.Tests.PlayerPresentation
         { instance=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"PF_FirstLevelHUD.prefab")); return instance.GetComponent<BattleHudView>(); }
         private static Text Label(Component root,string name)=>root.GetComponentsInChildren<Text>(true).Single(t=>t.name==name);
         private static GameObject Find(Component root,string name)=>root.GetComponentsInChildren<Transform>(true).Single(t=>t.name==name).gameObject;
+        [Test]
+        public void UnimplementedLevelsCannotBeStartedByTheSelectionButton()
+        {
+            instance=Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"PF_ReferenceMainMenu.prefab"));
+            var menu=instance.GetComponent<ReferenceMainMenuView>(); menu.OpenLevels();
+            var select=instance.GetComponentsInChildren<Button>(true).Single(b=>b.name=="SelectLevelButton");
+            Assert.That(select.gameObject.activeSelf,Is.False);
+            menu.SelectLevel(1); Assert.That(select.interactable,Is.False);
+            menu.SelectLevel(0); Assert.That(select.interactable,Is.True);
+            menu.Back(); Assert.That(Find(menu,"LevelSelection").activeSelf,Is.False);
+        }
     }
 }

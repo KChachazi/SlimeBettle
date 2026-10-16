@@ -22,7 +22,7 @@
 
 - Test Runner → EditMode → `SlimeBattle.Placement.EditMode.Tests`：网格变换、负坐标、边界、占用复核、失败不占格、单次／连续、重入与释放等。
 - 菜单 `SlimeBattle > Tests > Run First Level Placement Play Checks`：先执行已有的 20 项 Player 静态检查，再进入本场景，以虚拟 Mouse / Keyboard / Touchscreen 驱动实际 Input System、uGUI、GridView；执行五次真实测试场景重载，其中一次通过测试夹具的公开重载入口保留按住的触点，另四次点击结果 RESTART。不要在自动检查中操作鼠标，以免干扰虚拟输入。
-- 隔离交互检查后，自动入口只读加载现有已注册的 Bootstrap → MainMenu → Level_test，在独立 TEST_ONLY 持久根中装配 FirstLevelPresentationRoot。它验证真实 LevelManager 暂停恢复、输入适配器禁用时的面板恢复、组合根启停、真实重开后的 Context 隔离与重新注入，以及显式模拟结果的 UI 清理；不会保存正式场景。测试机关后端依然是模拟实现。
+- 隔离交互检查后，自动入口只读加载现有已注册的 Bootstrap → MainMenu → Level_test，在独立 TEST_ONLY 持久根中装配 FirstLevelPresentationRoot。它验证真实 LevelManager 暂停恢复、输入适配器禁用时的面板恢复、组合根启停、真实重开后的 Context 隔离与重新注入，以及显式模拟结果的 UI 清理；不会保存正式场景。初次注入后端是模拟实现；重开后的默认后端通过新 Context 的正式 MechanismSystem 创建一次机关并从其公开快照验证，再通过公开移除请求清理。
 - 如场景丢失，可用 `SlimeBattle > Tests > Create First Level Placement Scene` 生成，只写入本测试路径。
 
 命令行运行 GUI 检查（报告放在项目外；关闭其他项目编辑器实例）：
@@ -38,6 +38,16 @@ Unity.exe -projectPath <project-root> -executeMethod SlimeBattle.Tests.PlayerPre
 ## 正式接入边界
 
 正式 `Level_test` 的放置后端接到 MechanismSystem，由其创建并维护机关；本隔离场景继续使用模拟后端。Android 真机、多指、中文字体、安全区域和最终移动端适配仍需单独验证。
+
+## 当前补齐验证（2026-10-16）
+
+当前记录在 `PlayerCompletion/`，与下方旧确认交互的历史记录分开保存：53 项 Player/UI EditMode、2 项定向集成 EditMode、6 项 UI PlayMode、57 项 GUI 生命周期断言及 20 项既有 Player 静态检查通过。没有运行全项目套件；不据此判定旧 Actor AI 失败是否仍存在。
+
+- Anchor 单测覆盖显式像素比例、最近点/同距选择、类型白名单、普通格唯一、确认前类型/占用变化、错误来源关闭提交、越界、拒绝替换保留原对象和视图生命周期。
+- `SlimeBattle.P0.Tests` 下定向运行 `FirstLevelPlayerAnchorMapEditModeTests`（现有真实地图 Prefab 六个 Anchor，只读查询、精确吸附、Player Prefab 比例引用）与既有 `FirstLevelMechanismPlacementEditModeTests`（正式创建/总上限/回收）。Map 构造使用该程序集原有的夹具权限；没有修改运行时访问权限。
+- UI PlayMode 使用 `Test_FirstLevelUI` 对应的彩色 Prefab 夹具，两个示例 Anchor 和终点/窗口数值明确是 TEST_ONLY；GUI 输入回归使用本页的普通 Grid 场景和现有 Level_test。
+- GUI 首次尝试在 Food 选择处失败；保持 Unity 焦点后完整重跑通过。最终报告仅保存完整成功运行；失焦取消另有独立回调断言，未声称完成 Android 真机验证。
+- 当前不支持安全替换事务，也未提供真实入洞/等待窗口/新 Core 自动胜负；对应显示未知和明确拒绝仍是预期行为。
 
 ## 历史结果（2026-10-12，已合入 master 548abbb；旧确认交互）
 

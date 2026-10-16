@@ -203,6 +203,7 @@ MonoBehaviour:
   levelManager: {fileID: 0}
   cameraSystem: {fileID: 963164233652337257}
   grid: {fileID: 2497231334006021180}
+  anchorMapDefinition: {fileID: 11400000, guid: 06fbd06876b2456592875f284edfa102, type: 2}
   confirmationMode: 0
   placementBackend: {fileID: 4973638224073881278}
   statusSnapshotSource: {fileID: 2889535644370975644}

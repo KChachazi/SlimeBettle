@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-suite type="TestSuite" id="1000" name="SlimeBattle-TapTapGamejam" fullname="SlimeBattle-TapTapGamejam" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="1.139964" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+  <properties />
+  <test-suite type="Assembly" id="1008" name="SlimeBattle.FirstLevelUI.PlayMode.Tests.dll" fullname="Library/ScriptAssemblies/SlimeBattle.FirstLevelUI.PlayMode.Tests.dll" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="1.111310" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="_APPDOMAIN" value="Unity Child Domain" />
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="TestSuite" id="1009" name="SlimeBattle" fullname="SlimeBattle" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="1.105456" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties />
+      <test-suite type="TestSuite" id="1010" name="Tests" fullname="SlimeBattle.Tests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="1.094455" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1011" name="PlayerPresentation" fullname="SlimeBattle.Tests.PlayerPresentation" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="1.091758" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestFixture" id="1001" name="FirstLevelUiPlayModeTests" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="1.086969" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1003" name="AnchorViewsSnapToExactMapPositionAndClearOnCancelAndPause" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.AnchorViewsSnapToExactMapPositionAndClearOnCancelAndPause" methodname="AnchorViewsSnapToExactMapPositionAndClearOnCancelAndPause" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" seed="1303860451" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:41Z" duration="0.599656" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+              </properties>
+            </test-case>
+            <test-case id="1005" name="PauseResultsAndRestartClearPlacementAndPreserveSingleViews" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.PauseResultsAndRestartClearPlacementAndPreserveSingleViews" methodname="PauseResultsAndRestartClearPlacementAndPreserveSingleViews" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" seed="1954949719" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:41Z" duration="0.144401" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+              </properties>
+            </test-case>
+            <test-case id="1004" name="RebindingAndReenablingDoNotDuplicateListeners" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.RebindingAndReenablingDoNotDuplicateListeners" methodname="RebindingAndReenablingDoNotDuplicateListeners" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" seed="788231643" result="Passed" start-time="2026-10-16 07:18:41Z" end-time="2026-10-16 07:18:42Z" duration="0.051965" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+              </properties>
+            </test-case>
+            <test-case id="1007" name="ReferencePagesPauseAndReturnWithoutPlacingOrResumingAnExistingPause" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.ReferencePagesPauseAndReturnWithoutPlacingOrResumingAnExistingPause" methodname="ReferencePagesPauseAndReturnWithoutPlacingOrResumingAnExistingPause" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" seed="2030148405" result="Passed" start-time="2026-10-16 07:18:42Z" end-time="2026-10-16 07:18:42Z" duration="0.126091" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+              </properties>
+            </test-case>
+            <test-case id="1002" name="ThreeSelectionButtonsSubmitOnlyPlacementState" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.ThreeSelectionButtonsSubmitOnlyPlacementState" methodname="ThreeSelectionButtonsSubmitOnlyPlacementState" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" seed="1792702171" result="Passed" start-time="2026-10-16 07:18:42Z" end-time="2026-10-16 07:18:42Z" duration="0.081077" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+              </properties>
+            </test-case>
+            <test-case id="1006" name="ToolbarAndModalBlockRaycastsWhileMapRemainsClickable" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests.ToolbarAndModalBlockRaycastsWhileMapRemainsClickable" methodname="ToolbarAndModalBlockRaycastsWhileMapRemainsClickable" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelUiPlayModeTests" runstate="Runnable" seed="370703442" result="Passed" start-time="2026-10-16 07:18:42Z" end-time="2026-10-16 07:18:42Z" duration="0.059723" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+              </properties>
+            </test-case>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-suite>

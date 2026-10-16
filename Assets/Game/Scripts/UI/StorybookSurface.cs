@@ -6,13 +6,36 @@ namespace SlimeBattle.UI
     /// <summary>Resolution-independent paper/wood skin. Its hit region remains the RectTransform.</summary>
     public sealed class StorybookSurface : Image
     {
-        public enum SurfaceKind { Paper, Wood, Inset }
+        public enum SurfaceKind { Paper, Wood, Inset, Flat, Ribbon, Notched, CutCorner }
         [SerializeField] private SurfaceKind surface;
         public SurfaceKind Surface { get => surface; set { surface = value; SetVerticesDirty(); } }
         protected override void OnPopulateMesh(VertexHelper mesh)
         {
             mesh.Clear();
             var rect = GetPixelAdjustedRect();
+            if (surface >= SurfaceKind.Flat)
+            {
+                var notch = Mathf.Min(24, rect.width * 0.14f);
+                var points = surface == SurfaceKind.Ribbon ? new[] {
+                    new Vector2(rect.xMin,rect.yMin),new Vector2(rect.xMax,rect.yMin),
+                    new Vector2(rect.xMax-notch,rect.center.y),new Vector2(rect.xMax,rect.yMax),
+                    new Vector2(rect.xMin,rect.yMax),new Vector2(rect.xMin+notch,rect.center.y)
+                } : surface == SurfaceKind.Notched ? new[] {
+                    new Vector2(rect.xMin,rect.yMin),new Vector2(rect.xMax,rect.yMin),
+                    new Vector2(rect.xMax,rect.yMax),new Vector2(rect.xMin,rect.yMax),
+                    new Vector2(rect.xMin+notch,rect.center.y)
+                } : surface == SurfaceKind.CutCorner ? new[] {
+                    new Vector2(rect.xMin+16,rect.yMin),new Vector2(rect.xMax-16,rect.yMin),
+                    new Vector2(rect.xMax,rect.yMin+20),new Vector2(rect.xMax,rect.yMax-20),
+                    new Vector2(rect.xMax-40,rect.yMax),new Vector2(rect.xMin+40,rect.yMax),
+                    new Vector2(rect.xMin,rect.yMax-36),new Vector2(rect.xMin,rect.yMin+20)
+                } : new[] { new Vector2(rect.xMin,rect.yMin),new Vector2(rect.xMax,rect.yMin),
+                    new Vector2(rect.xMax,rect.yMax),new Vector2(rect.xMin,rect.yMax) };
+                mesh.AddVert(rect.center,color,Vector2.zero);
+                foreach (var point in points) mesh.AddVert(point,color,Vector2.zero);
+                for (var i=0;i<points.Length;i++) mesh.AddTriangle(0,i+1,(i+1)%points.Length+1);
+                return;
+            }
             var ink = new Color(0.29f, 0.23f, 0.15f, color.a);
             var shadow = new Rect(rect.x + 1, rect.y - 5, rect.width, rect.height);
             Polygon(mesh, shadow, new Color(0.16f, 0.20f, 0.10f, 0.30f * color.a), false);
