@@ -9,6 +9,7 @@ using SlimeBattle.Actors.Enemies;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Tests
@@ -32,7 +33,8 @@ namespace SlimeBattle.Tests
             public override ActionIntent Evaluate(DecisionContext context) { return intent; }
         }
 
-        private sealed class FakeWorld : IActorPerceptionSource, IActorActionPort
+        private sealed class FakeWorld : IActorPerceptionSource, IActorActionPort,
+            IActorStatusQuery
         {
             public readonly Dictionary<ActorId, ActorSnapshot> Actors = new Dictionary<ActorId, ActorSnapshot>();
             public readonly List<ActorEffectRequest> Effects = new List<ActorEffectRequest>();
@@ -40,6 +42,22 @@ namespace SlimeBattle.Tests
             public int CancelCount;
             public Action<ActorEffectRequest> OnEffect;
             public PerceptionSnapshot Perception;
+            public StatusEntrySnapshot RageStatus;
+            public bool HasStatus(ActorId actorId, StatusId statusId) =>
+                statusId.IsValid && RageStatus.StatusId == statusId;
+            public bool HasStatus(ActorId actorId, StatusKind kind) =>
+                kind == StatusKind.Rage && RageStatus.StatusId.IsValid;
+            public bool TryGetStatus(ActorId actorId, StatusId statusId,
+                out StatusEntrySnapshot status)
+            {
+                status = RageStatus;
+                return HasStatus(actorId, statusId);
+            }
+            public bool TryGetStatusSnapshot(ActorId actorId, out StatusSnapshot snapshot)
+            {
+                snapshot = default;
+                return false;
+            }
             public PerceptionSnapshot GetPerception(ActorId id) { return Perception; }
             public bool TryGetActorSnapshot(ActorId id, out ActorSnapshot snapshot)
                 => Actors.TryGetValue(id, out snapshot);
@@ -288,6 +306,11 @@ namespace SlimeBattle.Tests
 
                 slime.ApplyResolvedEffect(new ResolvedEffect(EffectType.Status, 0f,
                     statusId: SlimeStatusIds.Agitated));
+                world.RageStatus = new StatusEntrySnapshot(
+                    new StatusId(SlimeStatusIds.Agitated), default, 5f, 0,
+                    false, 1, 1f, 1f, 1f, 1f, false, default,
+                    StatusKind.Rage, elapsedDurationSeconds: 2f,
+                    humanAttackDelaySeconds: 1f);
                 var human = new ActorSnapshot(new ActorId("human"), new FactionId("humans"),
                     ActorType.Guard, true, Vector2.right, 100f, 100f);
                 world.Actors[human.ActorId] = human;

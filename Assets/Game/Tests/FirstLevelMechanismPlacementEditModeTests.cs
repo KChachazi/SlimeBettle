@@ -78,6 +78,41 @@ namespace SlimeBattle.Tests
                 PlacementItemId.Obstacle, Vector3Int.right, new Vector3(2f, 0f))).Succeeded);
         }
 
+        [Test]
+        public void FormalMechanismPrefabsHaveWorldVisualHierarchy()
+        {
+            var paths = new[]
+            {
+                "Assets/Game/Prefabs/Mechanisms/PF_Food.prefab",
+                "Assets/Game/Prefabs/Mechanisms/PF_Furnace.prefab",
+                "Assets/Game/Prefabs/Mechanisms/PF_Obstacle.prefab"
+            };
+
+            foreach (var path in paths)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                Assert.IsNotNull(prefab, path + " must be importable.");
+                Assert.IsNotNull(prefab.GetComponent<MechanismAuthoring>(),
+                    path + " must keep MechanismAuthoring on the prefab root.");
+
+                var visualRoot = prefab.transform.Find("VisualRoot");
+                Assert.IsNotNull(visualRoot, path + " must have a VisualRoot child.");
+                Assert.AreEqual(Vector3.zero, visualRoot.localPosition,
+                    path + " VisualRoot must remain at the mechanism world position.");
+
+                var renderers = visualRoot.GetComponentsInChildren<SpriteRenderer>(true);
+                Assert.IsNotEmpty(renderers, path + " must contain at least one world visual renderer.");
+                foreach (var renderer in renderers)
+                {
+                    Assert.IsNotNull(renderer.sprite, path + " has a renderer without a sprite.");
+                    Assert.AreEqual("Default", renderer.sortingLayerName,
+                        path + " visuals must use the shared Default sorting layer.");
+                    Assert.AreEqual(1, renderer.sortingOrder,
+                        path + " visuals must render above the map and below actors/weapon.");
+                }
+            }
+        }
+
         private MechanismConfig Config(string id, MechanismKind kind)
         {
             var config = ScriptableObject.CreateInstance<MechanismConfig>();
