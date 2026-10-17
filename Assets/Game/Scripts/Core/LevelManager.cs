@@ -21,6 +21,7 @@ namespace SlimeBattle.Core
         private LevelContext currentContext;
         private LevelId currentLevelId;
         private LevelState currentState = LevelState.Unloaded;
+        private bool startedCurrentSceneInPlace;
 
         public event Action<LevelStateChangedEvent> LevelStateChanged;
         public event Action<LevelLoadStartedEvent> LevelLoadStarted;
@@ -78,6 +79,20 @@ namespace SlimeBattle.Core
             loadCoroutine = StartCoroutine(LoadLevelRoutine(levelId, false));
         }
 
+        /// <summary>Starts the already open scene through the same context and result lifecycle.</summary>
+        public bool StartCurrentSceneLevel()
+        {
+            if (!CanStartTransition() || currentContext != null ||
+                currentState != LevelState.Unloaded) return false;
+            var scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded || string.IsNullOrEmpty(scene.name))
+                return false;
+            currentLevelId = new LevelId(scene.name);
+            startedCurrentSceneInPlace = true;
+            SetState(LevelState.Initializing);
+            return TryInitializeLoadedScene(currentLevelId, false);
+        }
+
         public void RequestRestartCurrentLevel()
         {
             if (!CanStartTransition() || !currentLevelId.IsValid)
@@ -85,6 +100,11 @@ namespace SlimeBattle.Core
                 return;
             }
 
+            if (startedCurrentSceneInPlace)
+            {
+                loadCoroutine = StartCoroutine(RestartCurrentSceneRoutine());
+                return;
+            }
             if (!Application.CanStreamedLevelBeLoaded(currentLevelId.Value))
             {
                 NotifyLoadFailed(
@@ -196,6 +216,7 @@ namespace SlimeBattle.Core
             }
 
             currentLevelId = default(LevelId);
+            startedCurrentSceneInPlace = false;
             currentState = LevelState.Unloaded;
             initialized = false;
             disposed = true;
@@ -208,6 +229,7 @@ namespace SlimeBattle.Core
 
         private IEnumerator LoadLevelRoutine(LevelId levelId, bool isRestart)
         {
+            startedCurrentSceneInPlace = false;
             if (currentContext != null)
             {
                 SetState(LevelState.Unloading);
@@ -243,6 +265,11 @@ namespace SlimeBattle.Core
 
             currentLevelId = levelId;
             SetState(LevelState.Initializing);
+            TryInitializeLoadedScene(levelId, isRestart);
+        }
+
+        private bool TryInitializeLoadedScene(LevelId levelId, bool isRestart)
+        {
             var registry = new ConfigRegistry(levelConfigs);
             var validation = registry.ValidateAll();
             if (!validation.IsValid || !registry.TryGetLevel(levelId, out var levelConfig))
@@ -250,7 +277,7 @@ namespace SlimeBattle.Core
                 FailActiveLoad(levelId, !validation.IsValid
                     ? string.Join("; ", validation.Errors)
                     : "LevelConfig is missing.");
-                yield break;
+                return false;
             }
 
             registry.Freeze();
@@ -265,7 +292,7 @@ namespace SlimeBattle.Core
             catch (Exception exception)
             {
                 FailActiveLoad(levelId, exception.Message);
-                yield break;
+                return false;
             }
             SetState(LevelState.Running);
 
@@ -276,6 +303,24 @@ namespace SlimeBattle.Core
             {
                 LevelRestarted?.Invoke(new LevelRestartedEvent(levelId));
             }
+            return true;
+        }
+
+        private IEnumerator RestartCurrentSceneRoutine()
+        {
+            var levelId = currentLevelId;
+            SetState(LevelState.Unloading);
+            if (currentContext != null)
+            {
+                currentContext.ResultRules.ResultDecided -= OnResultDecided;
+                currentContext.Dispose();
+                currentContext = null;
+            }
+            SetState(LevelState.Unloaded);
+            yield return null; // Let deferred actor and mechanism destruction finish.
+            currentLevelId = levelId;
+            SetState(LevelState.Initializing);
+            TryInitializeLoadedScene(levelId, true);
         }
 
         private void OnResultDecided(LevelResult result)
@@ -315,6 +360,7 @@ namespace SlimeBattle.Core
         private void FailActiveLoad(LevelId levelId, string reason)
         {
             currentLevelId = default(LevelId);
+            startedCurrentSceneInPlace = false;
 
             if (currentContext != null)
             {

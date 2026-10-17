@@ -16,6 +16,7 @@ namespace SlimeBattle.Actors.Guards
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
         private bool disposed;
+        private Vector2 standPosition;
 
         public event Action<GuardActor, ResolvedEffect> Died;
         public ActorId ActorId => core == null ? default(ActorId) : core.GetActorId();
@@ -27,6 +28,7 @@ namespace SlimeBattle.Actors.Guards
             if (core != null || guardConfig == null || !actorId.IsValid)
                 throw new ArgumentException("Guard initialization requires config and fresh ActorId.");
             transform.position = position;
+            standPosition = position;
             config = guardConfig;
             core = new ActorCore(actorId, factionId, ActorType.Guard,
                 config.ConfigId, position, config.MaxHealth);
@@ -50,7 +52,7 @@ namespace SlimeBattle.Actors.Guards
         }
 
         public GuardSnapshot GetSnapshot() => new GuardSnapshot(core.GetSnapshot(),
-            config.ConfigId, stateMachine.CurrentState);
+            config.ConfigId, stateMachine.CurrentState, standPosition);
 
         public EffectApplyResult ApplyResolvedEffect(ResolvedEffect effect)
         {

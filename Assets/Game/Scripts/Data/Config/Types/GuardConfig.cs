@@ -7,11 +7,13 @@ namespace SlimeBattle.Data
     {
         [SerializeField, Min(1)] private int initialCount = 2;
         [SerializeField, Min(0f)] private float escortDistance = 1.2f;
+        [SerializeField, Min(0f)] private float leashDistance = 8f;
         [SerializeField] private Vector2[] spawnOffsets =
             { new Vector2(-0.8f, 0f), new Vector2(0.8f, 0f) };
 
         public int InitialCount => initialCount;
         public float EscortDistance => escortDistance;
+        public float LeashDistance => leashDistance;
         public System.Collections.Generic.IReadOnlyList<Vector2> SpawnOffsets =>
             spawnOffsets == null ? System.Array.Empty<Vector2>() :
             System.Array.AsReadOnly(spawnOffsets);
@@ -37,6 +39,9 @@ namespace SlimeBattle.Data
             if (float.IsNaN(escortDistance) || float.IsInfinity(escortDistance) ||
                 escortDistance < 0f)
                 report.AddError($"{name}: EscortDistance must be finite and non-negative.");
+            if (float.IsNaN(leashDistance) || float.IsInfinity(leashDistance) ||
+                leashDistance <= 0f)
+                report.AddError($"{name}: LeashDistance must be finite and positive.");
             if (spawnOffsets == null || spawnOffsets.Length != initialCount)
                 report.AddError($"{name}: SpawnOffsets must match InitialCount.");
             else

@@ -73,7 +73,7 @@ namespace SlimeBattle.Mechanisms
             MechanismKind kind, Vector2 position, MechanismState state,
             bool isPlayerPlaced, int activationLimit, int remainingActivations,
             float cooldownRemainingSeconds, GuideSourceType guideSourceType,
-            float attractionRadiusPixels)
+            float attractionRadiusPixels, PlacementAnchorId anchorId = default)
         {
             MechanismId = mechanismId;
             ConfigId = configId;
@@ -86,6 +86,7 @@ namespace SlimeBattle.Mechanisms
             CooldownRemainingSeconds = cooldownRemainingSeconds;
             GuideSourceType = guideSourceType;
             AttractionRadiusPixels = attractionRadiusPixels;
+            AnchorId = anchorId;
         }
 
         public MechanismId MechanismId { get; }
@@ -99,6 +100,7 @@ namespace SlimeBattle.Mechanisms
         public float CooldownRemainingSeconds { get; }
         public GuideSourceType GuideSourceType { get; }
         public float AttractionRadiusPixels { get; }
+        public PlacementAnchorId AnchorId { get; }
         public bool HasUnlimitedActivations => ActivationLimit == 0;
         public bool IsAvailable => State == MechanismState.Available;
     }

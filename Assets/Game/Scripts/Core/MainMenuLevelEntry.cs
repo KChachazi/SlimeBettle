@@ -7,6 +7,16 @@ namespace SlimeBattle.Core
     {
         public void StartLevelTest()
         {
+            StartLevel("Level_test");
+        }
+
+        public void StartFirstLevel()
+        {
+            StartLevel("FirstLevel");
+        }
+
+        private void StartLevel(string levelName)
+        {
             var root = FindObjectOfType<GameRoot>();
             if (root == null)
             {
@@ -14,7 +24,7 @@ namespace SlimeBattle.Core
                 return;
             }
 
-            root.RequestEnterLevel(new LevelId("Level_test"));
+            root.RequestEnterLevel(new LevelId(levelName));
         }
     }
 }

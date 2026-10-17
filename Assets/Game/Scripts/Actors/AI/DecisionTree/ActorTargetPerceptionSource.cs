@@ -76,6 +76,20 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                         ActorControlMode.Autonomous, guard.StatusIds),
                         config.DetectionRange, targets, isHuman: true);
 
+            if (self.ActorType == ActorType.Guard && guards != null &&
+                guards.TryGetSnapshot(actorId, out var ownGuard))
+            {
+                targets.Clear();
+                foreach (var enemy in enemies.GetAliveSnapshots())
+                    AddIfDetected(self, new ActorSnapshot(enemy.ActorId,
+                        enemy.FactionId, ActorType.Enemy, enemy.IsAlive,
+                        enemy.Position, enemy.CurrentHealth, enemy.MaxHealth,
+                        (ActorControlMode)enemy.ControlMode, enemy.StatusIds),
+                        config.DetectionRange, targets);
+                return new PerceptionSnapshot(++sampleTick, targets,
+                    hasDestination: true, destination: ownGuard.StandPosition);
+            }
+
             var weapon = default(EscortWeaponSnapshot);
             var hasWeapon = mechanisms != null &&
                 mechanisms.TryGetWeaponSnapshot(out weapon) &&
@@ -83,22 +97,6 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             if (hasWeapon && self.ActorType == ActorType.Enemy)
                 AddIfDetected(self, WeaponTarget(weapon),
                     config.DetectionRange, targets);
-            if (hasWeapon && self.ActorType == ActorType.Guard)
-            {
-                targets.Clear();
-                foreach (var enemy in enemies.GetAliveSnapshots())
-                {
-                    if ((enemy.Position - weapon.Position).sqrMagnitude >
-                        config.DetectionRange * config.DetectionRange) continue;
-                    AddIfDetected(self, new ActorSnapshot(enemy.ActorId,
-                        enemy.FactionId, ActorType.Enemy, enemy.IsAlive,
-                        enemy.Position, enemy.CurrentHealth, enemy.MaxHealth,
-                        (ActorControlMode)enemy.ControlMode, enemy.StatusIds),
-                        float.PositiveInfinity, targets);
-                }
-                return new PerceptionSnapshot(++sampleTick, targets,
-                    hasDestination: true, destination: weapon.Position);
-            }
             var hasEscapeDestination = TryGetFleeResult(self, targets,
                 out var escapeDestination, out var fleeCheckSucceeded);
             return new PerceptionSnapshot(++sampleTick, targets,

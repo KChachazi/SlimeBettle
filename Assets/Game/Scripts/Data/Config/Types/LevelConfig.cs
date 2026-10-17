@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace SlimeBattle.Data
 {
+    public enum LevelObjectiveKind
+    {
+        CaveOccupancy = 0,
+        EscortWeapon = 1
+    }
+
     [CreateAssetMenu(menuName = "SlimeBattle/Configs/Level", fileName = "CFG_Level")]
     public sealed class LevelConfig : ConfigAsset
     {
@@ -13,13 +19,17 @@ namespace SlimeBattle.Data
         [SerializeField]
         private string objectiveConfigId;
 
-        [SerializeField, Range(0, 5)]
+        [SerializeField]
+        private LevelObjectiveKind objectiveKind = LevelObjectiveKind.CaveOccupancy;
+
+        [SerializeField, Range(0, 20)]
         private int maximumActivePlacedMechanisms = 5;
 
         public LevelId LevelId => new LevelId(ConfigIdValue);
 
         public int MaxAliveSlimes => maxAliveSlimes;
         public ConfigId ObjectiveConfigId => new ConfigId(objectiveConfigId);
+        public LevelObjectiveKind ObjectiveKind => objectiveKind;
         public int MaximumActivePlacedMechanisms => maximumActivePlacedMechanisms;
 
         public void SetMaxAliveSlimes(int value)
@@ -32,6 +42,12 @@ namespace SlimeBattle.Data
         {
             EnsureAuthoring();
             objectiveConfigId = value.Value;
+        }
+
+        public void SetObjectiveKind(LevelObjectiveKind value)
+        {
+            EnsureAuthoring();
+            objectiveKind = value;
         }
 
         public void SetMaximumActivePlacedMechanisms(int value)
@@ -50,9 +66,13 @@ namespace SlimeBattle.Data
             {
                 report.AddError($"{name}: ObjectiveConfigId is empty.");
             }
-            if (maximumActivePlacedMechanisms < 0 || maximumActivePlacedMechanisms > 5)
+            if (!System.Enum.IsDefined(typeof(LevelObjectiveKind), objectiveKind))
             {
-                report.AddError($"{name}: MaximumActivePlacedMechanisms must be between 0 and 5.");
+                report.AddError($"{name}: ObjectiveKind is invalid.");
+            }
+            if (maximumActivePlacedMechanisms < 0 || maximumActivePlacedMechanisms > 20)
+            {
+                report.AddError($"{name}: MaximumActivePlacedMechanisms must be between 0 and 20.");
             }
         }
     }

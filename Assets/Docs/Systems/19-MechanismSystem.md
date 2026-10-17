@@ -75,6 +75,10 @@ bool TryGetWeaponSnapshot(WeaponId weaponId, out WeaponSnapshot snapshot);
 
 `MechanismAuthoring` 为关卡场景和放置预制体提供稳定实例 ID、配置 ID 与碰撞适配。场景机关在 `LevelContext` 创建时自动注册；放置系统先询问 `CanPlace`，再通过 `RequestPlace` 注册已生成的预制体，并通过 `RequestRemove` 拆除。每周可用总数仍由 `PlacementSystem`/关卡库存配置管理，本系统负责同时存在上限、地图占位校验和拆除冷却。
 
+### 运行时机关层级与世界表现
+
+运行时机关实例统一挂到关卡的 `MechanismsRoot`。机关 Prefab 根保留 `MechanismAuthoring` 和碰撞体，世界表现必须放在根下的 `VisualRoot`，由 `SpriteRenderer`、动画和特效组成；UI 图形和 `PlacementGridView` 不能作为机关视觉子物体。当前共享 `Default` Sorting Layer 的约定是地图底图 `-100`、机关 `1`、Actor `0`、护送武器 `2`、放置预览 `100+`。机关根的位置保存世界 XY，`VisualRoot` 局部位置固定为零，替换占位美术时不改变这个层级和运行时接口。
+
 `TryGetWeaponSnapshot` 只读返回武器状态。武器受伤、销毁和到达终点的请求入口及其最终参数仍需在代码迁移前登记到 99 API 表，不能继续由 `ObjectiveSystem` 私有字段承载。
 
 ## 5. 对外事件

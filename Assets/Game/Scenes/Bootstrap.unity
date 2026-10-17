@@ -668,6 +668,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   levelConfigs:
   - {fileID: 11400000, guid: 3530131855674be19fe5564cf24026e9, type: 2}
+  - {fileID: 11400000, guid: 1b72e4b4c0d84ce7a24f3d64d5a5e2c1, type: 2}
   - {fileID: 11400000, guid: 1ec98b0bde9b4c6589651ae8bdbbc837, type: 2}
   - {fileID: 11400000, guid: ed056b746965475db4f9b38afa862b3f, type: 2}
   - {fileID: 11400000, guid: 00e9b53d84514ccc8e42d6163b0866f4, type: 2}
@@ -683,6 +684,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b3, type: 2}
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b4, type: 2}
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b5, type: 2}
+  - {fileID: 11400000, guid: 64f0f4b55006434aa04803263a619912, type: 2}
   slimePrefab: {fileID: 8397484487815547760, guid: 71b1df1ac1746034d88152783a44ac0e, type: 3}
   enemyPrefab: {fileID: 227765413434242397, guid: f75f2bdde1ee4c64d8977434abb3c7a3, type: 3}
   guardPrefab: {fileID: 5960317739645613653, guid: 49685e09302f3a24aa032ea9e21717c7, type: 3}

@@ -283,7 +283,13 @@ namespace SlimeBattle.Player.Placement
             foreach (var position in placedPositions)
             {
                 if (Vector2.SqrMagnitude((Vector2)position - anchor.Position) <= 0.00000001f)
-                { return anchor.AllowsReplacement ? PlacementValidationStatus.ReplacementUnavailable : PlacementValidationStatus.ReplacementDenied; }
+                {
+                    if (!anchor.AllowsReplacement) return PlacementValidationStatus.ReplacementDenied;
+                    return backend is IAnchorReplacementBackend replacement &&
+                        replacement.SupportsAnchorReplacement
+                        ? PlacementValidationStatus.AnchorReplaceable
+                        : PlacementValidationStatus.ReplacementUnavailable;
+                }
             }
             if (occupied.Contains(grid.WorldToCell(anchor.Position))) { return PlacementValidationStatus.Occupied; }
             try { return backend.IsAvailable ? PlacementValidationStatus.AnchorFree : PlacementValidationStatus.Unavailable; }
@@ -296,9 +302,10 @@ namespace SlimeBattle.Player.Placement
             switch (status)
             {
                 case PlacementValidationStatus.AnchorFree: return name + "可放置，点击地图放置。";
+                case PlacementValidationStatus.AnchorReplaceable: return name + "可替换现有障碍，点击地图确认。";
                 case PlacementValidationStatus.TypeMismatch: return name + "不接受所选机关类型。";
                 case PlacementValidationStatus.ReplacementDenied: return name + "已占用，地图配置禁止替换。";
-                case PlacementValidationStatus.ReplacementUnavailable: return name + "已占用，安全替换接口未接入，保留原机关。";
+                case PlacementValidationStatus.ReplacementUnavailable: return name + "已占用，当前后端不支持安全替换。";
                 case PlacementValidationStatus.Occupied: return name + "所在格已被其他机关占用。";
                 default: return name + "机关创建接口未接入。";
             }

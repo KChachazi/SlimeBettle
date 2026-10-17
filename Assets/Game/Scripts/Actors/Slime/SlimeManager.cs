@@ -6,6 +6,7 @@ using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.SlimeGroups;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
+using SlimeBattle.World;
 using SlimeBattle.World.Movement;
 using UnityEngine;
 
@@ -22,6 +23,10 @@ namespace SlimeBattle.Slimes
         private readonly int maxAliveCount;
         private readonly SlimeActor prefab;
         private readonly MovementSystem movementSystem;
+        private readonly MapAreaId goalAreaId;
+        private readonly HashSet<ActorId> goalOccupants = new HashSet<ActorId>();
+        private readonly SubscriptionToken goalEnteredToken;
+        private readonly SubscriptionToken goalExitedToken;
         private Transform actorParent;
         private bool disposed;
         private bool paused;
@@ -29,7 +34,8 @@ namespace SlimeBattle.Slimes
 
         public SlimeManager(ConfigRegistry configs, ILevelEventBus eventBus,
             int maxAliveCount = 30, SlimeActor prefab = null, Transform actorParent = null,
-            MovementSystem movementSystem = null, LevelId levelId = default(LevelId))
+            MovementSystem movementSystem = null, LevelId levelId = default(LevelId),
+            MapAreaId goalAreaId = default(MapAreaId))
         {
             if (maxAliveCount < 1 || maxAliveCount > 50)
                 throw new ArgumentOutOfRangeException(nameof(maxAliveCount));
@@ -40,10 +46,17 @@ namespace SlimeBattle.Slimes
             this.prefab = prefab;
             this.actorParent = actorParent;
             this.movementSystem = movementSystem;
+            this.goalAreaId = goalAreaId;
+            if (goalAreaId.IsValid && eventBus != null)
+            {
+                goalEnteredToken = eventBus.Subscribe<MapAreaEnteredEvent>(OnGoalEntered);
+                goalExitedToken = eventBus.Subscribe<MapAreaExitedEvent>(OnGoalExited);
+            }
         }
 
         public string LastFailureReason { get; private set; } = string.Empty;
         public int MaxAliveCount => maxAliveCount;
+        public int GoalOccupantCount => goalOccupants.Count;
 
         // 场景装配方指定后续生成实例的父节点；Actor 仍由 Manager 创建和销毁。
         public bool TrySetSpawnParent(Transform parent)
@@ -73,6 +86,7 @@ namespace SlimeBattle.Slimes
             actors.Add(id, actor);
             if (!TryRegisterMovement(actor, config.MoveSpeed))
             {
+                RemoveGoalOccupant(id);
                 actors.Remove(id);
                 DestroyActor(actor);
                 return Reject("MovementSystem could not register the Slime Rigidbody2D.");
@@ -91,11 +105,11 @@ namespace SlimeBattle.Slimes
             actor.ControlModeChanged -= OnControlModeChanged;
             actor.AttackedWhileCarrying -= OnAttackedWhileCarrying;
             movementSystem?.UnregisterActor(actorId, CancelReason.Despawn);
+            RemoveGoalOccupant(actorId);
             DestroyActor(actor);
             actors.Remove(actorId);
             RemoveFromGroups(actorId);
             eventBus?.Publish(new SlimeDespawnedEvent(actorId, reason));
-            PublishDepletedIfNeeded();
             return true;
         }
 
@@ -189,7 +203,6 @@ namespace SlimeBattle.Slimes
         public void Tick(LevelTickContext context)
         {
             if (disposed || paused || context.DeltaTime < 0f) return;
-            PublishDepletedIfNeeded();
             var actorContext = new ActorContext(context.DeltaTime, context.Perception, context.Actions);
             foreach (var actor in new List<SlimeActor>(actors.Values))
                 if (actor.IsAlive) actor.Tick(actorContext);
@@ -228,6 +241,11 @@ namespace SlimeBattle.Slimes
         {
             if (disposed) return;
             disposed = true;
+            if (eventBus != null)
+            {
+                eventBus.Unsubscribe(goalEnteredToken);
+                eventBus.Unsubscribe(goalExitedToken);
+            }
             foreach (var actor in actors.Values)
             {
                 actor.Died -= OnActorDied;
@@ -239,6 +257,7 @@ namespace SlimeBattle.Slimes
             actors.Clear();
             foreach (var group in groups.Values) group.Dispose();
             groups.Clear();
+            goalOccupants.Clear();
         }
 
         private int GetAliveCount()
@@ -259,9 +278,32 @@ namespace SlimeBattle.Slimes
         private void OnActorDied(SlimeActor actor, ResolvedEffect effect)
         {
             movementSystem?.UnregisterActor(actor.ActorId, CancelReason.Death);
+            RemoveGoalOccupant(actor.ActorId);
             RemoveFromGroups(actor.ActorId);
             eventBus?.Publish(new SlimeDiedEvent(actor.GetSnapshot(), effect));
             PublishDepletedIfNeeded();
+        }
+
+        private void OnGoalEntered(MapAreaEnteredEvent entered)
+        {
+            if (disposed || entered.Area.AreaId != goalAreaId ||
+                !actors.TryGetValue(entered.ActorId, out var actor) || !actor.IsAlive ||
+                !goalOccupants.Add(entered.ActorId)) return;
+            eventBus.Publish(new SlimeGoalOccupancyChangedEvent(levelId,
+                entered.ActorId, goalOccupants.Count, true));
+        }
+
+        private void OnGoalExited(MapAreaExitedEvent exited)
+        {
+            if (!disposed && exited.Area.AreaId == goalAreaId)
+                RemoveGoalOccupant(exited.ActorId);
+        }
+
+        private void RemoveGoalOccupant(ActorId actorId)
+        {
+            if (!goalOccupants.Remove(actorId)) return;
+            eventBus?.Publish(new SlimeGoalOccupancyChangedEvent(levelId,
+                actorId, goalOccupants.Count, false));
         }
 
         private void PublishDepletedIfNeeded()

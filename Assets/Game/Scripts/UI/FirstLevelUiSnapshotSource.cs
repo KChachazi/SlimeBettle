@@ -38,10 +38,14 @@ namespace SlimeBattle.UI
             var slimes = context.SlimeManager;
             var enemies = context.EnemyManager;
             var limit = slimes != null ? slimes.MaxAliveCount : -1;
+            var objective = context.LevelConfig != null &&
+                context.LevelConfig.ObjectiveKind == Data.LevelObjectiveKind.EscortWeapon
+                ? "Escort the weapon to the goal."
+                : "Guide at least 6 slimes into the goal cave.";
             // PlacementSelectionView owns placement hints; the HUD reserves this slot for integration notices.
             var hint = slimes != null && limit != 20 ? "First-level limit should be 20 (configured: " + limit + ")." :
                 placement == null ? "Placement module is not connected." : string.Empty;
-            return new UiState(context.GetLevelId(), context.GetLevelState(), "Guide at least 6 slimes into the goal cave.",
+            return new UiState(context.GetLevelId(), context.GetLevelState(), objective,
                 slimes != null ? slimes.GetAliveSnapshots().Count : -1,
                 enemies != null ? enemies.GetAliveSnapshots().Count : -1, hint,
                 status.ResultText, limit, status.WeaponText, status.GoalText, status.WaitingText,

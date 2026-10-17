@@ -16,11 +16,12 @@ MonoBehaviour:
   attackPower: 100
   maxHealth: 1000
   moveSpeed: 300
-  attackInterval: 1.2
-  attackRange: 0.8
-  detectionRange: 2.5
+  attackInterval: 1
+  attackRange: 2.6
+  detectionRange: 3
   attackWindup: 0.15
   initialCount: 1
   escortDistance: 1.2
+  leashDistance: 8
   spawnOffsets:
   - {x: 0, y: -1.2}

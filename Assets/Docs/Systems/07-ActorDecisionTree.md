@@ -57,6 +57,8 @@ Evaluate 只返回决策结果。它不能在一次评估中直接调用 Movemen
 
 P0 感知快照可提供食物/引导源、普通目的地、逃跑目的地、目标是否人类和 `FleeCheckSucceeded`。后者是一次概率判定的输入结果，不表示决策树或测试场景已经实现掷骰与状态添加。`GuidanceKind.Wander` 表示一个漫游目的地，Slime/Enemy 决策仅在其他优先行为没有目标时将它转换为 Move 意图。Level_test 的 `RandomWalkPerceptionSource` 只提供该类引导且不提供敌对目标；它是移动链路验收输入，不是正式目标感知。首关饥饿可优先食物；寒冷/炙热不产生状态效果。状态行为优先级的细化等待策划，决策树继续以系统设计文档提供的事实输入为准。普通敌人无目标时可接受活动范围内的游走点。
 
+正式第一关组合根在目标感知之外复用有界 `RandomWalkPerceptionSource`：敌人出生时绑定地图边界作为 `EnemyActivityBounds`，无目标时仍会产生可执行的游走意图；守卫不消费该游走点，继续围绕自身守卫点待命、拦截和攻击。史莱姆到达护送武器后由武器路线驱动，携带期间不再提交 Actor 移动意图。
+
 同类多个引导源的选择规则和状态优先级仍待确认；“先进先出”暂作为下次策划沟通的候选处理顺序，不在本轮写入决策树。策划图示要求的随机选择、20%/50%逃跑概率及状态触发时机仍待正式状态/概率接口；测试场景只验证已给定条件下的选路。
 
 `ActorTargetPerceptionSource` 从当前关卡的 SlimeManager/EnemyManager 公开快照构造敌我目标事实；按自身 `ActorConfig.DetectionRange` 过滤死亡、同阵营和半径外 Actor，暂不判断视线遮挡。Level_test 原有随机漫游感知保持不变。`Assets/Game/Tests/AIBranches/` 的独立场景在正式目标感知之外只补尚未接入的食物、热源、逃跑判定和测试用人类目标。
