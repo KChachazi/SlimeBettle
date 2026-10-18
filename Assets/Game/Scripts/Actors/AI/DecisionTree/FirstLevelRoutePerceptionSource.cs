@@ -17,7 +17,6 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             public int BranchWaypoint = 1;
             public int MainWaypoint;
             public MechanismId FoodId;
-            public readonly HashSet<MechanismId> VisitedFurnaces = new HashSet<MechanismId>();
         }
 
         private readonly IActorPerceptionSource inner;
@@ -27,17 +26,31 @@ namespace SlimeBattle.Actors.AI.DecisionTree
         private readonly MapRouteSnapshot main;
         private readonly Vector2 fork;
         private readonly System.Random random;
+        private readonly bool waitForRouteTrigger;
+        private readonly float waitRadius;
         private readonly Dictionary<ActorId, Progress> progress = new Dictionary<ActorId, Progress>();
+        private readonly Dictionary<ActorId, Vector2> waitCenters =
+            new Dictionary<ActorId, Vector2>();
+        private readonly Dictionary<ActorId, Vector2> waitDestinations =
+            new Dictionary<ActorId, Vector2>();
+        private readonly Dictionary<MechanismId, MechanismSnapshot> observedMechanisms =
+            new Dictionary<MechanismId, MechanismSnapshot>();
+        private bool routesReleased;
         private const float ArrivalDistance = 0.5f;
+        private const float WaitArrivalDistance = 0.25f;
 
         public FirstLevelRoutePerceptionSource(IActorPerceptionSource inner,
             SlimeManager slimes, MapManager map, MechanismSystem mechanisms,
             IReadOnlyList<MapRouteId> orderedBranchIds, MapRouteId mainRouteId,
-            System.Random random = null)
+            System.Random random = null, bool waitForRouteTrigger = false,
+            float waitRadius = 1.5f)
         {
             this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
             this.slimes = slimes ?? throw new ArgumentNullException(nameof(slimes));
             this.mechanisms = mechanisms ?? throw new ArgumentNullException(nameof(mechanisms));
+            this.waitForRouteTrigger = waitForRouteTrigger;
+            this.waitRadius = Mathf.Max(0.1f, Mathf.Abs(waitRadius));
+            routesReleased = !waitForRouteTrigger;
             if (map == null || orderedBranchIds == null || orderedBranchIds.Count != 3 ||
                 !map.TryGetRoute(mainRouteId, out main) || main.Role != MapRouteRole.Main)
                 throw new ArgumentException("Three branches and one main route are required.");
@@ -51,6 +64,15 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 throw new ArgumentException("Exactly one configured fork is required.");
             fork = forks[0].Position;
             this.random = random ?? new System.Random();
+            if (waitForRouteTrigger) CaptureMechanismBaseline();
+        }
+
+        public bool RoutesReleased => routesReleased;
+
+        /// <summary>Releases waiting Slimes into the authored three-route decision.</summary>
+        public void ReleaseRoutes()
+        {
+            routesReleased = true;
         }
 
         public bool TryGetActorSnapshot(ActorId actorId, out ActorSnapshot snapshot) =>
@@ -63,7 +85,18 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 slime.IsCarrying)
             {
                 progress.Remove(actorId);
+                waitCenters.Remove(actorId);
+                waitDestinations.Remove(actorId);
                 return baseSnapshot;
+            }
+
+            ObserveMechanismChanges();
+
+            if (!routesReleased)
+            {
+                if (TryGetWaitingFoodDestination(slime, out var foodDestination))
+                    return WithDestination(baseSnapshot, foodDestination);
+                return WithDestination(baseSnapshot, GetWaitDestination(actorId, slime.Position));
             }
 
             if (!progress.TryGetValue(actorId, out var selected))
@@ -92,6 +125,85 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 selected.MainWaypoint++;
             return WithDestination(baseSnapshot, GuideDestination(slime, selected,
                 waypoints[selected.MainWaypoint].Position));
+        }
+
+        private Vector2 GetWaitDestination(ActorId actorId, Vector2 currentPosition)
+        {
+            if (!waitCenters.TryGetValue(actorId, out var center))
+            {
+                center = currentPosition;
+                waitCenters.Add(actorId, center);
+            }
+
+            if (!waitDestinations.TryGetValue(actorId, out var destination) ||
+                (currentPosition - destination).sqrMagnitude <=
+                WaitArrivalDistance * WaitArrivalDistance)
+            {
+                var angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+                var radius = Mathf.Sqrt((float)random.NextDouble()) * waitRadius;
+                destination = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                waitDestinations[actorId] = destination;
+            }
+
+            return destination;
+        }
+
+        private bool TryGetWaitingFoodDestination(SlimeSnapshot slime,
+            out Vector2 destination)
+        {
+            destination = default(Vector2);
+            if (slime.PixelsPerUnit <= 0f) return false;
+
+            var available = new List<MechanismSnapshot>();
+            foreach (var source in mechanisms.GetActiveSnapshots())
+            {
+                if (source.Kind != MechanismKind.Food || !source.IsAvailable) continue;
+                var range = source.AttractionRadiusPixels / slime.PixelsPerUnit;
+                if ((source.Position - slime.Position).sqrMagnitude <= range * range)
+                    available.Add(source);
+            }
+            if (available.Count == 0) return false;
+            destination = available[random.Next(available.Count)].Position;
+            return true;
+        }
+
+        private void ObserveMechanismChanges()
+        {
+            if (!waitForRouteTrigger || routesReleased) return;
+
+            var current = new Dictionary<MechanismId, MechanismSnapshot>();
+            foreach (var snapshot in mechanisms.GetActiveSnapshots())
+            {
+                current[snapshot.MechanismId] = snapshot;
+                if (!observedMechanisms.TryGetValue(snapshot.MechanismId, out var previous))
+                {
+                    if (snapshot.IsPlayerPlaced && snapshot.Kind == MechanismKind.Food)
+                        routesReleased = true;
+                    continue;
+                }
+
+                if (snapshot.Kind == MechanismKind.Obstacle &&
+                    (snapshot.State != previous.State ||
+                     snapshot.IsAvailable != previous.IsAvailable))
+                    routesReleased = true;
+            }
+
+            foreach (var previous in observedMechanisms)
+                if (!current.ContainsKey(previous.Key) &&
+                    (previous.Value.Kind == MechanismKind.Obstacle ||
+                     previous.Value.Kind == MechanismKind.Food))
+                    routesReleased = true;
+
+            observedMechanisms.Clear();
+            foreach (var snapshot in current)
+                observedMechanisms[snapshot.Key] = snapshot.Value;
+        }
+
+        private void CaptureMechanismBaseline()
+        {
+            observedMechanisms.Clear();
+            foreach (var snapshot in mechanisms.GetActiveSnapshots())
+                observedMechanisms[snapshot.MechanismId] = snapshot;
         }
 
         private Progress ChooseAtFork(SlimeSnapshot slime)
@@ -168,8 +280,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                     continue;
                 if (source.Kind == MechanismKind.Food)
                     availableFood.Add(source);
-                else if (source.Kind == MechanismKind.Furnace &&
-                         !selected.VisitedFurnaces.Contains(source.MechanismId))
+                else if (source.Kind == MechanismKind.Furnace)
                 {
                     var distance = (source.Position - slime.Position).sqrMagnitude;
                     if (distance >= furnaceDistance) continue;
@@ -187,11 +298,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             }
             selected.FoodId = default;
             if (furnace.MechanismId.IsValid)
-            {
-                if (furnaceDistance > ArrivalDistance * ArrivalDistance)
-                    return furnace.Position;
-                selected.VisitedFurnaces.Add(furnace.MechanismId);
-            }
+                return furnace.Position;
             return routeDestination;
         }
 

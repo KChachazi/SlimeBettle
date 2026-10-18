@@ -6,6 +6,7 @@ using SlimeBattle.Actors.Spawning;
 using SlimeBattle.Core;
 using SlimeBattle.Mechanisms;
 using SlimeBattle.Player;
+using SlimeBattle.World;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -38,7 +39,7 @@ namespace SlimeBattle.Tests.MapMovement
                 Assert.IsNotNull(presentation.Placement);
                 var first = manager.GetCurrentContext();
                 Assert.IsNotNull(first);
-                Assert.AreEqual(1, first.SlimeManager.GetAliveSnapshots().Count);
+                Assert.AreEqual(3, first.SlimeManager.GetAliveSnapshots().Count);
                 Assert.AreEqual(1, first.GuardManager.GetAliveSnapshots().Count);
                 Assert.Greater(first.EnemyManager.GetAliveSnapshots().Count, 0);
                 Assert.IsTrue(first.MechanismSystem.TryGetPlayerConfigId(
@@ -48,7 +49,7 @@ namespace SlimeBattle.Tests.MapMovement
                 Assert.IsTrue(food.Succeeded, food.Reason);
                 yield return new WaitForFixedUpdate();
                 yield return null;
-                Assert.AreEqual(2, first.SlimeManager.GetAliveSnapshots().Count);
+                Assert.AreEqual(4, first.SlimeManager.GetAliveSnapshots().Count);
 
                 manager.RequestPause();
                 Assert.AreEqual(LevelState.Paused, manager.GetLevelState());
@@ -59,11 +60,61 @@ namespace SlimeBattle.Tests.MapMovement
                 yield return null;
                 Assert.AreEqual(LevelState.Running, manager.GetLevelState());
                 Assert.AreNotSame(first, manager.GetCurrentContext());
-                Assert.AreEqual(1, manager.GetCurrentContext().SlimeManager.GetAliveSnapshots().Count);
+                Assert.AreEqual(3, manager.GetCurrentContext().SlimeManager.GetAliveSnapshots().Count);
             }
             finally
             {
                 manager.Dispose();
+                if (previous.IsValid() && previous.isLoaded)
+                    SceneManager.SetActiveScene(previous);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator FreeSlimesWaitLocallyUntilRoutesAreReleased()
+        {
+            var previous = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.LoadSceneInPlayMode(
+                "Assets/Game/Tests/FirstLevelComposition/FirstLevelComposition_TEST.unity",
+                new LoadSceneParameters(LoadSceneMode.Single));
+            while (!scene.isLoaded) yield return null;
+
+            LevelManager manager = null;
+            foreach (var root in scene.GetRootGameObjects())
+                if (manager == null) manager = root.GetComponentInChildren<LevelManager>();
+            Assert.IsNotNull(manager);
+            try
+            {
+                for (var frame = 0; frame < 120 && manager.GetLevelState() != LevelState.Running;
+                     frame++) yield return null;
+                Assert.AreEqual(LevelState.Running, manager.GetLevelState());
+                var context = manager.GetCurrentContext();
+                var composition = Object.FindObjectOfType<FirstLevelCompositionRoot>();
+                Assert.IsNotNull(context);
+                Assert.IsNotNull(composition);
+                Assert.IsTrue(context.MapManager.TryGetRoute(new MapRouteId("route_branch_2"),
+                    out var route));
+
+                var freeCount = 0;
+                foreach (var slime in context.SlimeManager.GetAliveSnapshots())
+                    if (!slime.IsCarrying) freeCount++;
+                Assert.GreaterOrEqual(freeCount, 2);
+
+                for (var frame = 0; frame < 60; frame++) yield return null;
+                freeCount = 0;
+                foreach (var slime in context.SlimeManager.GetAliveSnapshots())
+                    if (!slime.IsCarrying)
+                    {
+                        freeCount++;
+                        Assert.That(Vector2.Distance(slime.Position,
+                            route.Waypoints[1].Position), Is.GreaterThan(2.5f));
+                    }
+                Assert.GreaterOrEqual(freeCount, 2);
+                Assert.IsTrue(composition.ReleaseSlimeRoutes());
+            }
+            finally
+            {
+                manager?.Dispose();
                 if (previous.IsValid() && previous.isLoaded)
                     SceneManager.SetActiveScene(previous);
             }
