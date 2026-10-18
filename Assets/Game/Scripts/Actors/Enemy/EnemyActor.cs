@@ -18,6 +18,7 @@ namespace SlimeBattle.Actors.Enemies
         private ActorDecisionTree decisionTree;
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
+        private ActorVisualFeedback visualFeedback;
         private bool disposed;
 
         public event Action<EnemyActor, ResolvedEffect> Died;
@@ -38,6 +39,9 @@ namespace SlimeBattle.Actors.Enemies
         {
             if (core != null || enemyConfig == null || !actorId.IsValid)
                 throw new ArgumentException("Enemy initialization requires config and fresh ActorId.");
+            visualFeedback = GetComponent<ActorVisualFeedback>();
+            if (visualFeedback == null) visualFeedback = gameObject.AddComponent<ActorVisualFeedback>();
+            visualFeedback.Initialize();
             transform.position = position;
             config = enemyConfig;
             core = new ActorCore(actorId, factionId, ActorType.Enemy,
@@ -70,7 +74,8 @@ namespace SlimeBattle.Actors.Enemies
         public EnemySnapshot GetSnapshot() => new EnemySnapshot(core.GetSnapshot(),
             config.ConfigId, core.RuntimeData.CurrentHealth, core.RuntimeData.MaxHealth,
             (EnemyControlMode)core.RuntimeData.ControlMode, runtime.TargetPolicy,
-            runtime.ActivityBounds);
+            runtime.ActivityBounds, runtime.TargetId, stateMachine.CurrentState,
+            runtime.IsAttacking);
 
         public EffectApplyResult ApplyResolvedEffect(ResolvedEffect effect)
         {
@@ -78,10 +83,12 @@ namespace SlimeBattle.Actors.Enemies
             var result = core.ApplyResolvedEffect(effect);
             if (result.DidKill)
             {
+                runtime.IsAttacking = false;
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
-                Died?.Invoke(this, effect);
             }
+            visualFeedback?.NotifyEffect(effect, result);
+            if (result.DidKill) Died?.Invoke(this, effect);
             return result;
         }
 
@@ -104,6 +111,7 @@ namespace SlimeBattle.Actors.Enemies
             { decisionTree.Reset(); stateMachine.Resume(); }
             else
             {
+                runtime.IsAttacking = false;
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(mode == ActorControlMode.Paused
                     ? InterruptReason.Pause : InterruptReason.Control, lastActions);
@@ -118,7 +126,12 @@ namespace SlimeBattle.Actors.Enemies
 
         public void Pause()
         {
-            if (IsAlive) { decisionTree.Stop(); stateMachine.RequestInterrupt(InterruptReason.Pause, lastActions); }
+            if (IsAlive)
+            {
+                runtime.IsAttacking = false;
+                decisionTree.Stop();
+                stateMachine.RequestInterrupt(InterruptReason.Pause, lastActions);
+            }
         }
 
         public void Resume()

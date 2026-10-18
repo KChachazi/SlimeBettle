@@ -38,6 +38,7 @@ namespace SlimeBattle.Actors.Enemies
                 }
             }
             runtime.TargetId = nearest.ActorId;
+            runtime.IsAttacking = nearest.ActorId.IsValid && nearestDistance <= attackRange;
             if (!nearest.ActorId.IsValid)
             {
                 if (context.Perception.HasDestination &&

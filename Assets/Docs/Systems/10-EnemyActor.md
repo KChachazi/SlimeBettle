@@ -34,6 +34,8 @@ P0 只支持 `NearestHostile`：在配置的活动范围内找最近可见敌对
     EnemyTargetPolicy
     EnemyControlMode
 
+`EnemySnapshot` 还公开当前 `TargetActorId`、`IsAttacking` 和 `ActionState`，供守卫等防守方读取敌人的当前攻击决策；这些字段是只读事实，不允许外部写入敌人运行时数据。
+
 第一场景的攻击力、生命、移速和攻击间隔等数值必须进入 EnemyConfig 或关卡配置，不能写死在 EnemyActor 中。
 
 ## 3. 必须接口

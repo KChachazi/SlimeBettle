@@ -15,6 +15,7 @@ namespace SlimeBattle.Actors.Guards
         private ActorDecisionTree decisionTree;
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
+        private ActorVisualFeedback visualFeedback;
         private bool disposed;
         private Vector2 standPosition;
 
@@ -27,6 +28,9 @@ namespace SlimeBattle.Actors.Guards
         {
             if (core != null || guardConfig == null || !actorId.IsValid)
                 throw new ArgumentException("Guard initialization requires config and fresh ActorId.");
+            visualFeedback = GetComponent<ActorVisualFeedback>();
+            if (visualFeedback == null) visualFeedback = gameObject.AddComponent<ActorVisualFeedback>();
+            visualFeedback.Initialize();
             transform.position = position;
             standPosition = position;
             config = guardConfig;
@@ -64,8 +68,9 @@ namespace SlimeBattle.Actors.Guards
             {
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
-                Died?.Invoke(this, effect);
             }
+            visualFeedback?.NotifyEffect(effect, result);
+            if (result.DidKill) Died?.Invoke(this, effect);
             return result;
         }
 

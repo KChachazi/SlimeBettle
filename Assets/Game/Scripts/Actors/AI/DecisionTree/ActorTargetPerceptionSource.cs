@@ -76,24 +76,44 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                         ActorControlMode.Autonomous, guard.StatusIds),
                         config.DetectionRange, targets, isHuman: true);
 
-            if (self.ActorType == ActorType.Guard && guards != null &&
-                guards.TryGetSnapshot(actorId, out var ownGuard))
-            {
-                targets.Clear();
-                foreach (var enemy in enemies.GetAliveSnapshots())
-                    AddIfDetected(self, new ActorSnapshot(enemy.ActorId,
-                        enemy.FactionId, ActorType.Enemy, enemy.IsAlive,
-                        enemy.Position, enemy.CurrentHealth, enemy.MaxHealth,
-                        (ActorControlMode)enemy.ControlMode, enemy.StatusIds),
-                        config.DetectionRange, targets);
-                return new PerceptionSnapshot(++sampleTick, targets,
-                    hasDestination: true, destination: ownGuard.StandPosition);
-            }
-
             var weapon = default(EscortWeaponSnapshot);
             var hasWeapon = mechanisms != null &&
                 mechanisms.TryGetWeaponSnapshot(out weapon) &&
                 !weapon.IsDestroyed && !weapon.HasReachedGoal;
+            if (self.ActorType == ActorType.Guard && guards != null &&
+                guards.TryGetSnapshot(actorId, out var ownGuard))
+            {
+                targets.Clear();
+                var guardConfig = default(GuardConfig);
+                if (!configs.TryGet(ownGuard.ConfigId, out guardConfig))
+                    return new PerceptionSnapshot(++sampleTick, targets,
+                        hasDestination: true, destination: ownGuard.StandPosition);
+                foreach (var enemy in enemies.GetAliveSnapshots())
+                {
+                    var enemyActor = new ActorSnapshot(enemy.ActorId,
+                        enemy.FactionId, ActorType.Enemy, enemy.IsAlive,
+                        enemy.Position, enemy.CurrentHealth, enemy.MaxHealth,
+                        (ActorControlMode)enemy.ControlMode, enemy.StatusIds);
+                    var isAttacking = enemy.IsAttacking;
+                    var isAttackingGuard = isAttacking && IsGuardTarget(enemy.TargetActorId);
+                    var isAttackingWeapon = isAttacking && hasWeapon &&
+                        enemy.TargetActorId == weapon.CombatTargetId;
+                    var isNearWeapon = hasWeapon &&
+                        Vector2.Distance(enemy.Position, weapon.Position) <=
+                        config.DetectionRange;
+                    AddIfDetected(self, enemyActor, config.DetectionRange, targets,
+                        isAttackingWeapon: isAttackingWeapon,
+                        isAttackingGuard: isAttackingGuard,
+                        isNearWeapon: isNearWeapon,
+                        isAttacking: isAttacking);
+                }
+                var destination = ownGuard.StandPosition;
+                if (hasWeapon)
+                    destination = GetEscortDestination(ownGuard, guardConfig, weapon);
+                return new PerceptionSnapshot(++sampleTick, targets,
+                    hasDestination: true, destination: destination);
+            }
+
             if (hasWeapon && self.ActorType == ActorType.Enemy)
                 AddIfDetected(self, WeaponTarget(weapon),
                     config.DetectionRange, targets);
@@ -158,15 +178,38 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 weapon.Position, weapon.Health, weapon.MaxHealth,
                 ActorControlMode.Autonomous, Array.Empty<string>());
 
+        private static Vector2 GetEscortDestination(GuardSnapshot guard,
+            GuardConfig config, EscortWeaponSnapshot weapon)
+        {
+            var offset = guard.StandPosition - weapon.Position;
+            if (offset.sqrMagnitude <= 0.0001f) offset = Vector2.down;
+            return weapon.Position + offset.normalized * Mathf.Max(0f,
+                config.EscortDistance);
+        }
+
+        private bool IsGuardTarget(ActorId targetActorId)
+        {
+            if (!targetActorId.IsValid || guards == null) return false;
+            foreach (var guard in guards.GetAliveSnapshots())
+                if (guard.ActorId == targetActorId) return true;
+            return false;
+        }
+
         private static void AddIfDetected(ActorSnapshot self, ActorSnapshot target,
-            float detectionRange, List<TargetObservation> targets, bool isHuman = false)
+            float detectionRange, List<TargetObservation> targets, bool isHuman = false,
+            bool isAttackingWeapon = false, bool isAttackingGuard = false,
+            bool isNearWeapon = false, bool isAttacking = false)
         {
             if (target.ActorId == self.ActorId || !target.IsAlive ||
                 (target.FactionId == self.FactionId && !isHuman) ||
                 (target.Position - self.Position).sqrMagnitude > detectionRange * detectionRange)
                 return;
             targets.Add(new TargetObservation(target,
-                target.FactionId != self.FactionId, isHuman: isHuman));
+                target.FactionId != self.FactionId, isHuman: isHuman,
+                isAttackingWeapon: isAttackingWeapon,
+                isAttackingGuard: isAttackingGuard,
+                isNearWeapon: isNearWeapon,
+                isAttacking: isAttacking));
         }
 
         private bool TryGetFleeResult(ActorSnapshot actor,

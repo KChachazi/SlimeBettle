@@ -1,6 +1,7 @@
 /* 敌人个体公开快照；生命与状态列表来自 ActorCore 的复制。 */
 using System.Collections.Generic;
 using SlimeBattle.Actors;
+using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Data;
 using UnityEngine;
 
@@ -10,7 +11,9 @@ namespace SlimeBattle.Enemies
     {
         public EnemySnapshot(ActorSnapshot actor, ConfigId configId,
             float currentHealth, float maxHealth, EnemyControlMode controlMode,
-            EnemyTargetPolicy targetPolicy, EnemyActivityBounds activityBounds)
+            EnemyTargetPolicy targetPolicy, EnemyActivityBounds activityBounds,
+            ActorId targetActorId = default(ActorId),
+            StateId actionState = StateId.Idle, bool isAttacking = false)
         {
             ActorId = actor.ActorId;
             FactionId = actor.FactionId;
@@ -22,6 +25,9 @@ namespace SlimeBattle.Enemies
             ControlMode = controlMode;
             TargetPolicy = targetPolicy;
             ActivityBounds = activityBounds;
+            TargetActorId = targetActorId;
+            ActionState = actionState;
+            IsAttacking = isAttacking;
             StatusIds = actor.StatusIds;
         }
         public ActorId ActorId { get; }
@@ -34,6 +40,9 @@ namespace SlimeBattle.Enemies
         public EnemyControlMode ControlMode { get; }
         public EnemyTargetPolicy TargetPolicy { get; }
         public EnemyActivityBounds ActivityBounds { get; }
+        public ActorId TargetActorId { get; }
+        public StateId ActionState { get; }
+        public bool IsAttacking { get; }
         public IReadOnlyList<string> StatusIds { get; }
     }
 }

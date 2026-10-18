@@ -20,6 +20,7 @@ namespace SlimeBattle.Actors.Slimes
         private ActorDecisionTree decisionTree;
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
+        private ActorVisualFeedback visualFeedback;
         private bool disposed;
         private bool isCarrying;
         private float pixelsPerUnit;
@@ -47,6 +48,9 @@ namespace SlimeBattle.Actors.Slimes
         {
             if (core != null || slimeConfig == null || !actorId.IsValid)
                 throw new ArgumentException("Slime initialization requires config and fresh ActorId.");
+            visualFeedback = GetComponent<ActorVisualFeedback>();
+            if (visualFeedback == null) visualFeedback = gameObject.AddComponent<ActorVisualFeedback>();
+            visualFeedback.Initialize();
             transform.position = position;
             config = slimeConfig;
             var sprite = GetComponent<SpriteRenderer>().sprite;
@@ -120,8 +124,9 @@ namespace SlimeBattle.Actors.Slimes
             {
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
-                Died?.Invoke(this, effect);
             }
+            visualFeedback?.NotifyEffect(effect, result);
+            if (result.DidKill) Died?.Invoke(this, effect);
             return result;
         }
 

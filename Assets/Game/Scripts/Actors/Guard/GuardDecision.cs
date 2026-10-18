@@ -26,21 +26,20 @@ namespace SlimeBattle.Actors.Guards
             if (Vector2.Distance(context.Actor.Position, standPosition) > leashDistance)
                 return ActionIntent.Move(standPosition, "Return to guard post.");
 
-            var nearestDistance = float.PositiveInfinity;
-            var nearest = default(ActorSnapshot);
-            foreach (var observation in context.Perception.Targets)
-            {
-                if (!observation.IsVisible || !observation.IsHostile ||
-                    !observation.Actor.IsAlive ||
-                    observation.Actor.ActorType != ActorType.Enemy ||
-                    Vector2.Distance(observation.Actor.Position, standPosition) >
-                        leashDistance) continue;
-                var distance = Vector2.Distance(context.Actor.Position,
-                    observation.Actor.Position);
-                if (distance >= nearestDistance) continue;
-                nearestDistance = distance;
-                nearest = observation.Actor;
-            }
+            var nearest = FindNearest(context, standPosition,
+                observation => observation.IsAttackingWeapon);
+            if (!nearest.ActorId.IsValid)
+                nearest = FindNearest(context, standPosition,
+                    observation => observation.IsAttackingGuard);
+            if (!nearest.ActorId.IsValid)
+                nearest = FindNearest(context, standPosition,
+                    observation => observation.IsNearWeapon &&
+                        observation.IsAttacking &&
+                        observation.Actor.IsAlive && observation.IsHostile);
+
+            var nearestDistance = nearest.ActorId.IsValid
+                ? Vector2.Distance(context.Actor.Position, nearest.Position)
+                : float.PositiveInfinity;
 
             if (nearest.ActorId.IsValid)
                 return nearestDistance <= attackRange
@@ -52,6 +51,28 @@ namespace SlimeBattle.Actors.Guards
                 standPosition) > .1f
                 ? ActionIntent.Move(standPosition, "Return to guard post.")
                 : ActionIntent.Wait("Hold guard post.");
+        }
+
+        private ActorSnapshot FindNearest(DecisionContext context, Vector2 standPosition,
+            System.Func<TargetObservation, bool> predicate)
+        {
+            var nearestDistance = float.PositiveInfinity;
+            var nearest = default(ActorSnapshot);
+            foreach (var observation in context.Perception.Targets)
+            {
+                if (!observation.IsVisible || !observation.IsHostile ||
+                    !observation.Actor.IsAlive ||
+                    observation.Actor.ActorType != ActorType.Enemy ||
+                    !predicate(observation) ||
+                    Vector2.Distance(observation.Actor.Position, standPosition) >
+                        leashDistance) continue;
+                var distance = Vector2.Distance(context.Actor.Position,
+                    observation.Actor.Position);
+                if (distance >= nearestDistance) continue;
+                nearestDistance = distance;
+                nearest = observation.Actor;
+            }
+            return nearest;
         }
     }
 }
