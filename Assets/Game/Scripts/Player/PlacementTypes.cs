@@ -9,7 +9,8 @@ namespace SlimeBattle.Player.Placement
     public enum PlacementValidationStatus
     {
         Inactive, NoPosition, Free, Occupied, OutOfBounds, Unavailable, InvalidPosition,
-        AnchorFree, AnchorReplaceable, TypeMismatch, ReplacementDenied, ReplacementUnavailable
+        AnchorFree, AnchorReplaceable, TypeMismatch, ReplacementDenied, ReplacementUnavailable,
+        InvalidArea
     }
 
     public readonly struct PlacementPreview

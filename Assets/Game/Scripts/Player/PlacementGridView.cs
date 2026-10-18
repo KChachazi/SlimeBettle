@@ -102,7 +102,8 @@ namespace SlimeBattle.Player.Placement
             SetCell(previewRenderer, preview.Cell);
             if (preview.IsAnchor) { previewRenderer.transform.position = preview.WorldCenter; }
             previewRenderer.color = preview.CanConfirm ? freeColor :
-                preview.Status == PlacementValidationStatus.OutOfBounds ? outsideColor :
+                preview.Status == PlacementValidationStatus.OutOfBounds ||
+                    preview.Status == PlacementValidationStatus.InvalidArea ? outsideColor :
                 preview.Status == PlacementValidationStatus.Occupied ? occupiedColor : new Color(1f, 0.75f, 0.2f, 0.75f);
         }
 

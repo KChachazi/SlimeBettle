@@ -100,3 +100,9 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 
 `Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。`LevelActorSpawner` 为本场景绑定无目标的随机漫游感知源和移动端口；BasicSlimeDecision / BasicEnemyDecision 产生 Move 意图后，经 ActorStateMachine、MovementActorActionPort 到达 MovementSystem，再由动态 Rigidbody2D 执行。MapManager 区域事件、地形倍率和 StatusManager 移动修正已有运行时代码，但该场景还没有相应状态配置和区域标记，因此未在场景中验收这些效果；正式目标感知和确定性阻挡用例尚未接入。
 
+
+## 首关道路约束补充（2026-10-19）
+
+首关地图配置了 Road 多边形后，MovementSystem 在每个 FixedTick 计算当前直线移动的下一物理步位置，并通过 `MapManager.CanOccupy` 检查地图边界及道路区域；道路边缘容差为 0.2 Unity 单位（按当前比例约 20 个设计像素），用于跨过来源矩形之间的小测量缝隙。下一步离开道路或地图边界时，请求以 `Blocked` 结束并停止刚体。该机制不做绕行或动态寻路；静态 Collider 阻挡仍通过 Rigidbody2D 碰撞回报。
+
+地形移速倍率继续从当前位置读取并与 Actor 状态倍率相乘。首关两个沼泽区域均配置 0.5，因此 Slime/Enemy 进入其内时的地形移速减半；地图区域快照和进入/离开事件仍由 MapManager 提供。

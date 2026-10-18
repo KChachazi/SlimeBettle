@@ -221,6 +221,22 @@ namespace SlimeBattle.World.Movement
 
                 active.DesiredDirection = toDestination / distance;
                 var stepSpeed = Mathf.Min(speed, distance / fixedDeltaTime);
+                var candidatePosition = position + active.DesiredDirection *
+                    stepSpeed * fixedDeltaTime;
+                var collider = body.GetComponent<Collider2D>();
+                var extents = collider == null ? Vector2.zero :
+                    new Vector2(collider.bounds.extents.x, collider.bounds.extents.y);
+                var bodyRadius = Mathf.Max(extents.x, extents.y);
+                var occupancy = new OccupancyQuery(bodyRadius,
+                    requireWithinBounds: true, checkStaticBlockers: false,
+                    roadTolerance: 0.2f);
+                if (!mapManager.CanOccupy(candidatePosition, occupancy))
+                {
+                    Complete(binding, active, MovementResult.Blocked,
+                        default(ContactInfo));
+                    continue;
+                }
+
                 body.velocity = active.DesiredDirection * stepSpeed;
                 binding.State = new MovementState(binding.ActorId, MovementResult.InProgress,
                     active.RequestId, position, active.Destination, body.velocity);

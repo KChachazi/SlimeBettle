@@ -7,6 +7,7 @@ using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.Enemies;
 using SlimeBattle.Enemies;
 using SlimeBattle.Slimes;
+using SlimeBattle.World;
 using SlimeBattle.World.Movement;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace SlimeBattle.Actors.Spawning
         private readonly SlimeManager slimeManager;
         private readonly EnemyManager enemyManager;
         private readonly MovementSystem movementSystem;
+        private readonly MapManager mapManager;
         private readonly EnemyActivityBounds defaultWanderBounds;
         private readonly System.Random random = new System.Random();
         private readonly Dictionary<ActorId, Vector2> destinations =
@@ -28,12 +30,13 @@ namespace SlimeBattle.Actors.Spawning
 
         public RandomWalkPerceptionSource(SlimeManager slimeManager,
             EnemyManager enemyManager, MovementSystem movementSystem,
-            EnemyActivityBounds defaultWanderBounds)
+            EnemyActivityBounds defaultWanderBounds, MapManager mapManager = null)
         {
             this.slimeManager = slimeManager ?? throw new ArgumentNullException(nameof(slimeManager));
             this.enemyManager = enemyManager ?? throw new ArgumentNullException(nameof(enemyManager));
             this.movementSystem = movementSystem ?? throw new ArgumentNullException(nameof(movementSystem));
             this.defaultWanderBounds = defaultWanderBounds;
+            this.mapManager = mapManager;
         }
 
         public PerceptionSnapshot GetPerception(ActorId actorId)
@@ -102,17 +105,19 @@ namespace SlimeBattle.Actors.Spawning
         {
             var minimum = bounds.Minimum;
             var maximum = bounds.Maximum;
-            var candidate = currentPosition;
             for (var attempt = 0; attempt < 12; attempt++)
             {
-                candidate = new Vector2(
+                var candidate = new Vector2(
                     minimum.x + (float)random.NextDouble() * (maximum.x - minimum.x),
                     minimum.y + (float)random.NextDouble() * (maximum.y - minimum.y));
-                if ((candidate - currentPosition).sqrMagnitude >=
-                    MinimumDestinationDistance * MinimumDestinationDistance)
-                    break;
+                if ((candidate - currentPosition).sqrMagnitude <
+                    MinimumDestinationDistance * MinimumDestinationDistance) continue;
+                if (mapManager != null && !mapManager.CanOccupy(candidate,
+                    new OccupancyQuery(checkStaticBlockers: true, roadTolerance: 0.2f)))
+                    continue;
+                return candidate;
             }
-            return candidate;
+            return currentPosition;
         }
     }
 }

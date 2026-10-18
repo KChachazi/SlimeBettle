@@ -307,11 +307,7 @@ MonoBehaviour:
   mechanismsRoot: {fileID: 804170036}
   presentationRoot: {fileID: 59680050}
   startCurrentSceneOnPlay: 0
-  branchRouteIds:
-  - route_branch_1
-  - route_branch_2
-  - route_branch_3
-  mainRouteId: route_main
+  defaultRouteId: route_escort
 --- !u!4 &633695656
 Transform:
   m_ObjectHideFlags: 0
@@ -400,11 +396,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3550432726194269304, guid: 6913816d9a08411ca03bc53038116a29, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2.88
+      value: 3.9619048
       objectReference: {fileID: 0}
     - target: {fileID: 3550432726194269304, guid: 6913816d9a08411ca03bc53038116a29, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 6.91
+      value: 18.8749206
       objectReference: {fileID: 0}
     - target: {fileID: 3550432726194269304, guid: 6913816d9a08411ca03bc53038116a29, type: 3}
       propertyPath: m_LocalPosition.z

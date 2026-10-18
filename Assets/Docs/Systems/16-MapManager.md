@@ -206,3 +206,13 @@ MapManager 提供敌人点 / 终点洞穴 / 三条路线 / Anchor 点位
 小智交付的 `PF_FirstLevelMapData_TEST` 引用 `MAP_FirstLevel` 并包含视觉底图 Sprite；独立验证场景为 `FirstLevelMap_TEST`，已确认底图完整显示且 MapManager 可查询路线/Anchor 快照。规划中的完整组合场景 `FirstLevelComposition_TEST` 仍待关卡组合者维护；地形/道路轮廓和物理碰撞待标注后接入。
 
 地图 Authoring 只提供空间事实，不复制 `MapManager`，也不在场景脚本中实现路线阻断、Anchor 替换、陷阱结算或 Actor 创建。Anchor 只读查询为 `TryGetPlacementAnchor` / `GetPlacementAnchors`；共享组合场景仍由指定集成者维护，避免多人同时编辑同一个 `.unity` 文件。
+
+## 首关地图接入补充（2026-10-19）
+
+首关离线定义现由 `Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset` 提供，并绑定到 FirstLevel 场景的 `MapLayoutAuthoring`。来源坐标表以 5670 为画布边长，按策划确认统一缩放到 5760 图像：坐标和长度先乘 `5760 / 5670 = 64 / 63`，再按 100 设计像素/Unity 单位换算；边界为 57.6 × 57.6 Unity 单位。
+
+当前配置包括 12 个可通行道路多边形、2 个沼泽多边形（地形移速倍率 0.5）、3 个普通敌人出生点、1 个陷阱地图点，以及 10 个顺序路点组成的 `route_escort`。道路 CSV 的矩形都作为可通行道路；由于来源未标注可靠的主/分支类型，使用 `MapRoadKind.Unclassified`。当前数据文件没有提供放置 Anchor、峡谷轮廓或独立终点区域边界，因此没有从名称或底图推测；路线末点以 goal waypoint 表示。
+
+当快照中至少有一个 Road 区域时，`CanOccupy` 要求查询点位于任一道路多边形内，并继续检查边界和已登记静态阻挡体。查询可通过 `OccupancyQuery.RoadTolerance` 给道路边缘小范围容差；没有 Road 区域的旧场景保持此前的边界/阻挡行为。该规则供 MovementSystem、放置预览和机关最终创建共用。
+
+`MapLayoutAuthoring.showDebugGeometry` 默认开启 Scene View Gizmo：道路、沼泽、Escort 路线、敌人出生点和陷阱点分别绘制，便于核对多边形和路点。Gizmo 只用于编辑器检查，不会创建物理 Collider 或运行时机关。陷阱点目前只是地图事实，不会自动生成触发器或结算效果；沼泽只配置了移速倍率，未配置 Status 效果 ID。

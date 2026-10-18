@@ -138,3 +138,9 @@ PlacementCancelledEvent
 `PlacementSystem` 是当前放置会话的 plain C# 模块，不直接作为场景组件序列化。`PlacementInputAdapter`、`FirstLevelPresentationRoot` 或专用 Backend Adapter 可以通过 `[SerializeField] private` 引用具体的 Grid、Camera、UI Prefab、地图 Authoring 适配器和实现接口的 `MonoBehaviour`，再在 `LevelStarted` 后连接当前 Context。
 
 小宸可以先用 Mock Backend 在独立测试夹具中验证输入、投影、吸附、预览、确认和清理；集成测试场景由指定集成者把真实地图事实和 `MechanismSystem` 公开请求接入。Placement/UI 不得直接序列化或访问 `LevelContext`、`MechanismSystem` 私有字段，也不得通过场景引用绕过边界、占用、替换和生命周期校验。
+
+## 首关通行区域校验补充（2026-10-19）
+
+FirstLevelPresentationRoot 将 MapManager 的占位查询注入 PlacementSystem。预览网格中心不在任何 Road 多边形中时，返回 `InvalidArea` 并禁止确认；道路内仍继续执行 Anchor、格子占用、地图边界和 Backend 检查。MechanismSystem 在最终创建机关时再次检查地图边界、道路区域中心点和静态阻挡体，避免只依赖预览结果。
+
+道路区域检查仅表示可通行/允许放置的地图事实，不会自动定义 Anchor 白名单。首关当前数据未提供 Anchor，所以普通放置仍按现有配置和机关规则处理；后续拿到策划 Anchor 数据后再录入 MapManager。

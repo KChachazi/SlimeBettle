@@ -325,6 +325,12 @@ namespace SlimeBattle.Mechanisms
                 failureReason = "The requested position is outside the map.";
                 return false;
             }
+            if (!mapManager.CanOccupy(position,
+                new OccupancyQuery(config.PlacementRadiusWorldUnits)))
+            {
+                failureReason = "The requested position is outside a walkable placement area or is blocked.";
+                return false;
+            }
             return true;
         }
 

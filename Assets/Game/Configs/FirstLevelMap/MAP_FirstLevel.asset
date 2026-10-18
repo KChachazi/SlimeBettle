@@ -11,412 +11,290 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f5aee129d9e740fdbd022c7d1c05f110, type: 3}
   m_Name: MAP_FirstLevel
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   designPixelsPerUnityUnit: 100
   designSizePixels: {x: 5760, y: 5760}
   points:
-  - pointId: slime_spawn
-    kind: 0
-    designPosition: {x: 288, y: 691}
-    configId: 
-    interactionRadiusPixels: 300
-  - pointId: guard_spawn
-    kind: 9
-    designPosition: {x: 691, y: 806}
-    configId: 
-    interactionRadiusPixels: 300
-  - pointId: fork_main
-    kind: 12
-    designPosition: {x: 461, y: 922}
-    configId: 
-    interactionRadiusPixels: 350
-  - pointId: merge_1
-    kind: 13
-    designPosition: {x: 1670, y: 2189}
-    configId: 
-    interactionRadiusPixels: 300
-  - pointId: merge_2
-    kind: 13
-    designPosition: {x: 4147, y: 2822}
-    configId: 
-    interactionRadiusPixels: 300
-  - pointId: merge_3
-    kind: 13
-    designPosition: {x: 4205, y: 2880}
-    configId: 
-    interactionRadiusPixels: 300
-  - pointId: goal_cave
-    kind: 14
-    designPosition: {x: 4781, y: 5357}
-    configId: 
-    interactionRadiusPixels: 400
-  - pointId: enemy_m1
+  - pointId: enemy_spawn_01
     kind: 3
-    designPosition: {x: 403, y: 1664}
-    configId: 
+    designPosition: {x: 381.968254, y: 2774.349206}
+    configId:
     interactionRadiusPixels: 0
-  - pointId: enemy_m2
+  - pointId: enemy_spawn_02
     kind: 3
-    designPosition: {x: 403, y: 2182}
-    configId: 
+    designPosition: {x: 3953.777778, y: 2318.222222}
+    configId:
     interactionRadiusPixels: 0
-  - pointId: enemy_m3
+  - pointId: enemy_spawn_03
     kind: 3
-    designPosition: {x: 2189, y: 2470}
-    configId: 
+    designPosition: {x: 2710.349206, y: 2473.650794}
+    configId:
     interactionRadiusPixels: 0
-  - pointId: enemy_m4
-    kind: 3
-    designPosition: {x: 4089, y: 1950}
-    configId: 
-    interactionRadiusPixels: 0
-  - pointId: enemy_m5
-    kind: 3
-    designPosition: {x: 4493, y: 4035}
-    configId: 
-    interactionRadiusPixels: 0
-  - pointId: trap_t1
+  - pointId: trap_01
     kind: 6
-    designPosition: {x: 1209, y: 1555}
-    configId: first_level_trap_t1
-    interactionRadiusPixels: 120
-  - pointId: trap_t2
-    kind: 6
-    designPosition: {x: 3283, y: 2930}
-    configId: first_level_trap_t2
-    interactionRadiusPixels: 120
-  - pointId: trap_t3_rock
-    kind: 6
-    designPosition: {x: 4032, y: 4608}
-    configId: first_level_trap_t3
-    interactionRadiusPixels: 140
-  - pointId: trap_t4_swamp
-    kind: 6
-    designPosition: {x: 749, y: 3052}
-    configId: first_level_trap_t4
-    interactionRadiusPixels: 130
-  - pointId: trap_t5_cliff
-    kind: 6
-    designPosition: {x: 3110, y: 2295}
-    configId: first_level_trap_t5
-    interactionRadiusPixels: 140
-  - pointId: supply_s1
-    kind: 10
-    designPosition: {x: 3744, y: 1206}
-    configId: first_level_supply
-    interactionRadiusPixels: 60
-  - pointId: supply_s2
-    kind: 10
-    designPosition: {x: 4608, y: 4933}
-    configId: first_level_supply
-    interactionRadiusPixels: 60
-  - pointId: tutorial_st0
-    kind: 11
-    designPosition: {x: 288, y: 403}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st1
-    kind: 11
-    designPosition: {x: 288, y: 403}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st2
-    kind: 11
-    designPosition: {x: 461, y: 922}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st4
-    kind: 11
-    designPosition: {x: 2189, y: 2470}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st5
-    kind: 11
-    designPosition: {x: 1728, y: 1382}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st6
-    kind: 11
-    designPosition: {x: 1209, y: 1555}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st7
-    kind: 11
-    designPosition: {x: 461, y: 922}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st8
-    kind: 11
-    designPosition: {x: 3744, y: 1206}
-    configId: 
-    interactionRadiusPixels: 250
-  - pointId: tutorial_st9
-    kind: 11
-    designPosition: {x: 4781, y: 5357}
-    configId: 
-    interactionRadiusPixels: 400
+    designPosition: {x: 1317.587302, y: 1887.492063}
+    configId:
+    interactionRadiusPixels: 304.761905
   areas:
-  - areaId: goal_cave_area
-    kind: 4
-    roadKind: 0
+  - areaId: road_01
+    kind: 0
+    roadKind: 2
     terrainKind: 0
     regionKind: 0
-    designCenter: {x: 4781, y: 5357}
-    radiusPixels: 400
+    usePolygon: 1
+    designCenter: {x: 2650.920635, y: 5280.507937}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1680.253968, y: 5007.238095}
+    - {x: 3621.587302, y: 5007.238095}
+    - {x: 3621.587302, y: 5553.777778}
+    - {x: 1680.253968, y: 5553.777778}
     movementSpeedMultiplier: 1
-    statusEffectConfigId: 
+    statusEffectConfigId:
     guidanceRadiusPixels: 0
-  - areaId: terrain_swamp_t4_draft
+  - areaId: road_02
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 3752.126984, y: 4818.285714}
+    radiusPixels: 1
+    designVertices:
+    - {x: 3265.015873, y: 4604.952381}
+    - {x: 4239.238095, y: 4604.952381}
+    - {x: 4239.238095, y: 5031.619048}
+    - {x: 3265.015873, y: 5031.619048}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_03
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 3907.047619, y: 2891.174603}
+    radiusPixels: 1
+    designVertices:
+    - {x: 3596.190476, y: 1153.015873}
+    - {x: 4217.904762, y: 1153.015873}
+    - {x: 4217.904762, y: 4629.333333}
+    - {x: 3596.190476, y: 4629.333333}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_04
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 5359.238095, y: 3689.142857}
+    radiusPixels: 1
+    designVertices:
+    - {x: 5082.412698, y: 1640.634921}
+    - {x: 5636.063492, y: 1640.634921}
+    - {x: 5636.063492, y: 5737.650794}
+    - {x: 5082.412698, y: 5737.650794}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_05
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 4909.206349, y: 1412.571429}
+    radiusPixels: 1
+    designVertices:
+    - {x: 4182.349206, y: 1153.015873}
+    - {x: 5636.063492, y: 1153.015873}
+    - {x: 5636.063492, y: 1672.126984}
+    - {x: 4182.349206, y: 1672.126984}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_06
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 330.15873, y: 2859.68254}
+    radiusPixels: 1
+    designVertices:
+    - {x: 14.222222, y: 1710.730159}
+    - {x: 646.095238, y: 1710.730159}
+    - {x: 646.095238, y: 4008.634921}
+    - {x: 14.222222, y: 4008.634921}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_07
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 952.888889, y: 3710.47619}
+    radiusPixels: 1
+    designVertices:
+    - {x: 663.365079, y: 3539.301587}
+    - {x: 1242.412698, y: 3539.301587}
+    - {x: 1242.412698, y: 3881.650794}
+    - {x: 663.365079, y: 3881.650794}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_08
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 1858.539683, y: 3540.825397}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1256.634921, y: 3200}
+    - {x: 2460.444444, y: 3200}
+    - {x: 2460.444444, y: 3881.650794}
+    - {x: 1256.634921, y: 3881.650794}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_09
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 2138.920635, y: 2866.793651}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1817.396825, y: 2565.079365}
+    - {x: 2460.444444, y: 2565.079365}
+    - {x: 2460.444444, y: 3168.507937}
+    - {x: 1817.396825, y: 3168.507937}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_10
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 2874.412698, y: 2409.650794}
+    radiusPixels: 1
+    designVertices:
+    - {x: 2166.857143, y: 2172.952381}
+    - {x: 3581.968254, y: 2172.952381}
+    - {x: 3581.968254, y: 2646.349206}
+    - {x: 2166.857143, y: 2646.349206}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_11
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 1604.063492, y: 1920.507937}
+    radiusPixels: 1
+    designVertices:
+    - {x: 620.698413, y: 1710.730159}
+    - {x: 2587.428571, y: 1710.730159}
+    - {x: 2587.428571, y: 2130.285714}
+    - {x: 620.698413, y: 2130.285714}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_12
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 3109.587302, y: 585.142857}
+    radiusPixels: 1
+    designVertices:
+    - {x: 2647.365079, y: 288.507937}
+    - {x: 3571.809524, y: 288.507937}
+    - {x: 3571.809524, y: 881.777778}
+    - {x: 2647.365079, y: 881.777778}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: swamp_01
     kind: 1
     roadKind: 0
     terrainKind: 1
     regionKind: 0
-    designCenter: {x: 749, y: 3052}
-    radiusPixels: 130
-    movementSpeedMultiplier: 1
-    statusEffectConfigId: 
+    usePolygon: 1
+    designCenter: {x: 1376, y: 5052.952381}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1066.666667, y: 4794.920635}
+    - {x: 1685.333333, y: 4794.920635}
+    - {x: 1685.333333, y: 5310.984127}
+    - {x: 1066.666667, y: 5310.984127}
+    movementSpeedMultiplier: 0.5
+    statusEffectConfigId:
     guidanceRadiusPixels: 0
-  - areaId: terrain_canyon_t5_edge_draft
+  - areaId: swamp_02
     kind: 1
     roadKind: 0
-    terrainKind: 2
+    terrainKind: 1
     regionKind: 0
-    designCenter: {x: 3110, y: 2295}
-    radiusPixels: 140
-    movementSpeedMultiplier: 1
-    statusEffectConfigId: 
+    usePolygon: 1
+    designCenter: {x: 1015.873016, y: 4486.095238}
+    radiusPixels: 1
+    designVertices:
+    - {x: 346.412698, y: 4148.825397}
+    - {x: 1685.333333, y: 4148.825397}
+    - {x: 1685.333333, y: 4823.365079}
+    - {x: 346.412698, y: 4823.365079}
+    movementSpeedMultiplier: 0.5
+    statusEffectConfigId:
     guidanceRadiusPixels: 0
   routes:
-  - routeId: route_branch_1
-    role: 1
-    mergePointId: merge_1
-    waypoints:
-    - waypointId: b1_start
-      designPosition: {x: 288, y: 691}
-      isGoal: 0
-    - waypointId: b1_1
-      designPosition: {x: 380, y: 1400}
-      isGoal: 0
-    - waypointId: b1_enemy_m1
-      designPosition: {x: 403, y: 1664}
-      isGoal: 0
-    - waypointId: b1_enemy_m2
-      designPosition: {x: 403, y: 2182}
-      isGoal: 0
-    - waypointId: b1_4
-      designPosition: {x: 1200, y: 2300}
-      isGoal: 0
-    - waypointId: b1_enemy_m3
-      designPosition: {x: 2189, y: 2470}
-      isGoal: 0
-    - waypointId: b1_merge_1
-      designPosition: {x: 1670, y: 2189}
-      isGoal: 0
-    blockingAnchorIds:
-    - L1
-    relatedPointIds:
-    - enemy_m1
-    - enemy_m2
-    - enemy_m3
-  - routeId: route_branch_2
-    role: 1
-    mergePointId: merge_2
-    waypoints:
-    - waypointId: b2_start
-      designPosition: {x: 288, y: 691}
-      isGoal: 0
-    - waypointId: b2_1
-      designPosition: {x: 800, y: 1150}
-      isGoal: 0
-    - waypointId: b2_trap_t1
-      designPosition: {x: 1209, y: 1555}
-      isGoal: 0
-    - waypointId: b2_3
-      designPosition: {x: 2200, y: 2300}
-      isGoal: 0
-    - waypointId: b2_trap_t2
-      designPosition: {x: 3283, y: 2930}
-      isGoal: 0
-    - waypointId: b2_merge_2
-      designPosition: {x: 4147, y: 2822}
-      isGoal: 0
-    blockingAnchorIds:
-    - L2
-    relatedPointIds:
-    - trap_t1
-    - trap_t2
-  - routeId: route_branch_3
-    role: 1
-    mergePointId: merge_3
-    waypoints:
-    - waypointId: b3_start
-      designPosition: {x: 288, y: 691}
-      isGoal: 0
-    - waypointId: b3_1
-      designPosition: {x: 700, y: 1100}
-      isGoal: 0
-    - waypointId: b3_2
-      designPosition: {x: 2000, y: 1800}
-      isGoal: 0
-    - waypointId: b3_trap_t5_cliff
-      designPosition: {x: 3110, y: 2295}
-      isGoal: 0
-    - waypointId: b3_4
-      designPosition: {x: 3500, y: 1600}
-      isGoal: 0
-    - waypointId: b3_supply_s1
-      designPosition: {x: 3744, y: 1206}
-      isGoal: 0
-    - waypointId: b3_6
-      designPosition: {x: 3900, y: 1700}
-      isGoal: 0
-    - waypointId: b3_enemy_m4
-      designPosition: {x: 4089, y: 1950}
-      isGoal: 0
-    - waypointId: b3_merge_3
-      designPosition: {x: 4205, y: 2880}
-      isGoal: 0
-    blockingAnchorIds:
-    - L3
-    relatedPointIds:
-    - trap_t5_cliff
-    - supply_s1
-    - enemy_m4
-  - routeId: route_main
-    role: 2
-    mergePointId:
-    waypoints:
-    - waypointId: main_merge_1
-      designPosition: {x: 1670, y: 2189}
-      isGoal: 0
-    - waypointId: main_1
-      designPosition: {x: 3000, y: 2500}
-      isGoal: 0
-    - waypointId: main_merge_2
-      designPosition: {x: 4147, y: 2822}
-      isGoal: 0
-    - waypointId: main_merge_3
-      designPosition: {x: 4205, y: 2880}
-      isGoal: 0
-    - waypointId: main_4
-      designPosition: {x: 4000, y: 3600}
-      isGoal: 0
-    - waypointId: main_trap_t3_rock
-      designPosition: {x: 4032, y: 4608}
-      isGoal: 0
-    - waypointId: main_enemy_m5
-      designPosition: {x: 4493, y: 4035}
-      isGoal: 0
-    - waypointId: main_supply_s2
-      designPosition: {x: 4608, y: 4933}
-      isGoal: 0
-    - waypointId: main_goal_cave
-      designPosition: {x: 4781, y: 5357}
-      isGoal: 1
-    blockingAnchorIds: []
-    relatedPointIds:
-    - merge_1
-    - merge_2
-    - merge_3
-    - trap_t3_rock
-    - enemy_m5
-    - supply_s2
-    - goal_cave
   - routeId: route_escort
     role: 0
     mergePointId:
     waypoints:
-    - waypointId: escort_start
-      designPosition: {x: 288, y: 691}
+    - waypointId: checkpoint_01
+      designPosition: {x: 396.190476, y: 1887.492063}
       isGoal: 0
-    - waypointId: escort_branch_2_1
-      designPosition: {x: 800, y: 1150}
+    - waypointId: checkpoint_02
+      designPosition: {x: 396.190476, y: 3656.126984}
       isGoal: 0
-    - waypointId: escort_trap_t1
-      designPosition: {x: 1209, y: 1555}
+    - waypointId: checkpoint_03
+      designPosition: {x: 1507.555556, y: 3656.126984}
       isGoal: 0
-    - waypointId: escort_branch_2_3
-      designPosition: {x: 2200, y: 2300}
+    - waypointId: checkpoint_04
+      designPosition: {x: 1507.555556, y: 3351.365079}
       isGoal: 0
-    - waypointId: escort_trap_t2
-      designPosition: {x: 3283, y: 2930}
+    - waypointId: checkpoint_05
+      designPosition: {x: 2271.492063, y: 3351.365079}
       isGoal: 0
-    - waypointId: escort_merge_2
-      designPosition: {x: 4147, y: 2822}
+    - waypointId: checkpoint_06
+      designPosition: {x: 2271.492063, y: 2392.380952}
       isGoal: 0
-    - waypointId: escort_merge_3
-      designPosition: {x: 4205, y: 2880}
+    - waypointId: checkpoint_07
+      designPosition: {x: 3911.111111, y: 2392.380952}
       isGoal: 0
-    - waypointId: escort_main_4
-      designPosition: {x: 4000, y: 3600}
+    - waypointId: checkpoint_08
+      designPosition: {x: 3911.111111, y: 1412.063492}
       isGoal: 0
-    - waypointId: escort_trap_t3_rock
-      designPosition: {x: 4032, y: 4608}
+    - waypointId: checkpoint_09
+      designPosition: {x: 5369.904762, y: 1412.063492}
       isGoal: 0
-    - waypointId: escort_enemy_m5
-      designPosition: {x: 4493, y: 4035}
-      isGoal: 0
-    - waypointId: escort_supply_s2
-      designPosition: {x: 4608, y: 4933}
-      isGoal: 0
-    - waypointId: escort_goal_cave
-      designPosition: {x: 4781, y: 5357}
+    - waypointId: checkpoint_10
+      designPosition: {x: 5369.904762, y: 5568}
       isGoal: 1
     blockingAnchorIds: []
-    relatedPointIds:
-    - goal_cave
-  anchors:
-  - anchorId: L1
-    role: 0
-    designPosition: {x: 346, y: 1206}
-    snapRadiusPixels: 80
-    acceptedMechanismKinds:
-    - 3
-    allowsReplacement: 1
-    associatedRouteId: route_branch_1
-    associatedPointId: 
-  - anchorId: L2
-    role: 0
-    designPosition: {x: 576, y: 1266}
-    snapRadiusPixels: 80
-    acceptedMechanismKinds:
-    - 3
-    allowsReplacement: 1
-    associatedRouteId: route_branch_2
-    associatedPointId: 
-  - anchorId: L3
-    role: 0
-    designPosition: {x: 749, y: 1035}
-    snapRadiusPixels: 80
-    acceptedMechanismKinds:
-    - 3
-    allowsReplacement: 1
-    associatedRouteId: route_branch_3
-    associatedPointId: 
-  - anchorId: SL1
-    role: 1
-    designPosition: {x: 1209, y: 1555}
-    snapRadiusPixels: 80
-    acceptedMechanismKinds:
-    - 3
-    allowsReplacement: 1
-    associatedRouteId: 
-    associatedPointId: trap_t1
-  - anchorId: SL2
-    role: 1
-    designPosition: {x: 749, y: 3052}
-    snapRadiusPixels: 80
-    acceptedMechanismKinds:
-    - 3
-    allowsReplacement: 1
-    associatedRouteId: 
-    associatedPointId: trap_t4_swamp
-  - anchorId: SL3
-    role: 2
-    designPosition: {x: 4032, y: 4608}
-    snapRadiusPixels: 80
-    acceptedMechanismKinds:
-    - 3
-    allowsReplacement: 1
-    associatedRouteId: 
-    associatedPointId: trap_t3_rock
+    relatedPointIds: []
+  anchors: []
