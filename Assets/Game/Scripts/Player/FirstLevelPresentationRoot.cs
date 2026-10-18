@@ -103,7 +103,8 @@ namespace SlimeBattle.Player
             var backend = context == backendContext && injectedBackend != null ? injectedBackend :
                 new MechanismPlacementBackend(context?.MechanismSystem);
             Placement = new PlacementSystem(grid, ReadBounds, levelManager.GetLevelState, backend, confirmationMode,
-                ReadAnchors, anchorMapDefinition != null ? anchorMapDefinition.DesignPixelsPerUnityUnit : 0f);
+                ReadAnchors, anchorMapDefinition != null ? anchorMapDefinition.DesignPixelsPerUnityUnit : 0f,
+                IsPlaceableMapPosition);
             var source = new FirstLevelUiSnapshotSource(Placement, statusSource);
             GetComponent<PlayerPresentationRoot>().Initialize(levelManager, cameraSystem, source);
             gridView.Initialize(Placement, grid);
@@ -124,6 +125,13 @@ namespace SlimeBattle.Player
         private IReadOnlyList<PlacementAnchorSnapshot> ReadAnchors()
         {
             return levelManager.GetCurrentContext()?.MapManager?.GetPlacementAnchors();
+        }
+
+        private bool IsPlaceableMapPosition(Vector2 position)
+        {
+            var map = levelManager.GetCurrentContext()?.MapManager;
+            return map != null && map.CanOccupy(position,
+                new OccupancyQuery(checkStaticBlockers: true));
         }
 
         private void ApplyMapBounds()

@@ -16,6 +16,7 @@ namespace SlimeBattle.Player.Placement
         private readonly IPlacementBackend backend;
         private readonly PlacementConfirmationMode confirmationMode;
         private readonly Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors;
+        private readonly Func<Vector2, bool> canOccupy;
         private readonly float anchorPixelsPerWorldUnit;
         private readonly List<PlacementAnchorSnapshot> anchors = new List<PlacementAnchorSnapshot>();
         private readonly List<Vector3> placedPositions = new List<Vector3>();
@@ -33,7 +34,8 @@ namespace SlimeBattle.Player.Placement
 
         public PlacementSystem(PlacementGridAuthoring grid, Func<MapBounds?> readBounds,
             Func<LevelState> readPhase, IPlacementBackend backend, PlacementConfirmationMode confirmationMode,
-            Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors = null, float anchorPixelsPerWorldUnit = 0f)
+            Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors = null,
+            float anchorPixelsPerWorldUnit = 0f, Func<Vector2, bool> canOccupy = null)
         {
             this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
             this.readBounds = readBounds ?? throw new ArgumentNullException(nameof(readBounds));
@@ -44,6 +46,7 @@ namespace SlimeBattle.Player.Placement
             this.confirmationMode = confirmationMode;
             this.readAnchors = readAnchors;
             this.anchorPixelsPerWorldUnit = anchorPixelsPerWorldUnit;
+            this.canOccupy = canOccupy;
             grid.ValidateConfiguration();
         }
 
@@ -187,6 +190,9 @@ namespace SlimeBattle.Player.Placement
             try
             {
                 if (placementError != null) { return At(PlacementValidationStatus.Unavailable, placementError); }
+                if (canOccupy != null && !canOccupy(new Vector2(center.x, center.y)))
+                    return At(PlacementValidationStatus.InvalidArea,
+                        "Placement must stay on a walkable road area.");
                 if (anchor.HasValue)
                 {
                     var status = GetAnchorStatus(anchor.Value);

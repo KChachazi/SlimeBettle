@@ -25,29 +25,39 @@ namespace SlimeBattle.World
             public AreaBinding(MapAreaVolumeSnapshot volume)
             {
                 Snapshot = volume.Area;
-                Center = volume.Center;
-                Radius = volume.Radius;
-                HasCircleVolume = true;
+                Volume = volume;
+                HasLayoutVolume = true;
             }
 
             public MapAreaAuthoring Authoring { get; }
             public MapAreaSnapshot Snapshot { get; }
-            private Vector2 Center { get; }
-            private float Radius { get; }
-            private bool HasCircleVolume { get; }
+            private MapAreaVolumeSnapshot Volume { get; }
+            private bool HasLayoutVolume { get; }
 
             public bool Contains(Vector2 position)
             {
-                if (HasCircleVolume) return (position - Center).sqrMagnitude <= Radius * Radius;
+                if (HasLayoutVolume) return Volume.Contains(position);
                 var collider = Authoring == null ? null : Authoring.AreaCollider;
                 return collider != null && collider.enabled &&
                     collider.gameObject.activeInHierarchy && collider.OverlapPoint(position);
             }
 
+            public bool Contains(Vector2 position, float tolerance)
+            {
+                if (HasLayoutVolume) return Volume.Contains(position, tolerance);
+                var collider = Authoring == null ? null : Authoring.AreaCollider;
+                if (collider == null || !collider.enabled ||
+                    !collider.gameObject.activeInHierarchy) return false;
+                if (collider.OverlapPoint(position)) return true;
+                if (tolerance <= 0f) return false;
+                var closest = collider.ClosestPoint(position);
+                return (closest - position).sqrMagnitude <= tolerance * tolerance;
+            }
+
             public bool TryGetCenter(out Vector2 center)
             {
-                center = Center;
-                if (HasCircleVolume) return true;
+                center = HasLayoutVolume ? Volume.Center : Vector2.zero;
+                if (HasLayoutVolume) return true;
                 var collider = Authoring == null ? null : Authoring.AreaCollider;
                 if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy)
                     return false;
@@ -72,6 +82,7 @@ namespace SlimeBattle.World
         private readonly ILevelEventBus eventBus;
         private Scene scene;
         private MapBounds? mapBounds;
+        private bool hasRoadAreas;
         private bool disposed;
         private bool readyPublished;
 
@@ -149,6 +160,19 @@ namespace SlimeBattle.World
                 {
                     return false;
                 }
+            }
+
+            if (hasRoadAreas)
+            {
+                var onRoad = false;
+                foreach (var binding in areas.Values)
+                {
+                    if (binding.Snapshot.Kind != MapAreaKind.Road ||
+                        !binding.Contains(worldPosition, query.RoadTolerance)) continue;
+                    onRoad = true;
+                    break;
+                }
+                if (!onRoad) return false;
             }
 
             if (!query.CheckStaticBlockers) return true;
@@ -307,6 +331,7 @@ namespace SlimeBattle.World
             placementAnchors.Clear();
             actorAreas.Clear();
             mapBounds = null;
+            hasRoadAreas = false;
             scene = default(Scene);
             disposed = true;
         }
@@ -475,6 +500,13 @@ namespace SlimeBattle.World
             foreach (var group in pointsByKind.Values)
                 group.Sort((left, right) => string.CompareOrdinal(
                     left.PointId.Value, right.PointId.Value));
+            hasRoadAreas = false;
+            foreach (var binding in areas.Values)
+                if (binding.Snapshot.Kind == MapAreaKind.Road)
+                {
+                    hasRoadAreas = true;
+                    break;
+                }
             ValidateMapReferences();
         }
 

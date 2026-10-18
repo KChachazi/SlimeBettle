@@ -38,8 +38,10 @@ namespace SlimeBattle.World
             [SerializeField] private MapRoadKind roadKind;
             [SerializeField] private MapTerrainKind terrainKind;
             [SerializeField] private MapRegionKind regionKind;
+            [SerializeField] private bool usePolygon;
             [SerializeField] private Vector2 designCenter;
             [SerializeField, Min(0.01f)] private float radiusPixels = 1f;
+            [SerializeField] private List<Vector2> designVertices = new List<Vector2>();
             [SerializeField, Min(0.01f)] private float movementSpeedMultiplier = 1f;
             [SerializeField] private string statusEffectConfigId;
             [SerializeField, Min(0f)] private float guidanceRadiusPixels = 500f;
@@ -49,8 +51,10 @@ namespace SlimeBattle.World
             public MapRoadKind RoadKind => roadKind;
             public MapTerrainKind TerrainKind => terrainKind;
             public MapRegionKind RegionKind => regionKind;
+            public bool UsePolygon => usePolygon;
             public Vector2 DesignCenter => designCenter;
             public float RadiusPixels => radiusPixels;
+            public List<Vector2> DesignVertices => designVertices;
             public float MovementSpeedMultiplier => movementSpeedMultiplier;
             public string StatusEffectConfigId => statusEffectConfigId;
             public float GuidanceRadiusPixels => guidanceRadiusPixels;
@@ -140,7 +144,11 @@ namespace SlimeBattle.World
                 foreach (var entry in areas)
                 {
                     if (entry == null || string.IsNullOrWhiteSpace(entry.AreaId) ||
-                        !IsFinite(entry.DesignCenter) || !IsPositiveFinite(entry.RadiusPixels) ||
+                        !IsFinite(entry.DesignCenter) ||
+                        (!entry.UsePolygon && !IsPositiveFinite(entry.RadiusPixels)) ||
+                        (entry.UsePolygon && (entry.DesignVertices == null ||
+                            entry.DesignVertices.Count < 3 ||
+                            entry.DesignVertices.Exists(vertex => !IsFinite(vertex)))) ||
                         !IsPositiveFinite(entry.MovementSpeedMultiplier) ||
                         !IsFiniteNonNegative(entry.GuidanceRadiusPixels) ||
                         !IsValidArea(entry))
@@ -156,8 +164,18 @@ namespace SlimeBattle.World
                         entry.RoadKind, entry.TerrainKind, entry.RegionKind,
                         entry.MovementSpeedMultiplier, entry.StatusEffectConfigId,
                         guidanceRadius);
-                    builtAreas.Add(new MapAreaVolumeSnapshot(area,
-                        entry.DesignCenter * scale, entry.RadiusPixels * scale));
+                    if (entry.UsePolygon)
+                    {
+                        var vertices = new List<Vector2>(entry.DesignVertices.Count);
+                        foreach (var vertex in entry.DesignVertices)
+                            vertices.Add(vertex * scale);
+                        builtAreas.Add(new MapAreaVolumeSnapshot(area, vertices));
+                    }
+                    else
+                    {
+                        builtAreas.Add(new MapAreaVolumeSnapshot(area,
+                            entry.DesignCenter * scale, entry.RadiusPixels * scale));
+                    }
                 }
 
             if (points != null)
@@ -244,8 +262,7 @@ namespace SlimeBattle.World
 
             var bounds = new MapBounds(Vector2.zero, designSizePixels * scale);
             foreach (var area in builtAreas)
-                if (!bounds.Contains(area.Center - Vector2.one * area.Radius) ||
-                    !bounds.Contains(area.Center + Vector2.one * area.Radius))
+                if (!bounds.Contains(area.BoundsMin) || !bounds.Contains(area.BoundsMax))
                 {
                     error = $"Map area '{area.Area.AreaId}' extends beyond the map bounds.";
                     return false;

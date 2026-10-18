@@ -22,7 +22,8 @@ namespace SlimeBattle.Mechanisms
             this.weapon = weapon;
             this.map = map;
             maximumSpeed = config.TransportSpeedWorldUnits;
-            occupancy = new OccupancyQuery(config.FootprintRadiusWorldUnits);
+            occupancy = new OccupancyQuery(config.FootprintRadiusWorldUnits,
+                roadTolerance: 0.2f);
         }
 
         public void SetSpeedFactor(float factor)

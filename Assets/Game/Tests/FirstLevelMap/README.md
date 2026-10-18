@@ -1,39 +1,39 @@
 # First Level map fixture
 
-`PF_FirstLevelMapData_TEST` binds `MAP_FirstLevel` to a scene so `MapManager` can build its normal read-only snapshots. Its `Map Art` child renders the supplied first-level map image as a visual background. This remains a reusable test fixture, not a playable or official level scene.
+`PF_FirstLevelMapData_TEST` binds `MAP_FirstLevel` to a scene so `MapManager` builds the same read-only map snapshot used by `FirstLevel`. The fixture is for inspecting the map and its debug geometry; it is not the playable level.
 
-## Coordinate convention
+## Coordinates and image
 
-- The design canvas and source image are both 5760 × 5760 pixels, with the design origin at the lower-left and positive Y upward.
-- The provisional scale is **100 design pixels per Unity world unit**. The map bounds resolve to `(0, 0)` through `(57.6, 57.6)`.
-- A design coordinate `(x, y)` resolves to Unity world position `(x / 100, y / 100)`.
-- The source image is imported as a single Sprite at 100 PPU, with an 8192 maximum texture size. Its center is placed at `(28.8, 28.8, 0)`, aligning its canvas with the map bounds when the prefab root is at `(0, 0, 0)`.
-- Actor move speeds remain authored in sprite pixels per second and are converted by `MovementSystem`. Keep map art at PPU 100 unless the map definition scale is updated with the art/physics scale.
+- The map image and target canvas are 5760 × 5760 pixels. The origin is at the lower-left, with positive Y upward.
+- The source coordinate files use a 5670 × 5670 canvas. As requested, all source positions and dimensions are uniformly scaled by `5760 / 5670` (equal to `64 / 63`) to fit the image canvas.
+- `designPixelsPerUnityUnit` is 100. A source coordinate `(x, y)` becomes Unity position `(x × 64 / 63 / 100, y × 64 / 63 / 100)`; map bounds are `(0, 0)` through `(57.6, 57.6)`.
+- The map image is imported as a Sprite at 100 PPU. Its center is `(28.8, 28.8, 0)`, so the canvas aligns with the map bounds when the prefab root is at the world origin.
+- Actor move speeds remain authored in sprite pixels per second and are converted by `MovementSystem` using the actor sprite's PPU.
 
-## Authored facts
+## Authored map facts
 
-- Bounds, start/guard point, fork, three merges, five enemy points, five trap points, two supplies, tutorial points, and the goal cave are stored in `MAP_FirstLevel`.
-- `route_branch_1`, `route_branch_2`, and `route_branch_3` terminate at their respective merge points. `route_main` is the shared main-line segment. The DOCX point order is preserved; actors still need a separate route-selection policy.
-- The goal cave is a circular `MapAreaKind.Goal` with the documented 400px radius.
-- Swamp T4 and cliff T5 remain provisional circular terrain masks from their documented local radii. The image is visual only: no area geometry or physical colliders have been traced from it. The T4 map area is a semantic terrain marker only (`1.0` terrain multiplier); its documented `0.5` speed effect for 3 seconds lives in `CFG_Trap_T4` so a future trap runtime does not apply the same slowdown twice through MapManager and StatusManager.
-- ST3 is described as a group event, not a position trigger, so it has no map point.
-- L1/L2/L3 reference their blocked branch routes. SL1/SL2/SL3 reference T1/T4/T3. Every anchor accepts Obstacles, allows replacement, and uses the documented 80px snap radius.
+`MAP_FirstLevel.asset` is built from the supplied files under `Desktop/数据`:
 
-## Mechanism and hazard configurations
+- Twelve polygon areas define walkable road. The source rectangles are treated as road regardless of their labels; their road kind is `Unclassified` because the source does not authoritatively distinguish main and branch road.
+- Two polygon areas are swamps. Each has a `0.5` movement multiplier.
+- Three enemy spawn points are loaded. `FirstLevelCompositionRoot` currently creates ordinary enemies at all three points using the available `EnemyConfig`.
+- One trap map point and its source interaction radius are recorded. It is a map marker; it does not create a live trap or apply an effect.
+- `route_escort` contains ten ordered checkpoints. The first checkpoint is used for the initial Slime and escort weapon; the last checkpoint is the route goal.
+- No placement anchors, canyon polygons, or a separate goal-area polygon are included because the current source data does not define them. The last Escort waypoint is marked as the route goal.
 
-`Assets/Game/Configs/FirstLevelMechanisms/` contains `CFG_Food`, `CFG_Furnace`, `CFG_Obstacle`, `CFG_Trap_T1` through `CFG_Trap_T5`, and `CFG_Supply`. Point `configId` values match the hazard and supply assets. Add the required assets to the owning LevelManager's `levelConfigs` list when composing a runnable level; this fixture does not edit Bootstrap or Build Settings.
+The current background is `IMG_FirstLevel_AnningTown.png`, a 5760 × 5760 image from the supplied `素材2` folder. It is visual art only and does not define collision or walkability.
 
-Food attraction is 400px. Furnace attraction remains at the existing 500px default because the latest level DOCX gives no first-level furnace radius. Obstacle stock, durability, placement cooldown, and circle radius are 10, 3, 1s, and 55px. Trap and supply assets preserve the DOCX trigger/effect values as static data; their trigger runtime and ConfigRegistry registration are still pending level composition.
+## Runtime behavior
 
-## Use and verification
+- `MapLayoutAuthoring` draws road polygons, swamp polygons, the route, spawn points, and the trap point as Scene View Gizmos for debugging.
+- `MapManager.CanOccupy` checks map bounds, road-area membership, and registered static blockers. Where any road areas are configured, points outside every road polygon are rejected.
+- `MovementSystem` checks the next physics-step position before setting the dynamic `Rigidbody2D` velocity. Leaving road or hitting a registered static blocker stops the current straight-line request and reports it as blocked. A 0.2-unit road tolerance bridges small source measurement seams; movement does not use pathfinding.
+- The Slime follows `route_escort`. Enemies spawn at the three authored points and their random-walk destinations are filtered through map occupancy.
+- Placement preview and final mechanism placement both validate against walkable road and static blockers.
 
-- Keep the fixture root at the world origin so the visual image and absolute map definition coordinates stay aligned.
-- The `Map Art` SpriteRenderer has sorting order `-100` and no Collider2D. It does not define roads, terrain boundaries, walkability, or physical blocking.
-- PlayMode capture: FirstLevelMap_TEST_PlayMode.png. The full image is visible and centered in the Game view; the scene uses an orthographic camera at (28.8, 28.8, -10), size 30.
-- The image canvas matching the design canvas does not yet verify that every DOCX point, route, terrain contour, or cliff edge is visually aligned. Confirm those against an annotated map before replacing the provisional geometry.
+## Current limits and verification
 
-## Runtime map query probe
-
-A one-off Editor probe constructed MapManager against this active scene and read the bound data: bounds were present; route_branch_1, route_branch_2, route_branch_3, and route_main were found with 7/6/9/9 waypoints; all six anchors were found; the swamp area center resolved to (7.49, 30.52). The Console had no errors or warnings, and scene validation reported zero issues. This probe was not saved as a project script and is not an automated test.
-
-The scene does not instantiate a full LevelContext, actors, traps, or StatusManager effects. No Unity Test Runner or complete gameplay test was run.
+- The trap point is not connected to trigger/effect runtime. No status effect is configured for swamp entry; swamp currently changes movement speed only.
+- The road outlines are the authored polygons from the supplied data and have not been auto-derived from image pixels.
+- Manual Unity PlayMode inspection from Bootstrap reached `FirstLevel`: one Slime and three enemies were present, the Slime was moving along the route, and runtime placement preview returned `Free` on a road point and `InvalidArea` off road. The three enemy spawn points passed `CanOccupy`.
+- Unity Test Runner was not run.
