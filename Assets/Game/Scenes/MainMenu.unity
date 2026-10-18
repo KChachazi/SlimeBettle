@@ -1008,7 +1008,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 135488391}
         m_TargetAssemblyTypeName: SlimeBattle.Core.MainMenuLevelEntry, SlimeBattle.Runtime
-        m_MethodName: StartLevelTest
+        m_MethodName: StartFirstLevel
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

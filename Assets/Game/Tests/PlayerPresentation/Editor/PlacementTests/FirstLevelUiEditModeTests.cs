@@ -83,6 +83,16 @@ namespace SlimeBattle.Tests.PlayerPresentation
             foreach(var field in new[]{"hudPanel","pausePanel","resultPanel","objectiveText","countsText","goalText","waitingText","routeHintText","resultText","pauseButton","resumeButton","pauseRestartButton","resultRestartButton"})
                 Assert.IsNotNull(hud.FindProperty(field).objectReferenceValue,field);
         }
+
+        [TestCase("PF_FirstLevelPlacementSelection.prefab")]
+        [TestCase("PF_FirstLevelHUD.prefab")]
+        public void FirstLevelScreenSpaceCanvasRootsKeepScreenSpaceInteractionEnabled(string file)
+        {
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(Folder+file);
+            Assert.IsNotNull(prefab,file);
+            Assert.That(prefab.transform.localScale,Is.EqualTo(Vector3.one),
+                "The screen-space canvas must not collapse its UI hit area: "+file);
+        }
         [Test]
         public void ReinitializingCompositionReusesInspectorComponentsAndEmbeddedViews()
         {

@@ -6,9 +6,11 @@ using SlimeBattle.Actors;
 using SlimeBattle.Actors.AI.DecisionTree;
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.Enemies;
+using SlimeBattle.Actors.Guards;
 using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Data;
 using SlimeBattle.Enemies;
+using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Tests
@@ -32,7 +34,8 @@ namespace SlimeBattle.Tests
             public override ActionIntent Evaluate(DecisionContext context) { return intent; }
         }
 
-        private sealed class FakeWorld : IActorPerceptionSource, IActorActionPort
+        private sealed class FakeWorld : IActorPerceptionSource, IActorActionPort,
+            IActorStatusQuery
         {
             public readonly Dictionary<ActorId, ActorSnapshot> Actors = new Dictionary<ActorId, ActorSnapshot>();
             public readonly List<ActorEffectRequest> Effects = new List<ActorEffectRequest>();
@@ -40,6 +43,22 @@ namespace SlimeBattle.Tests
             public int CancelCount;
             public Action<ActorEffectRequest> OnEffect;
             public PerceptionSnapshot Perception;
+            public StatusEntrySnapshot RageStatus;
+            public bool HasStatus(ActorId actorId, StatusId statusId) =>
+                statusId.IsValid && RageStatus.StatusId == statusId;
+            public bool HasStatus(ActorId actorId, StatusKind kind) =>
+                kind == StatusKind.Rage && RageStatus.StatusId.IsValid;
+            public bool TryGetStatus(ActorId actorId, StatusId statusId,
+                out StatusEntrySnapshot status)
+            {
+                status = RageStatus;
+                return HasStatus(actorId, statusId);
+            }
+            public bool TryGetStatusSnapshot(ActorId actorId, out StatusSnapshot snapshot)
+            {
+                snapshot = default;
+                return false;
+            }
             public PerceptionSnapshot GetPerception(ActorId id) { return Perception; }
             public bool TryGetActorSnapshot(ActorId id, out ActorSnapshot snapshot)
                 => Actors.TryGetValue(id, out snapshot);
@@ -205,6 +224,9 @@ namespace SlimeBattle.Tests
                 enemy.Tick(new ActorContext(.2f, world, world));
                 Assert.AreEqual(1, world.Effects.Count);
                 Assert.AreEqual(near.ActorId, world.Effects[0].TargetActorId);
+                var enemySnapshot = enemy.GetSnapshot();
+                Assert.AreEqual(near.ActorId, enemySnapshot.TargetActorId);
+                Assert.IsTrue(enemySnapshot.IsAttacking);
                 enemy.Dispose();
             }
             finally { UnityEngine.Object.DestroyImmediate(config); }
@@ -252,6 +274,43 @@ namespace SlimeBattle.Tests
         }
 
         [Test]
+        public void SlimeUsesNearestGenericGuideAfterCombatCheck()
+        {
+            var config = ScriptableObject.CreateInstance<SlimeConfig>();
+            try
+            {
+                config.SetConfigId("slime-guide-priority");
+                config.ConfigureStats(10, 100, 1f, 1f);
+                var slime = NewSlimeActor();
+                slime.Initialize(config, new ActorId("guide-slime"), Vector2.zero,
+                    new FactionId("slime"));
+                var guides = new[]
+                {
+                    new GuidanceObservation(GuidanceKind.Food, new Vector2(4f, 0f)),
+                    new GuidanceObservation(GuidanceKind.Warmth, new Vector2(2f, 0f))
+                };
+                var world = new FakeWorld
+                {
+                    Perception = new PerceptionSnapshot(1, null, guides: guides)
+                };
+                slime.Tick(new ActorContext(.2f, world, world));
+                Assert.AreEqual(new Vector2(2f, 0f), world.Moves[0].Destination);
+                Assert.That(slime.LastDecisionReason, Does.Contain("正常/暴躁"));
+
+                Assert.IsTrue(slime.NotifyMovementCompleted("movement-1"));
+                var enemy = Snapshot("guide-enemy", "enemy", new Vector2(3f, 0f));
+                world.Actors[enemy.ActorId] = enemy;
+                world.Perception = new PerceptionSnapshot(2,
+                    new[] { new TargetObservation(enemy, true) }, guides: guides);
+                slime.Tick(new ActorContext(.2f, world, world));
+                Assert.AreEqual(enemy.Position, world.Moves[1].Destination);
+                Assert.That(slime.LastDecisionReason, Does.Contain("接近战斗"));
+                slime.Dispose(world);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
+
+        [Test]
         public void LowHealthFleeCheckAndAgitationUseFormalPaths()
         {
             var config = ScriptableObject.CreateInstance<SlimeConfig>();
@@ -288,6 +347,11 @@ namespace SlimeBattle.Tests
 
                 slime.ApplyResolvedEffect(new ResolvedEffect(EffectType.Status, 0f,
                     statusId: SlimeStatusIds.Agitated));
+                world.RageStatus = new StatusEntrySnapshot(
+                    new StatusId(SlimeStatusIds.Agitated), default, 5f, 0,
+                    false, 1, 1f, 1f, 1f, 1f, false, default,
+                    StatusKind.Rage, elapsedDurationSeconds: 2f,
+                    humanAttackDelaySeconds: 1f);
                 var human = new ActorSnapshot(new ActorId("human"), new FactionId("humans"),
                     ActorType.Guard, true, Vector2.right, 100f, 100f);
                 world.Actors[human.ActorId] = human;
@@ -327,9 +391,90 @@ namespace SlimeBattle.Tests
             finally { UnityEngine.Object.DestroyImmediate(config); }
         }
 
+        [Test]
+        public void GuardDecisionUsesWeaponGuardAndNearbyAttackPriority()
+        {
+            var config = ScriptableObject.CreateInstance<GuardConfig>();
+            try
+            {
+                config.SetConfigId("guard-priority");
+                config.ConfigureStats(10, 100, 1f, 1f);
+                var guard = new ActorSnapshot(new ActorId("guard"),
+                    new FactionId("slime"), ActorType.Guard, true, Vector2.zero,
+                    100f, 100f);
+                var nearby = EnemySnapshot("nearby", new Vector2(.25f, 0f));
+                var guardThreat = EnemySnapshot("guard-threat", new Vector2(.5f, .5f));
+                var weaponThreat = EnemySnapshot("weapon-threat", new Vector2(2f, 0f));
+                var perception = new PerceptionSnapshot(1, new[]
+                {
+                    new TargetObservation(nearby, true, isNearWeapon: true,
+                        isAttacking: true),
+                    new TargetObservation(guardThreat, true, isAttackingGuard: true,
+                        isAttacking: true),
+                    new TargetObservation(weaponThreat, true, isAttackingWeapon: true,
+                        isAttacking: true)
+                }, hasDestination: true, destination: Vector2.zero);
+
+                var intent = new GuardDecision(config).Evaluate(
+                    new DecisionContext(guard, perception));
+
+                Assert.AreEqual(ActionIntentType.Move, intent.Type);
+                Assert.AreEqual(weaponThreat.Position, intent.Destination);
+
+                var closeWeaponThreat = EnemySnapshot("weapon-close", new Vector2(.5f, 0f));
+                var attackIntent = new GuardDecision(config).Evaluate(new DecisionContext(
+                    guard, new PerceptionSnapshot(2, new[]
+                    {
+                        new TargetObservation(closeWeaponThreat, true,
+                            isAttackingWeapon: true, isAttacking: true)
+                    }, hasDestination: true, destination: Vector2.zero)));
+                Assert.AreEqual(ActionIntentType.Attack, attackIntent.Type);
+                Assert.AreEqual(closeWeaponThreat.ActorId, attackIntent.Attack.TargetId);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
+
+        [Test]
+        public void GuardDecisionFallsBackToGuardAttackThenReturnsToEscortPoint()
+        {
+            var config = ScriptableObject.CreateInstance<GuardConfig>();
+            try
+            {
+                config.SetConfigId("guard-fallback");
+                config.ConfigureStats(10, 100, 1f, 1f);
+                var guard = new ActorSnapshot(new ActorId("guard"),
+                    new FactionId("slime"), ActorType.Guard, true, Vector2.zero,
+                    100f, 100f);
+                var guardThreat = EnemySnapshot("guard-threat", new Vector2(2f, 0f));
+                var nearby = EnemySnapshot("nearby", new Vector2(.25f, 0f));
+                var guardAttack = new PerceptionSnapshot(1, new[]
+                {
+                    new TargetObservation(nearby, true, isNearWeapon: true,
+                        isAttacking: true),
+                    new TargetObservation(guardThreat, true, isAttackingGuard: true,
+                        isAttacking: true)
+                }, hasDestination: true, destination: Vector2.zero);
+                var moveIntent = new GuardDecision(config).Evaluate(
+                    new DecisionContext(guard, guardAttack));
+                Assert.AreEqual(ActionIntentType.Move, moveIntent.Type);
+                Assert.AreEqual(guardThreat.Position, moveIntent.Destination);
+
+                var escortIntent = new GuardDecision(config).Evaluate(new DecisionContext(
+                    guard, new PerceptionSnapshot(2, null, hasDestination: true,
+                        destination: new Vector2(2f, 0f))));
+                Assert.AreEqual(ActionIntentType.Move, escortIntent.Type);
+                Assert.AreEqual(new Vector2(2f, 0f), escortIntent.Destination);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
+
         private static ActorSnapshot Snapshot(string id, string faction, Vector2 position)
             => new ActorSnapshot(new ActorId(id), new FactionId(faction),
                 ActorType.Slime, true, position, 100f, 100f);
+
+        private static ActorSnapshot EnemySnapshot(string id, Vector2 position)
+            => new ActorSnapshot(new ActorId(id), new FactionId("enemy"),
+                ActorType.Enemy, true, position, 100f, 100f);
 
         private SlimeActor NewSlimeActor()
         {

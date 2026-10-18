@@ -19,12 +19,14 @@ namespace SlimeBattle.Mechanisms
         private abstract class MechanismRuntimeData
         {
             protected MechanismRuntimeData(MechanismId id, MechanismConfig config,
-                MechanismAuthoring authoring, bool isPlayerPlaced)
+                MechanismAuthoring authoring, bool isPlayerPlaced,
+                PlacementAnchorId anchorId = default)
             {
                 Id = id;
                 Config = config;
                 Authoring = authoring;
                 IsPlayerPlaced = isPlayerPlaced;
+                AnchorId = anchorId;
                 State = MechanismState.Available;
                 RemainingActivations = config.ActivationLimit;
             }
@@ -33,6 +35,7 @@ namespace SlimeBattle.Mechanisms
             public MechanismConfig Config { get; }
             public MechanismAuthoring Authoring { get; }
             public bool IsPlayerPlaced { get; }
+            public PlacementAnchorId AnchorId { get; set; }
             public MechanismState State { get; set; }
             public int RemainingActivations { get; set; }
             public float CooldownRemainingSeconds { get; set; }
@@ -74,6 +77,7 @@ namespace SlimeBattle.Mechanisms
         private readonly Dictionary<ConfigId, float> placementCooldowns =
             new Dictionary<ConfigId, float>();
         private readonly List<SubscriptionToken> subscriptions = new List<SubscriptionToken>();
+        private Transform placedParent;
         private EscortWeapon weapon;
         private Transform weaponTransform;
         private float boardingRadius;
@@ -90,6 +94,14 @@ namespace SlimeBattle.Mechanisms
         public int MaximumActivePlacedMechanisms => maximumActivePlacedMechanisms;
         public int ActivePlacedMechanismCount => disposed ? 0 : CountActivePlacedMechanisms();
 
+        public bool TrySetPlacedParent(Transform parent)
+        {
+            if (disposed || parent == null || parent.gameObject.scene.handle != scene.handle)
+                return false;
+            placedParent = parent;
+            return true;
+        }
+
         internal MechanismSystem(ConfigRegistry configs, int maximumActivePlacedMechanisms,
             MapManager mapManager, StatusManager statusManager,
             ILevelEventBus eventBus, Scene scene)
@@ -99,7 +111,7 @@ namespace SlimeBattle.Mechanisms
             this.statusManager = statusManager ?? throw new ArgumentNullException(nameof(statusManager));
             this.eventBus = eventBus;
             this.scene = scene;
-            if (maximumActivePlacedMechanisms < 0 || maximumActivePlacedMechanisms > 5)
+            if (maximumActivePlacedMechanisms < 0 || maximumActivePlacedMechanisms > 20)
                 throw new ArgumentOutOfRangeException(nameof(maximumActivePlacedMechanisms));
             this.maximumActivePlacedMechanisms = maximumActivePlacedMechanisms;
             BindSceneMechanisms();
@@ -296,6 +308,17 @@ namespace SlimeBattle.Mechanisms
                 failureReason = "The active placed-mechanism limit was reached.";
                 return false;
             }
+            if (config.InitialInventoryCount > 0 &&
+                CountActivePlacedMechanisms(configId) >= config.InitialInventoryCount)
+            {
+                failureReason = "The mechanism inventory is empty.";
+                return false;
+            }
+            if (placementCooldowns.TryGetValue(configId, out var cooldown) && cooldown > 0f)
+            {
+                failureReason = "The mechanism placement is cooling down.";
+                return false;
+            }
             if (!IsFinite(position.x) || !IsFinite(position.y) ||
                 !mapManager.TryGetMapBounds(out var bounds) || !bounds.Contains(position))
             {
@@ -319,9 +342,76 @@ namespace SlimeBattle.Mechanisms
             var instance = UnityEngine.Object.Instantiate(config.PlacementPrefab,
                 new Vector3(position.x, position.y, 0f), Quaternion.identity);
             SceneManager.MoveGameObjectToScene(instance.gameObject, scene);
+            if (placedParent != null) instance.transform.SetParent(placedParent, true);
             var result = RequestPlace(new MechanismPlacementRequest(instance, position));
             if (!result.Succeeded) DestroyPlacedObject(instance.gameObject);
             return result;
+        }
+
+        /// <summary>Replaces a player obstacle at a configured anchor without losing it on failure.</summary>
+        public MechanismPlacementResult RequestPlaceAtAnchor(ConfigId configId,
+            PlacementAnchorId anchorId)
+        {
+            if (disposed || paused || !anchorId.IsValid ||
+                !mapManager.TryGetPlacementAnchor(anchorId, out var anchor) ||
+                !configs.TryGetMechanism(configId, out var config) ||
+                !config.PlayerPlaceable || !anchor.Accepts(config.Kind) ||
+                config.PlacementPrefab == null ||
+                new ConfigId(config.PlacementPrefab.ConfigId) != configId ||
+                !mapManager.TryGetMapBounds(out var bounds) || !bounds.Contains(anchor.Position))
+                return new MechanismPlacementResult(false, default,
+                    "The anchor or matching mechanism prefab is unavailable.");
+
+            MechanismRuntimeData previous = null;
+            foreach (var mechanism in mechanisms.Values)
+            {
+                if (mechanism.State == MechanismState.Removed ||
+                    mechanism.State == MechanismState.Exhausted ||
+                    mechanism.Authoring == null) continue;
+                if (mechanism.AnchorId != anchorId &&
+                    (mechanism.Authoring.transform.position -
+                     (Vector3)anchor.Position).sqrMagnitude > 0.00000001f) continue;
+                if (previous != null || !mechanism.IsPlayerPlaced ||
+                    mechanism.Config.Kind != MechanismKind.Obstacle ||
+                    !anchor.AllowsReplacement)
+                    return new MechanismPlacementResult(false, default,
+                        "The anchor contains a mechanism that cannot be replaced.");
+                previous = mechanism;
+            }
+            if (previous == null &&
+                CountActivePlacedMechanisms() >= maximumActivePlacedMechanisms)
+                return new MechanismPlacementResult(false, default,
+                    "The active placed-mechanism limit was reached.");
+            if ((previous == null || previous.Config.ConfigId != configId) &&
+                config.InitialInventoryCount > 0 &&
+                CountActivePlacedMechanisms(configId) >= config.InitialInventoryCount)
+                return new MechanismPlacementResult(false, default,
+                    "The mechanism inventory is empty.");
+            if (placementCooldowns.TryGetValue(configId, out var cooldown) && cooldown > 0f)
+                return new MechanismPlacementResult(false, default,
+                    "The mechanism placement is cooling down.");
+
+            var instance = UnityEngine.Object.Instantiate(config.PlacementPrefab,
+                new Vector3(anchor.Position.x, anchor.Position.y, 0f), Quaternion.identity);
+            SceneManager.MoveGameObjectToScene(instance.gameObject, scene);
+            if (placedParent != null) instance.transform.SetParent(placedParent, true);
+            var id = MechanismId.NewId();
+            if (!TryRegisterAuthoring(instance, id, config, true,
+                anchorId, publishEvent: false))
+            {
+                DestroyPlacedObject(instance.gameObject);
+                return new MechanismPlacementResult(false, default,
+                    "The new mechanism could not be registered; the previous one remains.");
+            }
+
+            if (previous != null)
+                RemoveRuntimeMechanism(previous, "Replaced at anchor.",
+                    startPlacementCooldown: false, hideAuthoring: true);
+            PublishStateChanged(mechanisms[id], MechanismState.Removed,
+                "Registered at anchor.");
+            StartPlacementCooldown(config);
+            NotifyPlacedCarrierContacts(mechanisms[id]);
+            return new MechanismPlacementResult(true, id, string.Empty);
         }
 
         public bool TryGetPlayerConfigId(MechanismKind kind, out ConfigId configId)
@@ -371,6 +461,8 @@ namespace SlimeBattle.Mechanisms
                     "The mechanism instance could not be registered.");
             }
 
+            StartPlacementCooldown(config);
+            NotifyPlacedCarrierContacts(mechanisms[id]);
             return new MechanismPlacementResult(true, id, string.Empty);
         }
 
@@ -565,6 +657,31 @@ namespace SlimeBattle.Mechanisms
             }
         }
 
+        // Carried slimes have their colliders disabled while parented to the weapon.
+        // Apply the same contact rule once when a player places a guide on them so
+        // placement remains observable and deterministic in the escort flow.
+        private void NotifyPlacedCarrierContacts(MechanismRuntimeData mechanism)
+        {
+            if (mechanism == null || carrierSlimes == null || mechanism.Authoring == null ||
+                (mechanism.Config.Kind != MechanismKind.Food &&
+                 mechanism.Config.Kind != MechanismKind.Furnace)) return;
+            var interaction = mechanism.Authoring.InteractionCollider;
+            if (interaction == null || !interaction.isTrigger) return;
+            foreach (var slime in carrierSlimes.GetAliveSnapshots())
+            {
+                if (!slime.IsCarrying || !interaction.OverlapPoint(slime.Position)) continue;
+                var contactColliderId = 0;
+                if (carrierSlimes.TryGetActor(slime.ActorId, out var actor))
+                {
+                    var collider = actor.GetComponent<Collider2D>();
+                    if (collider != null) contactColliderId = collider.GetInstanceID();
+                }
+                NotifyContact(new MechanismTriggerContext(mechanism.Id, slime.ActorId,
+                    ActorType.Slime, MechanismContactKind.Entered, slime.Position,
+                    contactColliderId));
+            }
+        }
+
         private bool RollGuideDeparture(SlimeSnapshot slime, float deltaTime)
         {
             var hungry = SlimeStatusIds.Contains(slime.StatusIds, SlimeStatusIds.Hungry);
@@ -607,7 +724,8 @@ namespace SlimeBattle.Mechanisms
         }
 
         private bool TryRegisterAuthoring(MechanismAuthoring authoring, MechanismId id,
-            MechanismConfig config, bool isPlayerPlaced)
+            MechanismConfig config, bool isPlayerPlaced,
+            PlacementAnchorId anchorId = default, bool publishEvent = true)
         {
             if (disposed || authoring == null || !id.IsValid || config == null ||
                 mechanisms.ContainsKey(id))
@@ -644,6 +762,7 @@ namespace SlimeBattle.Mechanisms
             }
 
             var runtime = CreateRuntimeData(id, config, authoring, isPlayerPlaced);
+            runtime.AnchorId = anchorId;
             if (runtime is ObstacleRuntimeData && isPlayerPlaced)
             {
                 if (!mapManager.RegisterMovementBlocker(authoring.SolidCollider))
@@ -658,7 +777,8 @@ namespace SlimeBattle.Mechanisms
             authoring.AssignMechanismId(id);
             authoring.Bind(this);
             mechanisms.Add(id, runtime);
-            PublishStateChanged(runtime, MechanismState.Removed, "Registered.");
+            if (publishEvent)
+                PublishStateChanged(runtime, MechanismState.Removed, "Registered.");
             return true;
         }
 
@@ -823,6 +943,16 @@ namespace SlimeBattle.Mechanisms
             return count;
         }
 
+        private int CountActivePlacedMechanisms(ConfigId configId)
+        {
+            var count = 0;
+            foreach (var mechanism in mechanisms.Values)
+                if (mechanism.IsPlayerPlaced && mechanism.Config.ConfigId == configId &&
+                    mechanism.State != MechanismState.Removed &&
+                    mechanism.State != MechanismState.Exhausted) count++;
+            return count;
+        }
+
         private void StartPlacementCooldown(MechanismConfig config)
         {
             if (config == null || config.PlacementCooldownSeconds <= 0f) return;
@@ -855,7 +985,7 @@ namespace SlimeBattle.Mechanisms
                 mechanism.Config.Kind, position, mechanism.State, mechanism.IsPlayerPlaced,
                 mechanism.Config.ActivationLimit, mechanism.RemainingActivations,
                 mechanism.CooldownRemainingSeconds, mechanism.Config.GuideSourceType,
-                mechanism.Config.AttractionRadiusPixels);
+                mechanism.Config.AttractionRadiusPixels, mechanism.AnchorId);
         }
 
         private static MechanismRuntimeData CreateRuntimeData(MechanismId id,

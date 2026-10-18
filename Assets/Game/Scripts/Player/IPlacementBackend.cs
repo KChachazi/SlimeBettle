@@ -15,4 +15,9 @@ namespace SlimeBattle.Player.Placement
         IReadOnlyList<PlacementObjectSnapshot> ReadPlacedObjects();
         PlacementBudgetSnapshot GetBudgetSnapshot();
     }
+
+    public interface IAnchorReplacementBackend
+    {
+        bool SupportsAnchorReplacement { get; }
+    }
 }

@@ -3,16 +3,15 @@ using UnityEngine;
 
 namespace SlimeBattle.UI
 {
-    /// <summary>Inspector-compatible adapter. New goal/window facts await the Core public API.</summary>
+    /// <summary>Inspector-compatible adapter for the current level's result facts.</summary>
     public sealed class FirstLevelStatusProvider : MonoBehaviour, IFirstLevelStatusSource
     {
         [SerializeField] private bool showLegacyWeapon;
-        private readonly FirstLevelRuntimeStatusSource legacy = new FirstLevelRuntimeStatusSource();
+        private readonly FirstLevelRuntimeStatusSource current = new FirstLevelRuntimeStatusSource();
+        private readonly FirstLevelRuntimeStatusSource legacy = new FirstLevelRuntimeStatusSource(true);
         public FirstLevelStatusSnapshot ReadSnapshot(LevelContext context)
         {
-            if (showLegacyWeapon) { return legacy.ReadSnapshot(context); }
-            // Never interpret weapon health or local slime counts as first-level results.
-            return new FirstLevelStatusSnapshot(string.Empty);
+            return showLegacyWeapon ? legacy.ReadSnapshot(context) : current.ReadSnapshot(context);
         }
     }
 }

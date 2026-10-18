@@ -8,7 +8,8 @@ namespace SlimeBattle.Guards
 {
     public readonly struct GuardSnapshot
     {
-        public GuardSnapshot(ActorSnapshot actor, ConfigId configId, StateId actionState)
+        public GuardSnapshot(ActorSnapshot actor, ConfigId configId, StateId actionState,
+            Vector2 standPosition = default(Vector2))
         {
             ActorId = actor.ActorId;
             FactionId = actor.FactionId;
@@ -19,6 +20,7 @@ namespace SlimeBattle.Guards
             StatusIds = actor.StatusIds;
             ConfigId = configId;
             ActionState = actionState;
+            StandPosition = standPosition;
         }
 
         public ActorId ActorId { get; }
@@ -30,5 +32,6 @@ namespace SlimeBattle.Guards
         public IReadOnlyList<string> StatusIds { get; }
         public ConfigId ConfigId { get; }
         public StateId ActionState { get; }
+        public Vector2 StandPosition { get; }
     }
 }

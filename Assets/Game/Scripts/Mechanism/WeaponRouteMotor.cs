@@ -86,8 +86,9 @@ namespace SlimeBattle.Mechanisms
         public bool CancelSegment(MovementRequestId id, CancelReason reason)
         {
             if (!requestId.IsValid || id != requestId) return false;
+            var position = weapon == null ? default(Vector2) : (Vector2)weapon.position;
             result = new RouteSegmentMotorResult(MovementResult.Cancelled,
-                weapon.position, cancelReason: reason);
+                position, cancelReason: reason);
             requestId = default(MovementRequestId);
             return true;
         }

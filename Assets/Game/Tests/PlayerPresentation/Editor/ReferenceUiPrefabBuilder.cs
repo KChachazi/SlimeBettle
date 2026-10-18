@@ -381,6 +381,10 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         private static RectTransform CanvasRoot(string name,int order)
         {
             var go=new GameObject(name,typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));
+            // Screen-space Canvas roots must keep a unit transform so their child
+            // controls remain visible and receive real pointer raycasts after
+            // the prefab is saved and instantiated in a gameplay scene.
+            go.transform.localScale=Vector3.one;
             var canvas=go.GetComponent<Canvas>(); canvas.renderMode=RenderMode.ScreenSpaceOverlay; canvas.sortingOrder=order;
             var scaler=go.GetComponent<CanvasScaler>(); scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution=new Vector2(1280,720); scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;

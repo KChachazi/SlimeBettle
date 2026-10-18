@@ -26,6 +26,7 @@ namespace SlimeBattle.Core
         private readonly SlimeActor slimePrefab;
         private readonly EnemyActor enemyPrefab;
         private readonly GuardActor guardPrefab;
+        private SubscriptionToken foodTriggeredToken;
 
         public LevelContext(LevelId levelId, ConfigRegistry configRegistry = null,
             LevelConfig levelConfig = null, SlimeActor slimePrefab = null,
@@ -90,16 +91,29 @@ namespace SlimeBattle.Core
                 EnumerateAliveActors);
             MovementSystem = new MovementSystem(MapManager, EventBus,
                 StatusManager.GetMovementModifiers);
+            var goalAreaId = default(MapAreaId);
+            foreach (var area in MapManager.GetMapAreaSnapshots())
+                if (area.Kind == MapAreaKind.Goal)
+                {
+                    if (goalAreaId.IsValid)
+                        throw new InvalidOperationException("Only one goal cave area is supported.");
+                    goalAreaId = area.AreaId;
+                }
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
                 LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem,
-                levelId: LevelId);
+                levelId: LevelId, goalAreaId: goalAreaId);
             EnemyManager = new EnemyManager(ConfigRegistry, EventBus, enemyPrefab,
                 movementSystem: MovementSystem);
             MechanismSystem = new MechanismSystem(ConfigRegistry,
                 LevelConfig.MaximumActivePlacedMechanisms, MapManager, StatusManager,
                 EventBus, SceneManager.GetActiveScene());
-            ResultRules = new LevelResultRules(EventBus);
-            if (guardPrefab != null && MechanismSystem.TryGetWeaponSnapshot(out var weapon))
+            if (LevelConfig.ObjectiveKind == LevelObjectiveKind.EscortWeapon &&
+                !MechanismSystem.TryGetWeaponSnapshot(out _))
+                throw new InvalidOperationException(
+                    "EscortWeapon objective requires one valid scene escort weapon.");
+            foodTriggeredToken = EventBus.Subscribe<MechanismTriggeredEvent>(OnMechanismTriggered);
+            ResultRules = new LevelResultRules(EventBus, LevelConfig.ObjectiveKind);
+            if (guardPrefab != null)
             {
                 GuardConfig guardConfig = null;
                 foreach (var asset in ConfigRegistry.Configs)
@@ -111,13 +125,23 @@ namespace SlimeBattle.Core
                     }
                 if (guardConfig != null)
                 {
-                    GuardManager = new GuardManager(ConfigRegistry, EventBus,
-                        guardPrefab, movementSystem: MovementSystem);
-                    foreach (var offset in guardConfig.SpawnOffsets)
+                    var guardPoints = MapManager.GetMapPoints(MapPointKind.GuardSpawn);
+                    if (guardPoints.Count > 0 ||
+                        MechanismSystem.TryGetWeaponSnapshot(out _))
+                        GuardManager = new GuardManager(ConfigRegistry, EventBus,
+                            guardPrefab, movementSystem: MovementSystem);
+                    foreach (var point in guardPoints)
                         if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
-                            guardConfig.ConfigId, weapon.Position + offset)).IsValid)
+                            guardConfig.ConfigId, point.Position)).IsValid)
                             throw new InvalidOperationException(
                                 "Guard spawn failed: " + GuardManager.LastFailureReason);
+                    if (guardPoints.Count == 0 &&
+                        MechanismSystem.TryGetWeaponSnapshot(out var weapon))
+                        foreach (var offset in guardConfig.SpawnOffsets)
+                            if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
+                                guardConfig.ConfigId, weapon.Position + offset)).IsValid)
+                                throw new InvalidOperationException(
+                                    "Guard spawn failed: " + GuardManager.LastFailureReason);
                 }
             }
             MechanismSystem.BindCarrierActors(SlimeManager, EnemyManager, GuardManager);
@@ -150,7 +174,7 @@ namespace SlimeBattle.Core
                 EnemyManager?.Tick(context);
                 GuardManager?.Tick(context);
             }
-            ResultRules?.EndFrame();
+            ResultRules?.EndFrame(deltaTime);
         }
 
         internal void FixedTick(float fixedDeltaTime)
@@ -227,6 +251,7 @@ namespace SlimeBattle.Core
                 return;
             }
 
+            EventBus.Unsubscribe(foodTriggeredToken);
             MechanismSystem?.Dispose();
             StatusManager?.Dispose();
             SlimeManager?.Dispose();
@@ -249,6 +274,20 @@ namespace SlimeBattle.Core
             {
                 throw new ObjectDisposedException(nameof(LevelContext));
             }
+        }
+
+        private void OnMechanismTriggered(MechanismTriggeredEvent triggered)
+        {
+            if (disposed || state != LevelState.Running || !triggered.Result.IsAccepted ||
+                MechanismSystem == null || SlimeManager == null ||
+                !MechanismSystem.TryGetSnapshot(triggered.MechanismId, out var mechanism) ||
+                mechanism.Kind != MechanismKind.Food ||
+                !SlimeManager.TryGetSnapshot(triggered.ActorId, out var parent) ||
+                !parent.IsAlive) return;
+
+            var offset = parent.PixelsPerUnit > 0f ? 35f / parent.PixelsPerUnit : 0.35f;
+            SlimeManager.SpawnSlime(new SlimeSpawnRequest(parent.ConfigId,
+                parent.Position + UnityEngine.Vector2.left * offset, parent.FactionId));
         }
     }
 }

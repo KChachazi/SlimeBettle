@@ -7,7 +7,7 @@ namespace SlimeBattle.Player.Placement
     /// Current-level bridge: Placement submits a kind and snapped position;
     /// MechanismSystem owns prefab creation and runtime state.
     /// </summary>
-    public sealed class MechanismPlacementBackend : IPlacementBackend
+    public sealed class MechanismPlacementBackend : IPlacementBackend, IAnchorReplacementBackend
     {
         private readonly MechanismSystem mechanisms;
         public MechanismPlacementBackend(MechanismSystem mechanisms) { this.mechanisms = mechanisms; }
@@ -15,6 +15,7 @@ namespace SlimeBattle.Player.Placement
             mechanisms.TryGetPlayerConfigId(MechanismKind.Food, out _) &&
             mechanisms.TryGetPlayerConfigId(MechanismKind.Furnace, out _) &&
             mechanisms.TryGetPlayerConfigId(MechanismKind.Obstacle, out _);
+        public bool SupportsAnchorReplacement => IsAvailable;
         public PlacementResult RequestPlacement(PlacementRequest request)
         {
             if (!IsAvailable) return new PlacementResult(false, default, "Mechanism prefabs are not configured.");
@@ -24,7 +25,9 @@ namespace SlimeBattle.Player.Placement
                 : MechanismKind.None;
             if (!mechanisms.TryGetPlayerConfigId(kind, out var configId))
                 return new PlacementResult(false, default, "The selected mechanism is unavailable.");
-            var result = mechanisms.RequestPlace(configId, request.WorldCenter);
+            var result = request.AnchorId.IsValid
+                ? mechanisms.RequestPlaceAtAnchor(configId, request.AnchorId)
+                : mechanisms.RequestPlace(configId, request.WorldCenter);
             return new PlacementResult(result.Succeeded, result.MechanismId, result.Reason);
         }
         public PlacementBudgetSnapshot GetBudgetSnapshot() => mechanisms == null

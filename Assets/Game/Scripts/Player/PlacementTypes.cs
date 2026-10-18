@@ -9,7 +9,7 @@ namespace SlimeBattle.Player.Placement
     public enum PlacementValidationStatus
     {
         Inactive, NoPosition, Free, Occupied, OutOfBounds, Unavailable, InvalidPosition,
-        AnchorFree, TypeMismatch, ReplacementDenied, ReplacementUnavailable
+        AnchorFree, AnchorReplaceable, TypeMismatch, ReplacementDenied, ReplacementUnavailable
     }
 
     public readonly struct PlacementPreview
@@ -33,7 +33,9 @@ namespace SlimeBattle.Player.Placement
         public bool IsAnchor => Anchor.HasValue;
         public bool HasPosition => Status != PlacementValidationStatus.Inactive && Status != PlacementValidationStatus.NoPosition &&
             Status != PlacementValidationStatus.InvalidPosition;
-        public bool CanConfirm => Status == PlacementValidationStatus.Free || Status == PlacementValidationStatus.AnchorFree;
+        public bool CanConfirm => Status == PlacementValidationStatus.Free ||
+            Status == PlacementValidationStatus.AnchorFree ||
+            Status == PlacementValidationStatus.AnchorReplaceable;
     }
 
     public readonly struct PlacementValidationResult

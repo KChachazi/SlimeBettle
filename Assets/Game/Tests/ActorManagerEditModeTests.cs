@@ -11,6 +11,7 @@ using SlimeBattle.Data;
 using SlimeBattle.Enemies;
 using SlimeBattle.Guards;
 using SlimeBattle.Slimes;
+using SlimeBattle.World;
 using UnityEngine;
 
 namespace SlimeBattle.Tests
@@ -252,7 +253,7 @@ namespace SlimeBattle.Tests
         }
 
         [Test]
-        public void DepletedEventFiresOnceForZeroAndLastDeathAndResetsWithNewManager()
+        public void DepletedEventFiresOnlyAfterLastDeathAndResetsWithNewManager()
         {
             var config = New<SlimeConfig>("slime");
             var registry = new ConfigRegistry(new ConfigAsset[] { config });
@@ -269,6 +270,22 @@ namespace SlimeBattle.Tests
                     levelId: new LevelId("first"));
                 manager.Tick(new LevelTickContext(.1f, null, null));
                 manager.Tick(new LevelTickContext(.1f, null, null));
+                Assert.AreEqual(0, count);
+                manager.Dispose();
+
+                manager = new SlimeManager(registry, bus, 20, NewSlimePrefab(),
+                    levelId: new LevelId("first"));
+                var first = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId,
+                    Vector2.zero));
+                var second = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId,
+                    Vector2.right));
+                Assert.IsTrue(manager.TryGetActor(first, out var slime));
+                slime.ApplyResolvedEffect(ResolvedEffect.Damage(config.MaxHealth));
+                Assert.AreEqual(0, count);
+                Assert.IsTrue(manager.TryGetActor(second, out slime));
+                slime.ApplyResolvedEffect(ResolvedEffect.Damage(config.MaxHealth));
+                Assert.AreEqual(1, count);
+                manager.Tick(new LevelTickContext(.1f, null, null));
                 Assert.AreEqual(1, count);
                 manager.Dispose();
 
@@ -276,20 +293,47 @@ namespace SlimeBattle.Tests
                     levelId: new LevelId("first"));
                 var id = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId,
                     Vector2.zero));
-                Assert.IsTrue(manager.TryGetActor(id, out var slime));
-                slime.ApplyResolvedEffect(ResolvedEffect.Damage(config.MaxHealth));
-                Assert.AreEqual(2, count);
-                manager.Tick(new LevelTickContext(.1f, null, null));
-                Assert.AreEqual(2, count);
-                manager.Dispose();
-
-                manager = new SlimeManager(registry, bus, 20, NewSlimePrefab(),
-                    levelId: new LevelId("first"));
+                Assert.IsTrue(manager.RequestDespawn(id, DespawnReason.Removed));
+                Assert.AreEqual(1, count);
                 id = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId,
                     Vector2.zero));
-                Assert.IsTrue(manager.RequestDespawn(id, DespawnReason.Removed));
-                Assert.AreEqual(3, count);
+                Assert.IsTrue(manager.TryGetActor(id, out slime));
+                slime.ApplyResolvedEffect(ResolvedEffect.Damage(config.MaxHealth));
+                Assert.AreEqual(2, count);
                 manager.Dispose();
+            }
+        }
+
+        [Test]
+        public void GoalCountTracksOnlyLivingSlimesCurrentlyInside()
+        {
+            var config = New<SlimeConfig>("slime");
+            var goalId = new MapAreaId("goal");
+            var goal = new MapAreaSnapshot(goalId, MapAreaKind.Goal,
+                default, default, default, 1f, string.Empty);
+            using (var bus = new LevelEventBus())
+            {
+                var changes = 0;
+                bus.Subscribe<SlimeGoalOccupancyChangedEvent>(_ => changes++);
+                var manager = new SlimeManager(
+                    new ConfigRegistry(new ConfigAsset[] { config }), bus,
+                    20, NewSlimePrefab(), goalAreaId: goalId);
+                var first = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId, Vector2.zero));
+                var second = manager.SpawnSlime(new SlimeSpawnRequest(config.ConfigId, Vector2.right));
+                bus.Publish(new MapAreaEnteredEvent(first, goal, Vector2.zero));
+                bus.Publish(new MapAreaEnteredEvent(first, goal, Vector2.zero));
+                bus.Publish(new MapAreaEnteredEvent(second, goal, Vector2.right));
+                Assert.AreEqual(2, manager.GoalOccupantCount);
+                Assert.AreEqual(2, changes);
+                bus.Publish(new MapAreaExitedEvent(first, goal, Vector2.left));
+                Assert.AreEqual(1, manager.GoalOccupantCount);
+                Assert.IsTrue(manager.TryGetActor(second, out var slime));
+                slime.ApplyResolvedEffect(ResolvedEffect.Damage(config.MaxHealth));
+                Assert.AreEqual(0, manager.GoalOccupantCount);
+                Assert.AreEqual(4, changes);
+                manager.Dispose();
+                bus.Publish(new MapAreaEnteredEvent(first, goal, Vector2.zero));
+                Assert.AreEqual(4, changes);
             }
         }
 

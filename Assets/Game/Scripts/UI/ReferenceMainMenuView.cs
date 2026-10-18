@@ -29,7 +29,7 @@ namespace SlimeBattle.UI
             selectButton.GetComponent<Button>().interactable=index==0;
             selectionHint.text=string.Empty;
         }
-        public void StartSelectedLevel() { if(selected==0 && entry!=null) entry.StartLevelTest(); }
+        public void StartSelectedLevel() { if(selected==0 && entry!=null) entry.StartFirstLevel(); }
         public void Quit()
         {
             var root=FindObjectOfType<GameRoot>();

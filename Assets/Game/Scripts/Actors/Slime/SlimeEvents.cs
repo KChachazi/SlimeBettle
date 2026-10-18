@@ -5,6 +5,22 @@ using SlimeBattle.Core;
 
 namespace SlimeBattle.Slimes
 {
+    public readonly struct SlimeGoalOccupancyChangedEvent
+    {
+        public SlimeGoalOccupancyChangedEvent(LevelId levelId, ActorId actorId,
+            int aliveInsideCount, bool isInside)
+        {
+            LevelId = levelId;
+            ActorId = actorId;
+            AliveInsideCount = aliveInsideCount;
+            IsInside = isInside;
+        }
+        public LevelId LevelId { get; }
+        public ActorId ActorId { get; }
+        public int AliveInsideCount { get; }
+        public bool IsInside { get; }
+    }
+
     public readonly struct SlimeDepletedEvent
     {
         public SlimeDepletedEvent(LevelId levelId) { LevelId = levelId; AliveCount = 0; }

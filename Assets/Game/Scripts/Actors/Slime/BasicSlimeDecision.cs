@@ -86,6 +86,15 @@ namespace SlimeBattle.Actors.Slimes
                     : ActionIntent.Move(nearest.Position,
                         agitated && nearestHuman ? "暴躁：接近附近人类" : "遇到魔物：接近战斗");
             }
+
+            // 没有更高优先级的需求或战斗目标时，正常/暴躁状态接受食物和熔炉的普通引导。
+            // 引导列表已经由感知层限制在有效吸引范围内，这里按距离选择最近的来源。
+            if (TryFindNearestGuide(context, out var guide))
+            {
+                runtime.TargetId = default(ActorId);
+                return ActionIntent.Move(guide, "正常/暴躁：优先靠近引导源");
+            }
+
             runtime.TargetId = default(ActorId);
             return context.Perception.HasDestination
                 ? ActionIntent.Move(context.Perception.Destination, "跟随普通引导")
@@ -105,6 +114,24 @@ namespace SlimeBattle.Actors.Slimes
             for (var i = 0; i < guides.Count; i++)
             {
                 if (guides[i].Kind != kind) continue;
+                var distance = Vector2.Distance(context.Actor.Position, guides[i].Position);
+                if (distance >= nearest) continue;
+                nearest = distance;
+                position = guides[i].Position;
+            }
+            return nearest < float.PositiveInfinity;
+        }
+
+        private static bool TryFindNearestGuide(DecisionContext context, out Vector2 position)
+        {
+            position = default(Vector2);
+            var guides = context.Perception.Guides;
+            if (guides == null) return false;
+            var nearest = float.PositiveInfinity;
+            for (var i = 0; i < guides.Count; i++)
+            {
+                if (guides[i].Kind != GuidanceKind.Food &&
+                    guides[i].Kind != GuidanceKind.Warmth) continue;
                 var distance = Vector2.Distance(context.Actor.Position, guides[i].Position);
                 if (distance >= nearest) continue;
                 nearest = distance;

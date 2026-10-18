@@ -8,18 +8,28 @@ namespace SlimeBattle.Actors.AI.DecisionTree
     public readonly struct TargetObservation
     {
         public TargetObservation(ActorSnapshot actor, bool isHostile, bool isVisible = true,
-            bool isHuman = false)
+            bool isHuman = false, bool isAttackingWeapon = false,
+            bool isAttackingGuard = false, bool isNearWeapon = false,
+            bool isAttacking = false)
         {
             Actor = actor;
             IsHostile = isHostile;
             IsVisible = isVisible;
             IsHuman = isHuman;
+            IsAttackingWeapon = isAttackingWeapon;
+            IsAttackingGuard = isAttackingGuard;
+            IsNearWeapon = isNearWeapon;
+            IsAttacking = isAttacking;
         }
 
         public ActorSnapshot Actor { get; }
         public bool IsHostile { get; }
         public bool IsVisible { get; }
         public bool IsHuman { get; }
+        public bool IsAttackingWeapon { get; }
+        public bool IsAttackingGuard { get; }
+        public bool IsNearWeapon { get; }
+        public bool IsAttacking { get; }
     }
 
     public enum GuidanceKind { Food, Warmth, Wander }
