@@ -34,6 +34,8 @@
 
 开局镜头按当前关卡快照聚焦护送武器/史莱姆，缺少 Actor 快照时使用地图中心，每个新关卡 Context 只初始化一次；不会在普通刷新时打断玩家拖动镜头。放置时仅给当前视野内的道路空格加淡绿色提示，紫色预览表示非道路/越界，提示文字说明中键拖图和滚轮缩放。绿色为道路与占用提示，最终放置仍复核机关后端及冷却。正式场景测试从默认镜头开始，用实际选择按钮和地图点击完成三类机关的放置与拆除，不移动测试镜头寻找可放点。
 
+本轮开局验证见 `Assets/Game/Tests/PlayerPresentation/FirstLevelOpening-validation.json` 及同目录 `FirstLevelOpeningPlacement.png` / `FirstLevelOpeningRemoval.png`：正式关卡与 UI Play Mode 9/9 通过，UI/Placement Edit Mode 65/65 通过；扩大 Edit Mode 回归为 117/126 通过，其余 9 项在相同编辑器场景环境的主分支对照中同名同消息失败，没有新增失败，不代表整个项目测试全绿。
+
 ## 集成
 
 将 `PF_FirstLevelPlayer` 拖入集成场景，沿用现有 Bootstrap / LevelManager。默认已包含 `InputSystem`、`UISystem`、`PlayerPresentationRoot`、`FirstLevelPresentationRoot`、`PlacementGridView`、`PlacementInputAdapter`、`FirstLevelMechanismBackend`、`FirstLevelStatusProvider` 和嵌套 HUD/选择栏，不需要再次添加组件。
