@@ -112,7 +112,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new KeyboardState());
                 yield return null; yield return null;
                 Assert.That(root.Placement.IsInteracting, Is.False, "Escape must exit removal without placing anything.");
-                }
+                Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), "Cancelling removal must not also pause the level.");
+            }
             remove.onClick.Invoke();
             manager.RequestPause();
             Assert.That(root.Placement.IsRemoving, Is.False);

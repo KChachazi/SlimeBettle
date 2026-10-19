@@ -69,6 +69,12 @@ namespace SlimeBattle.UI
             if (feedbackText != null) feedbackText.text = string.Empty;
             if (placement.IsRemoving) placement.CancelPlacement(); else placement.BeginRemoval();
         }
+        public bool TryCancelPlacement()
+        {
+            if (placement == null || !placement.IsInteracting) return false;
+            placement.CancelPlacement();
+            return true;
+        }
         private void RenderRemoval()
         {
             if (removeButton == null) return;
