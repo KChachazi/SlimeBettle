@@ -15,6 +15,9 @@ EditorBuildSettings:
     path: Assets/Game/Scenes/FirstLevel.unity
     guid: 1e7a51afaaf150e46be29b783b35105b
   - enabled: 1
+    path: Assets/Game/Scenes/Castle.unity
+    guid: 637e2ce722a44aafa8a51d66d63b622d
+  - enabled: 1
     path: Assets/Game/Scenes/Level_test.unity
     guid: 8330e8de1192d494e96d13b95282ac2d
   - enabled: 1

@@ -1,0 +1,271 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5aee129d9e740fdbd022c7d1c05f110, type: 3}
+  m_Name: MAP_Castle
+  m_EditorClassIdentifier: 
+  designPixelsPerUnityUnit: 100
+  designSizePixels: {x: 5760, y: 5760}
+  points:
+  - pointId: castle_slime_spawn
+    kind: 0
+    designPosition: {x: 2926, y: 244}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_enemy_spawn
+    kind: 3
+    designPosition: {x: 2938, y: 3549}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_weapon_spawn
+    kind: 2
+    designPosition: {x: 2926, y: 244}
+    configId: mvp_escort_weapon
+    interactionRadiusPixels: 0
+  - pointId: castle_guard_spawn
+    kind: 9
+    designPosition: {x: 3046, y: 244}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_goal
+    kind: 14
+    designPosition: {x: 2908, y: 4873}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_spike_1
+    kind: 6
+    designPosition: {x: 2918.5, y: 2437.5}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_spike_2
+    kind: 6
+    designPosition: {x: 3756.5, y: 874}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_button_1
+    kind: 15
+    designPosition: {x: 2916, y: 2081.5}
+    configId: 
+    interactionRadiusPixels: 0
+  - pointId: castle_button_2
+    kind: 15
+    designPosition: {x: 3254, y: 896.5}
+    configId: 
+    interactionRadiusPixels: 0
+  areas:
+  - areaId: castle_road_01_upper_corridor
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 2877.5, y: 4484}
+    radiusPixels: 1
+    designVertices:
+    - {x: 81, y: 4012}
+    - {x: 5674, y: 4012}
+    - {x: 5674, y: 4956}
+    - {x: 81, y: 4956}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_02_upper_left_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 801, y: 3432}
+    radiusPixels: 1
+    designVertices:
+    - {x: 108, y: 3163}
+    - {x: 1494, y: 3163}
+    - {x: 1494, y: 3701}
+    - {x: 108, y: 3701}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_03_central_gate
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 2932, y: 3768.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 2636, y: 3525}
+    - {x: 3228, y: 3525}
+    - {x: 3228, y: 4012}
+    - {x: 2636, y: 4012}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_04_upper_right_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 4999.5, y: 3082.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 4361, y: 2464}
+    - {x: 5638, y: 2464}
+    - {x: 5638, y: 3701}
+    - {x: 4361, y: 3701}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_05_central_passage
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 3112, y: 1863.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 2067, y: 202}
+    - {x: 4157, y: 202}
+    - {x: 4157, y: 3525}
+    - {x: 2067, y: 3525}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_06_right_narrow_passage
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 4259, y: 2838}
+    radiusPixels: 1
+    designVertices:
+    - {x: 4157, y: 2671}
+    - {x: 4361, y: 2671}
+    - {x: 4361, y: 3005}
+    - {x: 4157, y: 3005}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_07_left_cross_passage
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 573, y: 2716.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 126, y: 2428}
+    - {x: 1020, y: 2428}
+    - {x: 1020, y: 3005}
+    - {x: 126, y: 3005}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_08_middle_left_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 1564, y: 2567.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1020, y: 1972}
+    - {x: 2108, y: 1972}
+    - {x: 2108, y: 3163}
+    - {x: 1020, y: 3163}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_09_small_middle_left_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 1462.5, y: 1752.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1124, y: 1475}
+    - {x: 1801, y: 1475}
+    - {x: 1801, y: 2030}
+    - {x: 1124, y: 2030}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_10_lower_left_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 1016, y: 942.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 551, y: 342}
+    - {x: 1481, y: 342}
+    - {x: 1481, y: 1543}
+    - {x: 551, y: 1543}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_11_middle_right_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 4882, y: 1789}
+    radiusPixels: 1
+    designVertices:
+    - {x: 4103, y: 1475}
+    - {x: 5661, y: 1475}
+    - {x: 5661, y: 2103}
+    - {x: 4103, y: 2103}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  - areaId: castle_road_12_lower_right_room
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 4710.5, y: 687.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 4103, y: 202}
+    - {x: 5318, y: 202}
+    - {x: 5318, y: 1173}
+    - {x: 4103, y: 1173}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId: 
+    guidanceRadiusPixels: 0
+  routes:
+  - routeId: route_castle_escort
+    role: 2
+    mergePointId: 
+    waypoints:
+    - waypointId: castle_escort_start
+      designPosition: {x: 2926, y: 244}
+      isGoal: 0
+    - waypointId: castle_escort_goal
+      designPosition: {x: 2908, y: 4873}
+      isGoal: 1
+    blockingAnchorIds: []
+    relatedPointIds:
+    - castle_weapon_spawn
+    - castle_goal
+  anchors: []

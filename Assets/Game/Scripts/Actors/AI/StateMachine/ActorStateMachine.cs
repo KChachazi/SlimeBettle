@@ -28,7 +28,9 @@ namespace SlimeBattle.Actors.AI.StateMachine
 
     public sealed class ActorStateMachine
     {
-        private const float MovingDestinationRetargetTolerance = 0.1f;
+        // Moving targets such as an escort weapon drift each frame. Keep the active
+        // request until the target has moved far enough to justify replacing it.
+        private const float MoveDestinationRetargetThreshold = 0.2f;
         private readonly AttackAction attackAction = new AttackAction();
         private readonly float attackRange;
         private readonly float attackPower;
@@ -79,8 +81,8 @@ namespace SlimeBattle.Actors.AI.StateMachine
             }
 
             if (CurrentState == StateId.Moving && intent.Type == ActionIntentType.Move &&
-                UnityEngine.Vector2.Distance(currentIntent.Destination,
-                    intent.Destination) <= MovingDestinationRetargetTolerance)
+                (currentIntent.Destination - intent.Destination).sqrMagnitude <=
+                MoveDestinationRetargetThreshold * MoveDestinationRetargetThreshold)
             {
                 return StateMachineResult.Accepted;
             }

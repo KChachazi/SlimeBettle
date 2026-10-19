@@ -7,14 +7,14 @@ namespace SlimeBattle.Mechanisms
     [DisallowMultipleComponent]
     public sealed class EscortWeaponAuthoring : MonoBehaviour
     {
-        public const int TopLeftAnchorIndex = 0;
+        public const int CenterAnchorIndex = 0;
         public const int BottomRightAnchorIndex = 1;
         public const int TopRightAnchorIndex = 2;
         public const int BottomLeftAnchorIndex = 3;
 
         [SerializeField] private string weaponConfigId;
         [SerializeField] private string routeId;
-        [SerializeField, Tooltip("Ordered TopLeft, BottomRight, TopRight, BottomLeft.")]
+        [SerializeField, Tooltip("Ordered Center, BottomRight, TopRight, BottomLeft.")]
         private Transform[] carrierAnchors = new Transform[EscortWeapon.MaximumCarrierCount];
 
         public ConfigId WeaponConfigId => new ConfigId(weaponConfigId);
