@@ -50,6 +50,7 @@ namespace SlimeBattle.Core
             }
 
             levelManager.Initialize();
+            levelManager.ReturnToPreviousFlowRequested += OnReturnToPreviousFlowRequested;
             initialized = true;
             SetState(ApplicationState.Ready);
         }
@@ -86,6 +87,12 @@ namespace SlimeBattle.Core
             Application.Quit();
         }
 
+        private void OnReturnToPreviousFlowRequested(ReturnToPreviousFlowRequestedEvent request)
+        {
+            if (applicationState == ApplicationState.Ready)
+                levelManager.RequestUnloadToScene("MainMenu");
+        }
+
         private void SetState(ApplicationState nextState)
         {
             if (applicationState == nextState)
@@ -108,6 +115,7 @@ namespace SlimeBattle.Core
 
             if (levelManager != null)
             {
+                levelManager.ReturnToPreviousFlowRequested -= OnReturnToPreviousFlowRequested;
                 levelManager.Dispose();
             }
 

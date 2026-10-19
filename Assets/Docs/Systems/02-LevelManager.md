@@ -41,6 +41,7 @@ LevelContext currentContext
 void RequestLoadLevel(LevelId levelId);
 void RequestRestartCurrentLevel();
 void RequestReturnToPreviousFlow();
+bool RequestUnloadToScene(string sceneName);
 void RequestPause();
 void RequestResume();
 LevelId GetCurrentLevelId();
@@ -48,6 +49,8 @@ LevelState GetLevelState();
 ```
 
 请求接口只表达意图。场景是否加载成功、暂停是否完成和重开是否开始，通过结果事件表达。
+
+返回流程（2026-10-20）：`RequestReturnToPreviousFlow()` 在 Running、Paused、Succeeded、Failed 且无场景切换时发布 `ReturnToPreviousFlowRequestedEvent`，由 GameRoot 观察并选择 MainMenu。`RequestUnloadToScene` 供应用流程调用，先验证目标场景，再进入 Unloading、Dispose 旧 Context/事件/Actor，清空关卡 ID，异步切换到目标场景后进入 Unloaded；不为菜单创建 Context。重复请求在切换期间拒绝，LevelManager 和战役资源账本继续存在，可从菜单重新进入关卡。`Dispose()` 仍仅用于应用终止。
 
 ## 5. 对外事件
 

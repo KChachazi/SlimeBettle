@@ -20,6 +20,7 @@ namespace SlimeBattle.UI
         [SerializeField] private Button pauseRestartButton;
         [SerializeField] private Button resultRestartButton;
         [SerializeField] private bool useChineseLabels;
+        [SerializeField] private bool countsValueOnly;
         [SerializeField] private Text goalText;
         [SerializeField] private Text waitingText;
         [SerializeField] private Text routeHintText;
@@ -65,13 +66,18 @@ namespace SlimeBattle.UI
         {
             if (hudPanel != null) { hudPanel.SetActive(showHud); }
             isPauseVisible=showPause;
-            if(referencePages!=null) referencePages.SetLevelState(state.LevelState);
+            if(referencePages!=null)
+            {
+                referencePages.SetLevelState(state.LevelState);
+                referencePages.SetTransitionPending(isPending);
+            }
             UpdatePauseVisibility();
             if (resultPanel != null) { resultPanel.SetActive(showResult); }
             if (objectiveText != null) { objectiveText.text = useChineseLabels ? FirstLevelUiText.Hint(state.ObjectiveText) : state.ObjectiveText; }
             if (countsText != null)
             {
-                countsText.text = useChineseLabels ? "史莱姆数量 " + Count(state.SlimeCount) + " / " + Count(state.SlimeLimit) : "SLIMES  " + Count(state.SlimeCount) +
+                countsText.text = countsValueOnly ? Count(state.SlimeCount) + " / " + Count(state.SlimeLimit) :
+                    useChineseLabels ? "史莱姆数量 " + Count(state.SlimeCount) + " / " + Count(state.SlimeLimit) : "SLIMES  " + Count(state.SlimeCount) +
                     (state.SlimeLimit > 0 ? " / " + state.SlimeLimit : string.Empty) + "    ENEMIES  " + Count(state.EnemyCount) +
                     "    /    " + state.LevelState;
             }

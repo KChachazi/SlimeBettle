@@ -142,13 +142,29 @@ namespace SlimeBattle.Core
 
         public void RequestReturnToPreviousFlow()
         {
-            if (!initialized || disposed || !currentLevelId.IsValid)
+            if (!CanStartTransition() || !currentLevelId.IsValid ||
+                (currentState != LevelState.Running && currentState != LevelState.Paused &&
+                 currentState != LevelState.Succeeded && currentState != LevelState.Failed))
             {
                 return;
             }
 
             ReturnToPreviousFlowRequested?.Invoke(
                 new ReturnToPreviousFlowRequestedEvent(currentLevelId));
+        }
+
+        /// <summary>Releases this level before loading an application-owned destination.</summary>
+        public bool RequestUnloadToScene(string sceneName)
+        {
+            if (!CanStartTransition() || currentContext == null || !currentLevelId.IsValid)
+                return false;
+            if (string.IsNullOrEmpty(sceneName) || !Application.CanStreamedLevelBeLoaded(sceneName))
+            {
+                NotifyLoadFailed(currentLevelId, "The destination scene is not available in Build Settings.");
+                return false;
+            }
+            loadCoroutine = StartCoroutine(UnloadToSceneRoutine(sceneName));
+            return true;
         }
 
         public void RequestPause()
@@ -295,6 +311,35 @@ namespace SlimeBattle.Core
             currentLevelId = levelId;
             SetState(LevelState.Initializing);
             TryInitializeLoadedScene(levelId, isRestart);
+        }
+
+        private IEnumerator UnloadToSceneRoutine(string sceneName)
+        {
+            var previousLevelId = currentLevelId;
+            SetState(LevelState.Unloading);
+            if (currentContext.ResultRules != null)
+                currentContext.ResultRules.ResultDecided -= OnResultDecided;
+            currentContext.Dispose();
+            currentContext = null;
+            currentLevelId = default;
+            startedCurrentSceneInPlace = false;
+            yield return null; // Finish deferred destruction and assign the transition handle.
+
+            AsyncOperation operation;
+            try { operation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single); }
+            catch (Exception exception)
+            {
+                FailActiveLoad(previousLevelId, exception.Message);
+                yield break;
+            }
+            if (operation == null)
+            {
+                FailActiveLoad(previousLevelId, "Unity did not return a scene load operation.");
+                yield break;
+            }
+            yield return operation;
+            SetState(LevelState.Unloaded);
+            loadCoroutine = null;
         }
 
         private bool TryInitializeLoadedScene(LevelId levelId, bool isRestart)

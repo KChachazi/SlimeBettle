@@ -15,6 +15,7 @@
 - 保存跨关卡仍然有效的设置；
 - 创建或持有 `LevelManager`；
 - 接收应用级入口请求，例如进入首个关卡和退出；
+- 订阅 `LevelManager.ReturnToPreviousFlowRequested`，选择 `MainMenu` 为返回目标，并交由 LevelManager 卸载当前局；
 - 保证应用级服务只初始化一次。
 
 ## 2. 不负责的内容

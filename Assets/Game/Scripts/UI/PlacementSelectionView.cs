@@ -21,6 +21,7 @@ namespace SlimeBattle.UI
         [SerializeField] private GameObject furnaceSelected;
         [SerializeField] private GameObject obstacleSelected;
         [SerializeField] private bool useReferenceLayout;
+        [SerializeField] private bool useIllustratedSprites;
         public bool IsVisible => panel != null && panel.activeInHierarchy;
 
         public void Initialize(PlacementSystem placement)
@@ -97,6 +98,12 @@ namespace SlimeBattle.UI
         private void Highlight(Button button, PlacementItemId item)
         {
             if (button.targetGraphic == null) { return; }
+            if (useIllustratedSprites)
+            {
+                button.targetGraphic.color = placement.SelectedItem == item
+                    ? new Color(1f, 0.90f, 0.66f) : Color.white;
+                return;
+            }
             button.targetGraphic.color = placement.SelectedItem == item
                 ? (useChineseLabels ? new Color(1f, 0.80f, 0.35f) : new Color(0.15f, 0.65f, 0.45f))
                 : (useChineseLabels ? new Color(0.98f, 0.945f, 0.82f) : new Color(0.14f, 0.24f, 0.32f));

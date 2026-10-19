@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="1" result="Passed" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.5172955">
+  <test-suite type="TestSuite" id="1032" name="SlimeBattle-TapTapGamejam" fullname="SlimeBattle-TapTapGamejam" runstate="Runnable" testcasecount="16" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.517296" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties />
+    <test-suite type="Assembly" id="1044" name="SlimeBattle.FirstLevelUI.PlayMode.Tests.dll" fullname="D:/Gamejam/Library/ScriptAssemblies/SlimeBattle.FirstLevelUI.PlayMode.Tests.dll" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.505702" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="19356" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+      </properties>
+      <test-suite type="TestSuite" id="1045" name="SlimeBattle" fullname="SlimeBattle" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.504465" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1046" name="Tests" fullname="SlimeBattle.Tests" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.503736" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1047" name="PlayerPresentation" fullname="SlimeBattle.Tests.PlayerPresentation" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.502979" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1033" name="FirstLevelRemovalScenePlayModeTests" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelRemovalScenePlayModeTests" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelRemovalScenePlayModeTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.499917" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1034" name="ProductionSceneRemovalReleasesCellAndResetsOnRestart" fullname="SlimeBattle.Tests.PlayerPresentation.FirstLevelRemovalScenePlayModeTests.ProductionSceneRemovalReleasesCellAndResetsOnRestart" methodname="ProductionSceneRemovalReleasesCellAndResetsOnRestart" classname="SlimeBattle.Tests.PlayerPresentation.FirstLevelRemovalScenePlayModeTests" runstate="Runnable" seed="1670165976" result="Passed" start-time="2026-10-19 16:15:36Z" end-time="2026-10-19 16:15:47Z" duration="10.479528" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="60000" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
