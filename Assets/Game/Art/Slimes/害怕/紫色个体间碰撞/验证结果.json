@@ -1,0 +1,12 @@
+{
+  "motionParametersIdenticalToBlue": true,
+  "finalHalfSecondStatic": true,
+  "frames": 120,
+  "fps": 24,
+  "seconds": 5,
+  "width": 512,
+  "height": 512,
+  "firstLastIdentical": true,
+  "jpegFirstLastIdentical": true,
+  "clipped": false
+}

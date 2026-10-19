@@ -1,0 +1,14 @@
+{
+  "motionParametersIdenticalToBlue": true,
+  "horizontalTranslationFixed": true,
+  "peakJumpHeightPixels": 72.02,
+  "finalHalfSecondStatic": true,
+  "frames": 120,
+  "fps": 24,
+  "seconds": 5,
+  "width": 512,
+  "height": 512,
+  "firstLastIdentical": true,
+  "jpegFirstLastIdentical": true,
+  "clipped": false
+}
