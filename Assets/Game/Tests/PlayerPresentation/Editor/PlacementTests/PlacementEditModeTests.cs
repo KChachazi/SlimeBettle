@@ -257,6 +257,24 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(placement.IsInteracting, Is.False);
         }
 
+        [Test]
+        public void RoadHintsExcludeNonRoadOccupiedAndOutsideCellsWithoutChangingPreview()
+        {
+            placement.Dispose();
+            placement = new PlacementSystem(grid, () => bounds, () => phase, backend,
+                PlacementConfirmationMode.Single, canOccupy: position => position.y >= 1f);
+            backend.Add(MechanismId.NewId(), new Vector3(1.5f, 1.5f));
+            placement.BeginPlacement(PlacementItemId.Food);
+            Assert.That(placement.IsCellPlaceable(new Vector3Int(0, 1, 0)), Is.True);
+            Assert.That(placement.IsCellPlaceable(Vector3Int.zero), Is.False);
+            Assert.That(placement.IsCellPlaceable(new Vector3Int(1, 1, 0)), Is.False);
+            Assert.That(placement.IsCellPlaceable(new Vector3Int(9, 1, 0)), Is.False);
+            Assert.That(placement.GetCurrentPreview().HasPosition, Is.False);
+            Assert.That(backend.Requests, Is.Zero);
+            placement.CancelPlacement();
+            Assert.That(placement.IsCellPlaceable(new Vector3Int(0, 1, 0)), Is.False);
+        }
+
         [TestCase("empty")]
         [TestCase("outside")]
         [TestCase("paused")]

@@ -59,6 +59,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var context = manager.GetCurrentContext();
             var grid = root.GetComponentInChildren<PlacementGridAuthoring>();
             var camera = root.GetComponentInChildren<CameraSystem>();
+            var sceneCamera = camera.GetComponent<Camera>();
+            var initialCameraPosition = camera.GetState().Position;
             Assert.That(context.MapManager.TryGetMapBounds(out var bounds), Is.True);
             grid.GetCoveredRange(bounds, out var minimum, out var maximum);
             var remove = root.GetComponentsInChildren<Button>(true).Single(button => button.name == "RemoveButton");
@@ -77,19 +79,32 @@ namespace SlimeBattle.Tests.PlayerPresentation
                     for (var x = minimum.x; x <= maximum.x && !foundPosition; x++)
                     {
                         var candidate = grid.GetCellCenter(new Vector3Int(x, y, 0));
+                        var viewport = sceneCamera.WorldToViewportPoint(candidate);
+                        if (viewport.z <= 0f || viewport.x < 0.28f || viewport.x > 0.68f ||
+                            viewport.y < 0.25f || viewport.y > 0.70f) continue;
                         if (!context.MechanismSystem.CanPlace(configId, candidate, out _)) continue;
                         position = candidate; foundPosition = true;
                     }
-                Assert.That(foundPosition, Is.True, "The current production map must provide a legal placement cell.");
-                camera.SubmitCommand(new CameraCommand(CameraCommandKind.Focus, position));
-                root.Placement.BeginPlacement(item);
-                root.Placement.PreviewPlacement(position);
-                var placed = root.Placement.ConfirmPlacement();
-                Assert.That(placed.Succeeded, Is.True, placed.Reason);
+                Assert.That(foundPosition, Is.True, "The default opening camera must show a legal cell away from HUD controls, without test camera movement.");
+                Assert.That(camera.GetState().Position, Is.EqualTo(initialCameraPosition));
+                var select = root.GetComponentsInChildren<Button>(true).Single(button => button.name == item + "Button");
+                yield return Click(RectTransformUtility.WorldToScreenPoint(null, select.transform.position));
+                Assert.That(root.GetComponent<PlacementGridView>().VisiblePlaceableCellCount, Is.GreaterThan(0));
+                var screenPosition = camera.WorldToScreen(position);
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = screenPosition });
+                yield return null; yield return null;
+                Assert.That(root.Placement.GetCurrentPreview().CanConfirm, Is.True);
+                if (item == PlacementItemId.Food)
+                {
+                    var placementCapture = System.Environment.GetEnvironmentVariable("SLIME_PLACEMENT_SCREENSHOT");
+                    if (!string.IsNullOrEmpty(placementCapture)) Capture(sceneCamera, root.gameObject, placementCapture);
+                }
+                yield return Click(screenPosition);
+                Assert.That(context.MechanismSystem.ActivePlacedMechanismCount, Is.EqualTo(1));
+                var placed = context.MechanismSystem.GetActiveSnapshots().Single(snapshot => snapshot.IsPlayerPlaced);
                 Assert.That(remove.interactable, Is.True);
                 yield return Click(RectTransformUtility.WorldToScreenPoint(null, remove.transform.position));
                 Assert.That(root.Placement.IsRemoving, Is.True, "The production scene button must bind to its current placement session.");
-                var screenPosition = camera.WorldToScreen(position);
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = screenPosition });
                 yield return null; yield return null;
                 Assert.That(root.Placement.GetCurrentPreview().RemovalTarget, Is.EqualTo(placed.MechanismId));
@@ -114,11 +129,17 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 Assert.That(root.Placement.IsInteracting, Is.False, "Escape must exit removal without placing anything.");
                 Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), "Cancelling removal must not also pause the level.");
             }
+            // Once the opening flow works, verify that later refresh/pause never snaps a panned view back.
+            camera.SubmitCommand(new CameraCommand(CameraCommandKind.Pan, new Vector2(2f, 1f)));
+            var pannedCameraPosition = camera.GetState().Position;
+            yield return new WaitForSecondsRealtime(0.25f);
+            Assert.That(camera.GetState().Position, Is.EqualTo(pannedCameraPosition));
             remove.onClick.Invoke();
             manager.RequestPause();
             Assert.That(root.Placement.IsRemoving, Is.False);
             Assert.That(root.GetComponent<PlacementGridView>().IsVisible, Is.False);
             manager.RequestResume();
+            Assert.That(camera.GetState().Position, Is.EqualTo(pannedCameraPosition));
             remove.onClick.Invoke();
             Assert.That(root.Placement.IsRemoving, Is.True);
             var oldPlacement = root.Placement;
@@ -129,6 +150,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(manager.GetCurrentContext(), Is.Not.SameAs(context));
             Assert.That(root.Placement, Is.Not.SameAs(oldPlacement));
             Assert.That(root.Placement.IsInteracting, Is.False);
+            var restartedCamera = root.GetComponentInChildren<CameraSystem>();
+            Assert.That(Vector3.Distance(restartedCamera.GetState().Position, initialCameraPosition), Is.LessThan(0.1f),
+                "Restart must restore the new context's opening focus instead of keeping the previous pan.");
             remove = root.GetComponentsInChildren<Button>(true).Single(button => button.name == "RemoveButton");
             remove.onClick.Invoke();
             Assert.That(root.Placement.IsRemoving, Is.True, "Restart must bind removal to the new level context.");

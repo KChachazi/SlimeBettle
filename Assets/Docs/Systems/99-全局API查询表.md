@@ -259,3 +259,9 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 - `IsRemoving` 表示拆除；`IsInteracting` 表示放置或拆除；`IsPlacing` 保持原语义。`CancelPlacement()` 同时取消两种模式，暂停、结算、重开和禁用沿用同一清理链路。
 - 可选 `IPlacementRemovalBackend.SupportsRemoval / RequestRemoval(MechanismId)` 由两个正式 Placement 后端适配已有 `MechanismSystem.RequestRemove()`；未实现该接口的旧放置后端继续兼容。返回 `PlacementResult`；机关系统拥有对象回收、碰撞释放和配置冷却，UI 不直接销毁机关。
 - `RemovalCompleted` 是本地尝试结果事件；资源返还与库存规则不在本次接口中新增。`ReferenceUiView.InitializePlacement()` / `ToggleRemoval()` 由当前关卡组合根接线，重开重新绑定新会话。
+
+## 小宸首关开局放置可见性修正（2026-10-19）
+
+- 实现事实：`FirstLevelPresentationRoot` 对每个新 `LevelContext` 初始化一次镜头焦点，优先读取护送武器、其次存活史莱姆的位置，无快照时使用地图中心；普通刷新与暂停恢复不重置玩家镜头。
+- `PlacementSystem.IsCellPlaceable(Vector3Int)` 供 `PlacementGridView` 查询普通道路空格提示，读取当前放置模式、运行阶段、地图边界、网格中心、占用与既有 `canOccupy` 委托；未放置、非运行、越界、占用或查询异常返回 false。不改变预览或提交请求，最终确认仍由原有后端复核冷却和机关规则。
+- `PlacementGridView.Initialize` 尾部新增可选 `UnityEngine.Camera sceneCamera = null`，正式首关注入镜头以仅绘制视野内的淡绿色道路空格，镜头拖动、缩放或宽高比变化时刷新；旧调用兼容。`VisiblePlaceableCellCount` 为当前可见提示数量，只读，取消/暂停/禁用时归零。

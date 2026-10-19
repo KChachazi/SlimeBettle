@@ -34,6 +34,7 @@ namespace SlimeBattle.Player
         private bool isInitialized;
         private bool isBound;
         private float nextRefresh;
+        private LevelContext cameraContext;
         public PlacementSystem Placement { get; private set; }
 
         private void Start()
@@ -108,7 +109,7 @@ namespace SlimeBattle.Player
             var source = new FirstLevelUiSnapshotSource(Placement, statusSource);
             GetComponent<PlayerPresentationRoot>().Initialize(levelManager, cameraSystem, source);
             GetComponent<PlayerPresentationRoot>().InitializePlacement(Placement);
-            gridView.Initialize(Placement, grid);
+            gridView.Initialize(Placement, grid, cameraSystem.GetComponent<UnityEngine.Camera>());
             gridView.enabled = true;
             selectionView.Initialize(Placement);
             selectionView.enabled = true;
@@ -138,7 +139,21 @@ namespace SlimeBattle.Player
         private void ApplyMapBounds()
         {
             var bounds = ReadBounds();
-            if (bounds.HasValue) { cameraSystem.SetBounds(new CameraBounds(bounds.Value.Min, bounds.Value.Max)); }
+            if (!bounds.HasValue) return;
+            cameraSystem.SetBounds(new CameraBounds(bounds.Value.Min, bounds.Value.Max));
+            var context = levelManager.GetCurrentContext();
+            if (context == null || context == cameraContext) return;
+            cameraContext = context;
+            // Start at the level's actual actors instead of the map's empty origin corner.
+            var focus = (bounds.Value.Min + bounds.Value.Max) * 0.5f;
+            if (context.MechanismSystem != null && context.MechanismSystem.TryGetWeaponSnapshot(out var weapon))
+                focus = weapon.Position;
+            else if (context.SlimeManager != null)
+            {
+                var slimes = context.SlimeManager.GetAliveSnapshots();
+                if (slimes.Count > 0) focus = slimes[0].Position;
+            }
+            cameraSystem.SubmitCommand(new CameraCommand(CameraCommandKind.Focus, focus));
         }
 
         private void OnStarted(LevelStartedEvent data) { CreateSession(); }

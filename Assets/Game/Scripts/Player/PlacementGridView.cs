@@ -19,7 +19,12 @@ namespace SlimeBattle.Player.Placement
         private GameObject visuals;
         private Sprite sprite;
         private SpriteRenderer previewRenderer;
+        private UnityEngine.Camera sceneCamera;
+        private Vector3 renderedCameraPosition;
+        private float renderedCameraSize;
+        private float renderedCameraAspect;
         private readonly List<SpriteRenderer> lines = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> placeableCells = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> occupiedCells = new List<SpriteRenderer>();
         private readonly List<AnchorVisual> anchorVisuals = new List<AnchorVisual>();
         private sealed class AnchorVisual
@@ -31,12 +36,14 @@ namespace SlimeBattle.Player.Placement
         public bool IsVisible => visuals != null && visuals.activeInHierarchy;
         public int VisibleAnchorCount => IsVisible ? placement.GetAnchors().Count : 0;
         public Color PreviewColor => previewRenderer != null ? previewRenderer.color : Color.clear;
+        public int VisiblePlaceableCellCount { get; private set; }
 
-        public void Initialize(PlacementSystem placement, PlacementGridAuthoring grid)
+        public void Initialize(PlacementSystem placement, PlacementGridAuthoring grid, UnityEngine.Camera sceneCamera = null)
         {
             Unbind();
             this.placement = placement ?? throw new ArgumentNullException(nameof(placement));
             this.grid = grid != null ? grid : throw new ArgumentNullException(nameof(grid));
+            this.sceneCamera = sceneCamera;
             if (visuals == null)
             {
                 visuals = new GameObject("PlacementGrid_Visuals");
@@ -53,6 +60,7 @@ namespace SlimeBattle.Player.Placement
         {
             if (placement != null) { placement.Changed -= Render; }
             if (visuals != null) { visuals.SetActive(false); }
+            VisiblePlaceableCellCount = 0;
             DestroyPreview();
         }
         private void OnEnable() { if (placement != null) { Bind(); } }
@@ -63,7 +71,7 @@ namespace SlimeBattle.Player.Placement
             if (visuals == null) { return; }
             var visible = isActiveAndEnabled && placement.IsInteracting && placement.IsRunning;
             visuals.SetActive(visible);
-            if (!visible) { DestroyPreview(); return; }
+            if (!visible) { VisiblePlaceableCellCount = 0; DestroyPreview(); return; }
             foreach (var line in lines) { line.gameObject.SetActive(false); }
             var bounds = placement.GetMapBounds();
             var lineIndex = 0;
@@ -81,6 +89,7 @@ namespace SlimeBattle.Player.Placement
                 for (var y = startY; y <= endY; y++)
                 { DrawLine(grid.GetCellCorner(new Vector3Int(startX, y, 0)), grid.GetCellCorner(new Vector3Int(endX, y, 0)), bounds.Value, ref lineIndex); }
             }
+            DrawPlaceableCells(bounds);
             foreach (var cell in occupiedCells) { cell.gameObject.SetActive(false); }
             var occupiedIndex = 0;
             foreach (var cell in placement.GetOccupiedCells())
@@ -105,6 +114,51 @@ namespace SlimeBattle.Player.Placement
                 preview.Status == PlacementValidationStatus.OutOfBounds ||
                     preview.Status == PlacementValidationStatus.InvalidArea ? outsideColor :
                 preview.Status == PlacementValidationStatus.Occupied ? occupiedColor : new Color(1f, 0.75f, 0.2f, 0.75f);
+        }
+
+        private void DrawPlaceableCells(MapBounds? bounds)
+        {
+            foreach (var cell in placeableCells) cell.gameObject.SetActive(false);
+            VisiblePlaceableCellCount = 0;
+            if (sceneCamera != null)
+            {
+                renderedCameraPosition = sceneCamera.transform.position;
+                renderedCameraSize = sceneCamera.orthographicSize;
+                renderedCameraAspect = sceneCamera.aspect;
+            }
+            if (!placement.IsPlacing || !bounds.HasValue) return;
+            grid.GetCoveredRange(bounds.Value, out var min, out var max);
+            if (sceneCamera != null)
+            {
+                var depth = grid.transform.position.z - sceneCamera.transform.position.z;
+                var a = sceneCamera.ViewportToWorldPoint(new Vector3(0f, 0f, depth));
+                var b = sceneCamera.ViewportToWorldPoint(new Vector3(1f, 1f, depth));
+                grid.GetCoveredRange(new MapBounds(Vector2.Min(a, b), Vector2.Max(a, b)), out var viewMin, out var viewMax);
+                min = Vector3Int.Max(min, viewMin); max = Vector3Int.Min(max, viewMax);
+            }
+            // Bound work for dense grids; ordinary FirstLevel viewports are well below this budget.
+            var checkedCells = 0;
+            for (var y = min.y; y <= max.y && checkedCells < 4096; y++)
+                for (var x = min.x; x <= max.x && checkedCells++ < 4096; x++)
+                {
+                    var cell = new Vector3Int(x, y, 0);
+                    if (!placement.IsCellPlaceable(cell)) continue;
+                    var index = VisiblePlaceableCellCount++;
+                    if (index == placeableCells.Count)
+                    {
+                        var renderer = MakeSprite("PlaceableRoadCell"); renderer.sortingOrder = 99;
+                        placeableCells.Add(renderer);
+                    }
+                    SetCell(placeableCells[index], cell);
+                    placeableCells[index].color = new Color(0.18f, 0.85f, 0.45f, 0.20f);
+                }
+        }
+
+        private void LateUpdate()
+        {
+            if (sceneCamera != null && placement != null && placement.IsInteracting &&
+                (renderedCameraPosition != sceneCamera.transform.position ||
+                 renderedCameraSize != sceneCamera.orthographicSize || renderedCameraAspect != sceneCamera.aspect)) Render();
         }
 
         private void DrawAnchors()

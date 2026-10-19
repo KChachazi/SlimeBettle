@@ -32,6 +32,10 @@
 
 2026-10-19：`FirstLevel` 已接通拆除。运行时点击右侧“拆除”，指向玩家放置机关所在格时显示红色预览，点击地图即可回收食物、熔炉或障碍；可连续拆除。点击“取消拆除”、再次点击“拆除”、Esc 或选择放置物退出。暂停、结算与重开清除拆除模式。空格、预置场景机关和已失效对象不可拆除；UI 区域点击不会传到地图。回收通过 `MechanismSystem.RequestRemove` 清理机关和阻挡，并沿用配置冷却，数量显示同步刷新；未添加库存返还规则。
 
+开局镜头按当前关卡快照聚焦护送武器/史莱姆，缺少 Actor 快照时使用地图中心，每个新关卡 Context 只初始化一次；不会在普通刷新时打断玩家拖动镜头。放置时仅给当前视野内的道路空格加淡绿色提示，紫色预览表示非道路/越界，提示文字说明中键拖图和滚轮缩放。绿色为道路与占用提示，最终放置仍复核机关后端及冷却。正式场景测试从默认镜头开始，用实际选择按钮和地图点击完成三类机关的放置与拆除，不移动测试镜头寻找可放点。
+
+本轮开局验证见 `Assets/Game/Tests/PlayerPresentation/FirstLevelOpening-validation.json` 及同目录 `FirstLevelOpeningPlacement.png` / `FirstLevelOpeningRemoval.png`：正式关卡与 UI Play Mode 9/9 通过，UI/Placement Edit Mode 65/65 通过；扩大 Edit Mode 回归为 117/126 通过，其余 9 项在相同编辑器场景环境的主分支对照中同名同消息失败，没有新增失败，不代表整个项目测试全绿。
+
 ## 集成
 
 将 `PF_FirstLevelPlayer` 拖入集成场景，沿用现有 Bootstrap / LevelManager。默认已包含 `InputSystem`、`UISystem`、`PlayerPresentationRoot`、`FirstLevelPresentationRoot`、`PlacementGridView`、`PlacementInputAdapter`、`FirstLevelMechanismBackend`、`FirstLevelStatusProvider` 和嵌套 HUD/选择栏，不需要再次添加组件。
