@@ -285,6 +285,8 @@ MonoBehaviour:
   mechanismsRoot: {fileID: 804170036}
   presentationRoot: {fileID: 59680050}
   startCurrentSceneOnPlay: 1
+  defaultRouteId: route_escort
+  slimeWanderRadius: 1.5
   branchRouteIds:
   - route_branch_1
   - route_branch_2

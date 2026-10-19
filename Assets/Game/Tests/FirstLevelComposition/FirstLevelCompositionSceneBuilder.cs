@@ -85,6 +85,7 @@ namespace SlimeBattle.Tests
             fields.FindProperty("mechanismsRoot").objectReferenceValue = mechanisms.transform;
             fields.FindProperty("presentationRoot").objectReferenceValue = player.transform;
             fields.FindProperty("startCurrentSceneOnPlay").boolValue = true;
+            fields.FindProperty("slimeWanderRadius").floatValue = 1.5f;
             fields.ApplyModifiedPropertiesWithoutUndo();
             EditorSceneManager.SaveScene(scene, Folder + "FirstLevelComposition_TEST.unity");
             AssetDatabase.SaveAssets();

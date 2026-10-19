@@ -7,6 +7,7 @@ using SlimeBattle.Core;
 using SlimeBattle.Mechanisms;
 using SlimeBattle.Player;
 using SlimeBattle.World;
+using SlimeBattle.World.Movement;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -71,7 +72,7 @@ namespace SlimeBattle.Tests.MapMovement
         }
 
         [UnityTest]
-        public IEnumerator FreeSlimesWaitLocallyUntilRoutesAreReleased()
+        public IEnumerator FreeSlimesWanderLocallyInsteadOfFollowingTheWeaponRoute()
         {
             var previous = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.LoadSceneInPlayMode(
@@ -92,7 +93,7 @@ namespace SlimeBattle.Tests.MapMovement
                 var composition = Object.FindObjectOfType<FirstLevelCompositionRoot>();
                 Assert.IsNotNull(context);
                 Assert.IsNotNull(composition);
-                Assert.IsTrue(context.MapManager.TryGetRoute(new MapRouteId("route_branch_2"),
+                Assert.IsTrue(context.MapManager.TryGetRoute(new MapRouteId("route_escort"),
                     out var route));
 
                 var freeCount = 0;
@@ -100,17 +101,33 @@ namespace SlimeBattle.Tests.MapMovement
                     if (!slime.IsCarrying) freeCount++;
                 Assert.GreaterOrEqual(freeCount, 2);
 
+                context.EnemyManager.Dispose();
                 for (var frame = 0; frame < 60; frame++) yield return null;
                 freeCount = 0;
+                var localWanderCount = 0;
                 foreach (var slime in context.SlimeManager.GetAliveSnapshots())
                     if (!slime.IsCarrying)
                     {
                         freeCount++;
-                        Assert.That(Vector2.Distance(slime.Position,
-                            route.Waypoints[1].Position), Is.GreaterThan(2.5f));
+                        SlimeBattle.Actors.Slimes.SlimeActor actor = null;
+                        foreach (var candidate in Object.FindObjectsOfType<SlimeBattle.Actors.Slimes.SlimeActor>())
+                            if (candidate.ActorId.Equals(slime.ActorId))
+                            {
+                                actor = candidate;
+                                break;
+                            }
+                        Assert.IsNotNull(actor);
+                        Assert.AreEqual("没有其他目标：随机游走", actor.LastDecisionReason);
+                        Assert.IsTrue(context.MovementSystem.TryGetMovementState(
+                            slime.ActorId, out var movement));
+                        Assert.That(Vector2.Distance(slime.Position, movement.Destination),
+                            Is.LessThanOrEqualTo(1.51f));
+                        Assert.That(Vector2.Distance(movement.Destination,
+                            route.Waypoints[1].Position), Is.GreaterThan(1f));
+                        if (movement.IsMoving) localWanderCount++;
                     }
                 Assert.GreaterOrEqual(freeCount, 2);
-                Assert.IsTrue(composition.ReleaseSlimeRoutes());
+                Assert.GreaterOrEqual(localWanderCount, 2);
             }
             finally
             {
@@ -158,6 +175,12 @@ namespace SlimeBattle.Tests.MapMovement
             Assert.IsTrue(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(
                 out var weapon));
             Assert.AreEqual("route_escort", weapon.RouteId.Value);
+            var weaponStart = weapon.Position;
+            for (var frame = 0; frame < 60; frame++) yield return null;
+            Assert.IsTrue(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(
+                out weapon));
+            Assert.AreEqual(FixedRouteMovementState.Moving, weapon.TransportState);
+            Assert.That(Vector2.Distance(weaponStart, weapon.Position), Is.GreaterThan(0.05f));
         }
 
         [UnityTest]
