@@ -144,7 +144,7 @@ namespace SlimeBattle.Tests
                 ActorId.NewId(), ActorId.NewId() };
             var expectedSlots = new[]
             {
-                EscortWeaponAuthoring.TopLeftAnchorIndex,
+                EscortWeaponAuthoring.CenterAnchorIndex,
                 EscortWeaponAuthoring.BottomRightAnchorIndex,
                 EscortWeaponAuthoring.TopRightAnchorIndex,
                 EscortWeaponAuthoring.BottomLeftAnchorIndex
@@ -191,7 +191,7 @@ namespace SlimeBattle.Tests
             anchors.arraySize = EscortWeapon.MaximumCarrierCount;
             var anchorNames = new[]
             {
-                "CarrierAnchor_TopLeft", "CarrierAnchor_BottomRight",
+                "CarrierAnchor_Center", "CarrierAnchor_BottomRight",
                 "CarrierAnchor_TopRight", "CarrierAnchor_BottomLeft"
             };
             for (var i = 0; i < anchors.arraySize; i++)

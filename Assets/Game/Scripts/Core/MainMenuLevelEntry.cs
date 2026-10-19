@@ -15,6 +15,11 @@ namespace SlimeBattle.Core
             StartLevel("FirstLevel");
         }
 
+        public void StartCastleLevel()
+        {
+            StartLevel("Castle");
+        }
+
         private void StartLevel(string levelName)
         {
             var root = FindObjectOfType<GameRoot>();

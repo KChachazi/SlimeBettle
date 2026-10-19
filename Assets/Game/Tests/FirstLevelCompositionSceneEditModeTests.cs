@@ -120,7 +120,7 @@ namespace SlimeBattle.Tests
                 Assert.IsTrue(weapon.HasValidCarrierAnchors);
                 var anchorNames = new[]
                 {
-                    "CarrierAnchor_TopLeft", "CarrierAnchor_BottomRight",
+                    "CarrierAnchor_Center", "CarrierAnchor_BottomRight",
                     "CarrierAnchor_TopRight", "CarrierAnchor_BottomLeft"
                 };
                 for (var i = 0; i < anchorNames.Length; i++)

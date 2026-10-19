@@ -6,6 +6,8 @@ namespace SlimeBattle.UI
 {
     public sealed class ReferenceMainMenuView : MonoBehaviour
     {
+        private const int FirstLevelIndex = 0;
+        private const int CastleLevelIndex = 1;
         [SerializeField] private GameObject home;
         [SerializeField] private GameObject levels;
         [SerializeField] private RectTransform[] cards;
@@ -26,10 +28,16 @@ namespace SlimeBattle.UI
                 cards[i].SetSiblingIndex(i==selected?cards.Length:Mathf.Min(i,cards.Length));
             }
             selectButton.SetActive(index>=0);
-            selectButton.GetComponent<Button>().interactable=index==0;
+            selectButton.GetComponent<Button>().interactable =
+                index == FirstLevelIndex || index == CastleLevelIndex;
             selectionHint.text=string.Empty;
         }
-        public void StartSelectedLevel() { if(selected==0 && entry!=null) entry.StartFirstLevel(); }
+        public void StartSelectedLevel()
+        {
+            if (entry == null) return;
+            if (selected == FirstLevelIndex) entry.StartFirstLevel();
+            else if (selected == CastleLevelIndex) entry.StartCastleLevel();
+        }
         public void Quit()
         {
             var root=FindObjectOfType<GameRoot>();

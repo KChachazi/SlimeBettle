@@ -128,6 +128,9 @@ namespace SlimeBattle.Slimes
                 actor.NotifyMechanismTriggered(kind);
         }
 
+        internal bool TryAttachCarrier(ActorId actorId, Transform weapon) =>
+            TryAttachCarrier(actorId, weapon, Vector2.zero);
+
         internal bool TryAttachCarrier(ActorId actorId, Transform weapon,
             Vector2 localOffset)
         {

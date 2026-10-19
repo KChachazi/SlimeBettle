@@ -205,6 +205,9 @@ namespace SlimeBattle.Actors.Slimes
             runtime.GroupTarget = default(Vector2);
         }
 
+        internal bool AttachToWeapon(Transform weapon) =>
+            AttachToWeapon(weapon, Vector2.zero);
+
         internal bool AttachToWeapon(Transform weapon, Vector2 localOffset)
         {
             if (!IsAlive || isCarrying || weapon == null) return false;
@@ -217,7 +220,7 @@ namespace SlimeBattle.Actors.Slimes
             foreach (var collider in GetComponents<Collider2D>())
                 collider.enabled = false;
             transform.SetParent(weapon, false);
-            transform.localPosition = localOffset;
+            transform.localPosition = new Vector3(localOffset.x, localOffset.y, 0f);
             core.SetPosition(transform.position);
             return true;
         }
