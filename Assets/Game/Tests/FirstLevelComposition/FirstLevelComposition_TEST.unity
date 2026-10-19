@@ -233,6 +233,7 @@ MonoBehaviour:
   slimePrefab: {fileID: 8397484487815547760, guid: 71b1df1ac1746034d88152783a44ac0e, type: 3}
   enemyPrefab: {fileID: 227765413434242397, guid: f75f2bdde1ee4c64d8977434abb3c7a3, type: 3}
   guardPrefab: {fileID: 5960317739645613653, guid: 49685e09302f3a24aa032ea9e21717c7, type: 3}
+  campaignResourceConfig: {fileID: 11400000, guid: b8e1cc90f0564f079a3e4c612db7f105, type: 2}
 --- !u!4 &207201596
 Transform:
   m_ObjectHideFlags: 0

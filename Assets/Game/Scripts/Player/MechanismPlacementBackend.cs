@@ -30,10 +30,18 @@ namespace SlimeBattle.Player.Placement
                 : mechanisms.RequestPlace(configId, request.WorldCenter);
             return new PlacementResult(result.Succeeded, result.MechanismId, result.Reason);
         }
-        public PlacementBudgetSnapshot GetBudgetSnapshot() => mechanisms == null
-            ? default : new PlacementBudgetSnapshot(
-                mechanisms.ActivePlacedMechanismCount,
-                mechanisms.MaximumActivePlacedMechanisms);
+        public PlacementBudgetSnapshot GetBudgetSnapshot()
+        {
+            if (mechanisms == null) return default;
+            return mechanisms.HasCampaignInventory
+                ? new PlacementBudgetSnapshot(mechanisms.ActivePlacedMechanismCount,
+                    mechanisms.MaximumActivePlacedMechanisms,
+                    mechanisms.GetAvailablePlacementStock(MechanismKind.Food),
+                    mechanisms.GetAvailablePlacementStock(MechanismKind.Furnace),
+                    mechanisms.GetAvailablePlacementStock(MechanismKind.Obstacle))
+                : new PlacementBudgetSnapshot(mechanisms.ActivePlacedMechanismCount,
+                    mechanisms.MaximumActivePlacedMechanisms);
+        }
         public IReadOnlyList<PlacementObjectSnapshot> ReadPlacedObjects()
         {
             var placed = new List<PlacementObjectSnapshot>();

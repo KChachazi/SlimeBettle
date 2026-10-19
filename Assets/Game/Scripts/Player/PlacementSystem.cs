@@ -200,6 +200,12 @@ namespace SlimeBattle.Player.Placement
                 }
                 if (occupied.Contains(cell)) { return At(PlacementValidationStatus.Occupied, "This cell is occupied."); }
                 if (!backend.IsAvailable) { return At(PlacementValidationStatus.Unavailable, "Mechanism creation API is not connected."); }
+                if (HasEmptyInventory())
+                    return At(PlacementValidationStatus.InventoryEmpty,
+                        "No remaining stock for the selected mechanism.");
+                if (HasReachedActiveCapacity(false))
+                    return At(PlacementValidationStatus.CapacityReached,
+                        "The active placed-mechanism limit was reached.");
             }
             catch (Exception exception) { return At(PlacementValidationStatus.Unavailable, "Placement data unavailable: " + exception.Message); }
             return At(PlacementValidationStatus.Free, "Free cell. Click/tap to place.");
@@ -286,6 +292,12 @@ namespace SlimeBattle.Player.Placement
             var kind = SelectedItem == PlacementItemId.Food ? MechanismKind.Food :
                 SelectedItem == PlacementItemId.Furnace ? MechanismKind.Furnace : MechanismKind.Obstacle;
             if (!anchor.Accepts(kind)) { return PlacementValidationStatus.TypeMismatch; }
+            try
+            {
+                if (!backend.IsAvailable) return PlacementValidationStatus.Unavailable;
+                if (HasEmptyInventory()) return PlacementValidationStatus.InventoryEmpty;
+            }
+            catch (Exception) { return PlacementValidationStatus.Unavailable; }
             foreach (var position in placedPositions)
             {
                 if (Vector2.SqrMagnitude((Vector2)position - anchor.Position) <= 0.00000001f)
@@ -298,8 +310,26 @@ namespace SlimeBattle.Player.Placement
                 }
             }
             if (occupied.Contains(grid.WorldToCell(anchor.Position))) { return PlacementValidationStatus.Occupied; }
-            try { return backend.IsAvailable ? PlacementValidationStatus.AnchorFree : PlacementValidationStatus.Unavailable; }
+            try
+            {
+                if (HasReachedActiveCapacity(false))
+                    return PlacementValidationStatus.CapacityReached;
+                return PlacementValidationStatus.AnchorFree;
+            }
             catch (Exception) { return PlacementValidationStatus.Unavailable; }
+        }
+
+        private bool HasEmptyInventory()
+        {
+            var budget = backend.GetBudgetSnapshot();
+            return budget.HasInventory && budget.GetRemaining(SelectedItem) <= 0;
+        }
+
+        private bool HasReachedActiveCapacity(bool isReplacement)
+        {
+            if (isReplacement) return false;
+            var budget = backend.GetBudgetSnapshot();
+            return budget.HasData && budget.ActiveCount >= budget.MaximumActiveCount;
         }
 
         private static string AnchorMessage(PlacementAnchorSnapshot anchor, PlacementValidationStatus status)
@@ -313,6 +343,8 @@ namespace SlimeBattle.Player.Placement
                 case PlacementValidationStatus.ReplacementDenied: return name + "已占用，地图配置禁止替换。";
                 case PlacementValidationStatus.ReplacementUnavailable: return name + "已占用，当前后端不支持安全替换。";
                 case PlacementValidationStatus.Occupied: return name + "所在格已被其他机关占用。";
+                case PlacementValidationStatus.InventoryEmpty: return name + "所选机关库存不足。";
+                case PlacementValidationStatus.CapacityReached: return name + "场上机关已达到总上限。";
                 default: return name + "机关创建接口未接入。";
             }
         }

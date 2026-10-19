@@ -69,8 +69,17 @@ namespace SlimeBattle.UI
             hint.text = useChineseLabels ? FirstLevelUiText.PlacementHint(placement) : placement.Hint;
             var capacity = placement.GetBudgetSnapshot();
             budget.text = capacity.HasData
-                ? (useChineseLabels ? "已放置  " : "Placed: ") + capacity.ActiveCount + " / " + capacity.MaximumActiveCount
+                ? (useChineseLabels ? "场上 " : "Placed ") + capacity.ActiveCount + "/" + capacity.MaximumActiveCount
                 : (useChineseLabels ? "放置配额未接入" : "Placed: unavailable");
+            if (capacity.HasInventory)
+                budget.text += useChineseLabels
+                    ? " | 食物 " + capacity.FoodRemaining + " 熔炉 " + capacity.FurnaceRemaining +
+                        " 障碍 " + capacity.ObstacleRemaining
+                    : " | Food " + capacity.FoodRemaining + " Furnace " +
+                        capacity.FurnaceRemaining + "  Obstacles " + capacity.ObstacleRemaining;
+            food.interactable = !capacity.HasInventory || capacity.FoodRemaining > 0;
+            furnace.interactable = !capacity.HasInventory || capacity.FurnaceRemaining > 0;
+            obstacle.interactable = !capacity.HasInventory || capacity.ObstacleRemaining > 0;
             cancel.interactable = placement.IsPlacing;
             Highlight(food, PlacementItemId.Food);
             Highlight(furnace, PlacementItemId.Furnace);

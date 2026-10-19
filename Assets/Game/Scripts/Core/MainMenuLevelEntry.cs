@@ -24,6 +24,9 @@ namespace SlimeBattle.Core
                 return;
             }
 
+            var levelManager = root.GetLevelManager();
+            if (levelManager == null || !levelManager.StartNewCampaign()) return;
+
             root.RequestEnterLevel(new LevelId(levelName));
         }
     }

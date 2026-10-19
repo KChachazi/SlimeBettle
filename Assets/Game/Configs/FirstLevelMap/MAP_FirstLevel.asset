@@ -15,6 +15,106 @@ MonoBehaviour:
   designPixelsPerUnityUnit: 100
   designSizePixels: {x: 5760, y: 5760}
   points:
+  - pointId: slime_spawn_01
+    kind: 16
+    designPosition: {x: 316.190476, y: 1887.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_02
+    kind: 16
+    designPosition: {x: 476.190476, y: 1887.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_03
+    kind: 16
+    designPosition: {x: 396.190476, y: 1807.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_04
+    kind: 16
+    designPosition: {x: 396.190476, y: 1967.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_05
+    kind: 16
+    designPosition: {x: 316.190476, y: 1807.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_06
+    kind: 16
+    designPosition: {x: 476.190476, y: 1807.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_07
+    kind: 16
+    designPosition: {x: 316.190476, y: 1967.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_08
+    kind: 16
+    designPosition: {x: 476.190476, y: 1967.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_09
+    kind: 16
+    designPosition: {x: 236.190476, y: 1887.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_10
+    kind: 16
+    designPosition: {x: 556.190476, y: 1887.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_11
+    kind: 16
+    designPosition: {x: 236.190476, y: 1807.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_12
+    kind: 16
+    designPosition: {x: 556.190476, y: 1807.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_13
+    kind: 16
+    designPosition: {x: 236.190476, y: 1967.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_14
+    kind: 16
+    designPosition: {x: 556.190476, y: 1967.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_15
+    kind: 16
+    designPosition: {x: 396.190476, y: 1727.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_16
+    kind: 16
+    designPosition: {x: 396.190476, y: 2047.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_17
+    kind: 16
+    designPosition: {x: 196.190476, y: 1727.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_18
+    kind: 16
+    designPosition: {x: 596.190476, y: 1727.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_19
+    kind: 16
+    designPosition: {x: 196.190476, y: 2047.492063}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: slime_spawn_20
+    kind: 16
+    designPosition: {x: 596.190476, y: 2047.492063}
+    configId:
+    interactionRadiusPixels: 0
   - pointId: enemy_spawn_01
     kind: 3
     designPosition: {x: 381.968254, y: 2774.349206}

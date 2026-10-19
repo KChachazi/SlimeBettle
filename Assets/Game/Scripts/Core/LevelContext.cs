@@ -26,11 +26,13 @@ namespace SlimeBattle.Core
         private readonly SlimeActor slimePrefab;
         private readonly EnemyActor enemyPrefab;
         private readonly GuardActor guardPrefab;
+        private readonly CampaignResourceLedger campaignResources;
         private SubscriptionToken foodTriggeredToken;
 
         public LevelContext(LevelId levelId, ConfigRegistry configRegistry = null,
             LevelConfig levelConfig = null, SlimeActor slimePrefab = null,
-            EnemyActor enemyPrefab = null, GuardActor guardPrefab = null)
+            EnemyActor enemyPrefab = null, GuardActor guardPrefab = null,
+            CampaignResourceLedger campaignResources = null)
         {
             if (!levelId.IsValid)
             {
@@ -44,6 +46,7 @@ namespace SlimeBattle.Core
             this.slimePrefab = slimePrefab;
             this.enemyPrefab = enemyPrefab;
             this.guardPrefab = guardPrefab;
+            this.campaignResources = campaignResources;
             state = LevelState.Unloaded;
         }
 
@@ -52,6 +55,7 @@ namespace SlimeBattle.Core
         public LevelEventBus EventBus { get; }
         public ConfigRegistry ConfigRegistry { get; }
         public LevelConfig LevelConfig { get; }
+        public CampaignResourceLedger CampaignResources => campaignResources;
         public SlimeManager SlimeManager { get; private set; }
         public EnemyManager EnemyManager { get; private set; }
         public GuardManager GuardManager { get; private set; }
@@ -83,6 +87,8 @@ namespace SlimeBattle.Core
             if (ConfigRegistry == null) return;
             if (LevelConfig == null || LevelConfig.LevelId != LevelId)
                 throw new InvalidOperationException("Matching LevelConfig is required.");
+            if (campaignResources == null || !campaignResources.IsStarted)
+                throw new InvalidOperationException("Campaign resources must be initialized before the level.");
             if (slimePrefab == null || enemyPrefab == null)
                 throw new InvalidOperationException("SlimeActor and EnemyActor prefabs are required.");
 
@@ -100,13 +106,13 @@ namespace SlimeBattle.Core
                     goalAreaId = area.AreaId;
                 }
             SlimeManager = new SlimeManager(ConfigRegistry, EventBus,
-                LevelConfig.MaxAliveSlimes, slimePrefab, movementSystem: MovementSystem,
+                campaignResources.MaximumSlimes, slimePrefab, movementSystem: MovementSystem,
                 levelId: LevelId, goalAreaId: goalAreaId);
             EnemyManager = new EnemyManager(ConfigRegistry, EventBus, enemyPrefab,
                 movementSystem: MovementSystem);
             MechanismSystem = new MechanismSystem(ConfigRegistry,
                 LevelConfig.MaximumActivePlacedMechanisms, MapManager, StatusManager,
-                EventBus, SceneManager.GetActiveScene());
+                EventBus, SceneManager.GetActiveScene(), campaignResources);
             if (LevelConfig.ObjectiveKind == LevelObjectiveKind.EscortWeapon &&
                 !MechanismSystem.TryGetWeaponSnapshot(out _))
                 throw new InvalidOperationException(
@@ -286,6 +292,7 @@ namespace SlimeBattle.Core
 
             SlimeManager.NotifyMechanismTriggered(triggered.ActorId, mechanism.Kind);
             if (mechanism.Kind != MechanismKind.Food) return;
+            if (campaignResources == null || !campaignResources.FoodReproductionEnabled) return;
 
             var offset = parent.PixelsPerUnit > 0f ? 35f / parent.PixelsPerUnit : 0.35f;
             SlimeManager.SpawnSlime(new SlimeSpawnRequest(parent.ConfigId,

@@ -72,7 +72,13 @@ namespace SlimeBattle.Tests
             {
                 Assert.AreEqual("FirstLevel", scene.name);
                 Assert.IsTrue(SceneManager.SetActiveScene(scene));
-                Assert.IsNull(Object.FindObjectOfType<LevelManager>());
+                LevelManager sceneManager = null;
+                foreach (var root in scene.GetRootGameObjects())
+                {
+                    sceneManager = root.GetComponentInChildren<LevelManager>(true);
+                    if (sceneManager != null) break;
+                }
+                Assert.IsNull(sceneManager);
 
                 var composition = Object.FindObjectOfType<FirstLevelCompositionRoot>();
                 Assert.IsNotNull(composition);

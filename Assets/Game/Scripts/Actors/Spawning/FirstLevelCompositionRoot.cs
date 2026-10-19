@@ -161,13 +161,27 @@ namespace SlimeBattle.Actors.Spawning
                 return;
             }
             context.BindActorPorts(perception, null);
-            var slimeId = context.SlimeManager.SpawnSlime(new SlimeSpawnRequest(
-                slimeConfig.ConfigId, route.Waypoints[0].Position));
-            if (!slimeId.IsValid)
+            var slimeSpawnPoints = new List<MapPointSnapshot>(
+                context.MapManager.GetMapPoints(MapPointKind.SlimeSpawn));
+            slimeSpawnPoints.Sort((left, right) => string.CompareOrdinal(
+                left.PointId.Value, right.PointId.Value));
+            var slimeCount = context.CampaignResources.SlimeCount;
+            if (slimeCount > slimeSpawnPoints.Count)
             {
-                Debug.LogError("Initial Slime spawn failed: " +
-                    context.SlimeManager.LastFailureReason, this);
+                Debug.LogError($"First level requires {slimeCount} Slime spawn points; " +
+                    $"MAP_FirstLevel provides {slimeSpawnPoints.Count}.", this);
                 return;
+            }
+            for (var i = 0; i < slimeCount; i++)
+            {
+                var slimeId = context.SlimeManager.SpawnSlime(new SlimeSpawnRequest(
+                    slimeConfig.ConfigId, slimeSpawnPoints[i].Position));
+                if (!slimeId.IsValid)
+                {
+                    Debug.LogError("Initial Slime spawn failed: " +
+                        context.SlimeManager.LastFailureReason, this);
+                    return;
+                }
             }
             foreach (var point in context.MapManager.GetMapPoints(MapPointKind.EnemySpawn))
             {
