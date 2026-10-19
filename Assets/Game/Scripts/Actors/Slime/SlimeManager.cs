@@ -121,14 +121,13 @@ namespace SlimeBattle.Slimes
             return true;
         }
 
-        internal bool TryAttachCarrier(ActorId actorId, Transform weapon,
-            Vector2 localOffset)
+        internal bool TryAttachCarrier(ActorId actorId, Transform weapon)
         {
             if (disposed || paused || !actors.TryGetValue(actorId, out var actor) ||
                 !actor.IsAlive || actor.IsCarrying || weapon == null) return false;
             movementSystem?.UnregisterActor(actorId, CancelReason.Interrupted);
             RemoveFromGroups(actorId);
-            return actor.AttachToWeapon(weapon, localOffset);
+            return actor.AttachToWeapon(weapon);
         }
 
         internal bool TryDetachCarrier(ActorId actorId)

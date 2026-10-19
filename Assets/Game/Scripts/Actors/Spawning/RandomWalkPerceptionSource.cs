@@ -23,6 +23,7 @@ namespace SlimeBattle.Actors.Spawning
         private readonly MovementSystem movementSystem;
         private readonly MapManager mapManager;
         private readonly EnemyActivityBounds defaultWanderBounds;
+        private readonly float maximumDestinationDistance;
         private readonly System.Random random = new System.Random();
         private readonly Dictionary<ActorId, Vector2> destinations =
             new Dictionary<ActorId, Vector2>();
@@ -30,13 +31,19 @@ namespace SlimeBattle.Actors.Spawning
 
         public RandomWalkPerceptionSource(SlimeManager slimeManager,
             EnemyManager enemyManager, MovementSystem movementSystem,
-            EnemyActivityBounds defaultWanderBounds, MapManager mapManager = null)
+            EnemyActivityBounds defaultWanderBounds, MapManager mapManager = null,
+            float maximumDestinationDistance = 0f)
         {
             this.slimeManager = slimeManager ?? throw new ArgumentNullException(nameof(slimeManager));
             this.enemyManager = enemyManager ?? throw new ArgumentNullException(nameof(enemyManager));
             this.movementSystem = movementSystem ?? throw new ArgumentNullException(nameof(movementSystem));
             this.defaultWanderBounds = defaultWanderBounds;
             this.mapManager = mapManager;
+            if (float.IsNaN(maximumDestinationDistance) ||
+                float.IsInfinity(maximumDestinationDistance) ||
+                maximumDestinationDistance < 0f)
+                throw new ArgumentOutOfRangeException(nameof(maximumDestinationDistance));
+            this.maximumDestinationDistance = maximumDestinationDistance;
         }
 
         public PerceptionSnapshot GetPerception(ActorId actorId)
@@ -105,6 +112,12 @@ namespace SlimeBattle.Actors.Spawning
         {
             var minimum = bounds.Minimum;
             var maximum = bounds.Maximum;
+            if (maximumDestinationDistance > 0f)
+            {
+                var range = Vector2.one * maximumDestinationDistance;
+                minimum = Vector2.Max(minimum, currentPosition - range);
+                maximum = Vector2.Min(maximum, currentPosition + range);
+            }
             for (var attempt = 0; attempt < 12; attempt++)
             {
                 var candidate = new Vector2(

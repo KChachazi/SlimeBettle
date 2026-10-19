@@ -685,6 +685,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b4, type: 2}
   - {fileID: 11400000, guid: a6a1b5c783b3483a9bc08e41263001b5, type: 2}
   - {fileID: 11400000, guid: 64f0f4b55006434aa04803263a619912, type: 2}
+  - {fileID: 11400000, guid: 8d742b371c90478ea423dbbfb13c8aa0, type: 2}
   slimePrefab: {fileID: 8397484487815547760, guid: 71b1df1ac1746034d88152783a44ac0e, type: 3}
   enemyPrefab: {fileID: 227765413434242397, guid: f75f2bdde1ee4c64d8977434abb3c7a3, type: 3}
   guardPrefab: {fileID: 5960317739645613653, guid: 49685e09302f3a24aa032ea9e21717c7, type: 3}

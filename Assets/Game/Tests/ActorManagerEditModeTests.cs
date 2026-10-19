@@ -390,8 +390,7 @@ namespace SlimeBattle.Tests
                     slimeConfig.ConfigId, Vector2.zero));
                 var enemyId = enemies.SpawnEnemy(new EnemySpawnRequest(
                     enemyConfig.ConfigId, Vector2.up));
-                Assert.IsTrue(slimes.TryAttachCarrier(slimeId, weapon.transform,
-                    Vector2.zero));
+                Assert.IsTrue(slimes.TryAttachCarrier(slimeId, weapon.transform));
                 Assert.IsTrue(slimes.TryGetActor(slimeId, out var carrier));
                 weapon.transform.position = Vector2.up;
                 Assert.IsTrue(slimes.TryGetSnapshot(slimeId, out var snapshot));

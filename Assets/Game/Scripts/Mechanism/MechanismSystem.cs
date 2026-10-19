@@ -141,6 +141,9 @@ namespace SlimeBattle.Mechanisms
             carrierSlimes = slimes;
             carrierEnemies = enemies;
             carrierGuards = guards;
+            if (weapon != null && carrierSlimes != null)
+                foreach (var slime in carrierSlimes.GetAliveSnapshots())
+                    TryAttachCarrier(slime, weapon.GetSnapshot());
         }
 
         public bool NotifyContact(MechanismTriggerContext context)
@@ -655,12 +658,36 @@ namespace SlimeBattle.Mechanisms
                     }
                     continue;
                 }
-                if (!inside || mustLeaveBoardingZone.Contains(slime.ActorId) ||
-                    weaponSnapshot.CarrierCount >= 4 || MustLeaveWeapon(slime)) continue;
-                if (carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform,
-                    slime.Position - weaponSnapshot.Position) && weapon.AddCarrier(slime.ActorId))
+                if (TryAttachCarrier(slime, weaponSnapshot))
                     weaponSnapshot = weapon.GetSnapshot();
             }
+        }
+
+        private bool TryAttachCarrier(SlimeSnapshot slime,
+            EscortWeaponSnapshot weaponSnapshot)
+        {
+            if (weapon == null || carrierSlimes == null || weaponTransform == null ||
+                !slime.IsAlive || slime.IsCarrying || weaponSnapshot.IsDestroyed ||
+                weaponSnapshot.HasReachedGoal ||
+                (slime.Position - weaponSnapshot.Position).sqrMagnitude >
+                    boardingRadius * boardingRadius ||
+                mustLeaveBoardingZone.Contains(slime.ActorId) ||
+                weaponSnapshot.CarrierCount >= 4 || MustLeaveWeapon(slime))
+                return false;
+
+            if (!carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform))
+                return false;
+            if (weapon.AddCarrier(slime.ActorId)) return true;
+
+            carrierSlimes.TryDetachCarrier(slime.ActorId);
+            return false;
+        }
+
+        private void TryAttachSpawnedSlime(SlimeSpawnedEvent spawned)
+        {
+            if (disposed || paused || weapon == null || carrierSlimes == null ||
+                !spawned.Snapshot.IsAlive) return;
+            TryAttachCarrier(spawned.Snapshot, weapon.GetSnapshot());
         }
 
         // Carried slimes have their colliders disabled while parented to the weapon.
@@ -887,6 +914,7 @@ namespace SlimeBattle.Mechanisms
         private void SubscribeToActorEvents()
         {
             if (eventBus == null) return;
+            subscriptions.Add(eventBus.Subscribe<SlimeSpawnedEvent>(TryAttachSpawnedSlime));
             subscriptions.Add(eventBus.Subscribe<SlimeDiedEvent>(
                 e => NotifyActorRemoved(e.Snapshot.ActorId)));
             subscriptions.Add(eventBus.Subscribe<SlimeDespawnedEvent>(
