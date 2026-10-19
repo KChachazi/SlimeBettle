@@ -854,6 +854,13 @@ namespace SlimeBattle.Status
 
         private static float GetPixelsPerUnit(IEffectReceiver receiver)
         {
+            if (receiver is IGameplayPixelsPerUnitProvider provider)
+            {
+                var gameplayPixelsPerUnit = provider.GameplayPixelsPerUnit;
+                if (gameplayPixelsPerUnit > 0f && !float.IsNaN(gameplayPixelsPerUnit) &&
+                    !float.IsInfinity(gameplayPixelsPerUnit))
+                    return gameplayPixelsPerUnit;
+            }
             if (receiver is Component component)
             {
                 var renderer = component.GetComponent<SpriteRenderer>();

@@ -10,7 +10,7 @@ namespace SlimeBattle.Player.Placement
     {
         Inactive, NoPosition, Free, Occupied, OutOfBounds, Unavailable, InvalidPosition,
         AnchorFree, AnchorReplaceable, TypeMismatch, ReplacementDenied, ReplacementUnavailable,
-        InvalidArea, Removable, NothingToRemove
+        InvalidArea, InventoryEmpty, CapacityReached, Removable, NothingToRemove
     }
 
     public readonly struct PlacementPreview
@@ -80,9 +80,45 @@ namespace SlimeBattle.Player.Placement
     public readonly struct PlacementBudgetSnapshot
     {
         public PlacementBudgetSnapshot(int activeCount, int maximumActiveCount)
-        { HasData = true; ActiveCount = activeCount; MaximumActiveCount = maximumActiveCount; }
+        {
+            HasData = true;
+            HasInventory = false;
+            ActiveCount = activeCount;
+            MaximumActiveCount = maximumActiveCount;
+            FoodRemaining = 0;
+            FurnaceRemaining = 0;
+            ObstacleRemaining = 0;
+        }
+
+        public PlacementBudgetSnapshot(int activeCount, int maximumActiveCount,
+            int foodRemaining, int furnaceRemaining, int obstacleRemaining)
+        {
+            HasData = true;
+            HasInventory = true;
+            ActiveCount = activeCount;
+            MaximumActiveCount = maximumActiveCount;
+            FoodRemaining = foodRemaining;
+            FurnaceRemaining = furnaceRemaining;
+            ObstacleRemaining = obstacleRemaining;
+        }
+
         public bool HasData { get; }
+        public bool HasInventory { get; }
         public int ActiveCount { get; }
         public int MaximumActiveCount { get; }
+        public int FoodRemaining { get; }
+        public int FurnaceRemaining { get; }
+        public int ObstacleRemaining { get; }
+
+        public int GetRemaining(PlacementItemId item)
+        {
+            switch (item)
+            {
+                case PlacementItemId.Food: return FoodRemaining;
+                case PlacementItemId.Furnace: return FurnaceRemaining;
+                case PlacementItemId.Obstacle: return ObstacleRemaining;
+                default: return 0;
+            }
+        }
     }
 }

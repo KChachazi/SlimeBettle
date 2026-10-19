@@ -47,6 +47,8 @@ namespace SlimeBattle.Mechanisms
 
     internal sealed class EscortWeapon : IDisposable
     {
+        public const int MaximumCarrierCount = 4;
+
         private readonly MechanismId id;
         private readonly ActorId combatTargetId = ActorId.NewId();
         private readonly WeaponConfig config;
@@ -56,6 +58,8 @@ namespace SlimeBattle.Mechanisms
         private readonly HashSet<EffectRequestId> acceptedDamageRequests =
             new HashSet<EffectRequestId>();
         private readonly HashSet<ActorId> carriers = new HashSet<ActorId>();
+        private readonly Dictionary<ActorId, int> carrierSlots =
+            new Dictionary<ActorId, int>();
         private int health;
         private bool disposed;
         private bool destroyedPublished;
@@ -83,17 +87,29 @@ namespace SlimeBattle.Mechanisms
 
         public IReadOnlyCollection<ActorId> CarrierIds => carriers;
 
-        public bool AddCarrier(ActorId actorId)
+        public bool AddCarrier(ActorId actorId) => TryAddCarrier(actorId, out _);
+
+        public bool TryAddCarrier(ActorId actorId, out int anchorIndex)
         {
+            anchorIndex = -1;
             if (disposed || !actorId.IsValid || health <= 0 || goalPublished ||
-                carriers.Count >= 4 || !carriers.Add(actorId)) return false;
-            motor.SetSpeedFactor(carriers.Count * 0.25f);
-            return true;
+                carriers.Count >= MaximumCarrierCount || carriers.Contains(actorId)) return false;
+            for (var candidate = 0; candidate < MaximumCarrierCount; candidate++)
+            {
+                if (carrierSlots.ContainsValue(candidate)) continue;
+                carriers.Add(actorId);
+                carrierSlots.Add(actorId, candidate);
+                anchorIndex = candidate;
+                motor.SetSpeedFactor(carriers.Count * 0.25f);
+                return true;
+            }
+            return false;
         }
 
         public bool RemoveCarrier(ActorId actorId)
         {
             if (disposed || !carriers.Remove(actorId)) return false;
+            carrierSlots.Remove(actorId);
             motor.SetSpeedFactor(carriers.Count * 0.25f);
             return true;
         }
@@ -146,6 +162,7 @@ namespace SlimeBattle.Mechanisms
             ReachedGoal = null;
             acceptedDamageRequests.Clear();
             carriers.Clear();
+            carrierSlots.Clear();
             disposed = true;
         }
     }

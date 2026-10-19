@@ -72,7 +72,13 @@ namespace SlimeBattle.Tests
             {
                 Assert.AreEqual("FirstLevel", scene.name);
                 Assert.IsTrue(SceneManager.SetActiveScene(scene));
-                Assert.IsNull(Object.FindObjectOfType<LevelManager>());
+                LevelManager sceneManager = null;
+                foreach (var root in scene.GetRootGameObjects())
+                {
+                    sceneManager = root.GetComponentInChildren<LevelManager>(true);
+                    if (sceneManager != null) break;
+                }
+                Assert.IsNull(sceneManager);
 
                 var composition = Object.FindObjectOfType<FirstLevelCompositionRoot>();
                 Assert.IsNotNull(composition);
@@ -111,6 +117,22 @@ namespace SlimeBattle.Tests
                 Assert.IsNotNull(weapon);
                 Assert.That(weapon.WeaponConfigId.Value, Is.EqualTo("mvp_escort_weapon"));
                 Assert.That(weapon.RouteId.Value, Is.EqualTo("route_escort"));
+                Assert.IsTrue(weapon.HasValidCarrierAnchors);
+                var anchorNames = new[]
+                {
+                    "CarrierAnchor_Center", "CarrierAnchor_BottomRight",
+                    "CarrierAnchor_TopRight", "CarrierAnchor_BottomLeft"
+                };
+                for (var i = 0; i < anchorNames.Length; i++)
+                {
+                    Assert.IsTrue(weapon.TryGetCarrierAnchor(i, out var anchor));
+                    Assert.AreEqual(anchorNames[i], anchor.name);
+                }
+                var renderer = weapon.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer);
+                Assert.AreEqual("Assets/Game/Art/Sprites/SPR_EscortWoodCrate.png",
+                    AssetDatabase.GetAssetPath(renderer.sprite));
+                Assert.That(renderer.color.a, Is.EqualTo(0.82f).Within(0.001f));
             }
             finally
             {

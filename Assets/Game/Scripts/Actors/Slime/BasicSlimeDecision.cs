@@ -98,10 +98,10 @@ namespace SlimeBattle.Actors.Slimes
             runtime.TargetId = default(ActorId);
             return context.Perception.HasDestination
                 ? ActionIntent.Move(context.Perception.Destination, "跟随普通引导")
-                : runtime.GroupId.IsValid
-                    ? ActionIntent.Move(runtime.GroupTarget, "跟随群体目标")
-                    : TryFindGuide(context, GuidanceKind.Wander, out var wander)
-                        ? ActionIntent.Move(wander, "没有其他目标：随机游走")
+                : TryFindGuide(context, GuidanceKind.Wander, out var wander)
+                    ? ActionIntent.Move(wander, "没有其他目标：随机游走")
+                    : runtime.GroupId.IsValid
+                        ? ActionIntent.Move(runtime.GroupTarget, "跟随群体目标")
                         : ActionIntent.Wait("没有可用目标：等待");
         }
 

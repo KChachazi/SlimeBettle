@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using SlimeBattle.Actors;
+using SlimeBattle.Core;
 using SlimeBattle.Data;
 using SlimeBattle.Mechanisms;
 using SlimeBattle.Player.Placement;
@@ -45,7 +46,7 @@ namespace SlimeBattle.Tests
         }
 
         [Test]
-        public void PlacementBackendCreatesConfiguredMechanismAndKeepsOnlyTotalLimit()
+        public void PlacementSpendsCampaignStockAndKeepsTheTotalActiveLimit()
         {
             var food = Config("food", MechanismKind.Food);
             var furnace = Config("furnace", MechanismKind.Furnace);
@@ -56,26 +57,42 @@ namespace SlimeBattle.Tests
 
             var blocker = new GameObject("static blocker");
             SceneManager.MoveGameObjectToScene(blocker, scene);
-            blocker.transform.position = new Vector2(1f, 0f);
+            blocker.transform.position = new Vector2(10f, 10f);
             blocker.AddComponent<BoxCollider2D>().size = Vector2.one;
+
+            var campaignConfig = ScriptableObject.CreateInstance<CampaignResourceConfig>();
+            assets.Add(campaignConfig);
+            campaignConfig.ConfigureInitialResources(8, 20, 1, 30, 1, 10, 1, 15);
+            var campaignResources = new CampaignResourceLedger(campaignConfig);
+            campaignResources.StartNewCampaign();
+            campaignResources.BeginLevel(new LevelId("PlacementTest"), false);
 
             map = new MapManager(scene, null);
             status = new StatusManager(configs, null, _ => null);
-            mechanisms = new MechanismSystem(configs, 1, map, status, null, scene);
+            mechanisms = new MechanismSystem(configs, 1, map, status, null, scene,
+                campaignResources);
             var backend = new MechanismPlacementBackend(mechanisms);
             Assert.IsTrue(backend.IsAvailable);
             var first = backend.RequestPlacement(new PlacementRequest(
                 PlacementItemId.Food, Vector3Int.zero, new Vector3(1f, 0f)));
             Assert.IsTrue(first.Succeeded, first.Reason);
             Assert.AreEqual(1, backend.GetBudgetSnapshot().ActiveCount);
+            Assert.AreEqual(0, backend.GetBudgetSnapshot().FoodRemaining);
             Assert.AreEqual(1, backend.ReadPlacedObjects().Count);
             var rejected = backend.RequestPlacement(new PlacementRequest(
                 PlacementItemId.Furnace, Vector3Int.right, new Vector3(2f, 0f)));
             Assert.IsFalse(rejected.Succeeded);
             StringAssert.Contains("limit", rejected.Reason);
             Assert.IsTrue(mechanisms.RequestRemove(first.MechanismId));
+            Assert.AreEqual(0, backend.GetBudgetSnapshot().FoodRemaining,
+                "Removing or exhausting a placed item must not refund stock.");
+            var emptyStock = backend.RequestPlacement(new PlacementRequest(
+                PlacementItemId.Food, Vector3Int.right, new Vector3(2f, 0f)));
+            Assert.IsFalse(emptyStock.Succeeded);
+            StringAssert.Contains("empty", emptyStock.Reason);
             Assert.IsTrue(backend.RequestPlacement(new PlacementRequest(
                 PlacementItemId.Obstacle, Vector3Int.right, new Vector3(2f, 0f))).Succeeded);
+            Assert.AreEqual(0, backend.GetBudgetSnapshot().ObstacleRemaining);
         }
 
         [Test]

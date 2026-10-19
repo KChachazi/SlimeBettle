@@ -308,6 +308,7 @@ MonoBehaviour:
   presentationRoot: {fileID: 59680050}
   startCurrentSceneOnPlay: 0
   defaultRouteId: route_escort
+  slimeWanderRadius: 1.5
 --- !u!4 &633695656
 Transform:
   m_ObjectHideFlags: 0

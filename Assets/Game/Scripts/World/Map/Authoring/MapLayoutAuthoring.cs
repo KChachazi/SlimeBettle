@@ -59,6 +59,8 @@ namespace SlimeBattle.World
             {
                 Gizmos.color = point.Kind == MapPointKind.EnemySpawn
                     ? Color.red
+                    : point.Kind == MapPointKind.SlimeSpawn
+                        ? Color.green
                     : point.Kind == MapPointKind.Trap
                         ? Color.magenta
                         : Color.white;

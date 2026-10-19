@@ -1,0 +1,14 @@
+{
+  "maximumHeightChange": 0.030674846625766916,
+  "heightChangeWithinFivePercent": true,
+  "bottomContactPixelsFixed": true,
+  "finalHalfSecondStatic": true,
+  "frames": 120,
+  "fps": 24,
+  "seconds": 5,
+  "width": 512,
+  "height": 512,
+  "firstLastIdentical": true,
+  "jpegFirstLastIdentical": true,
+  "clipped": false
+}
