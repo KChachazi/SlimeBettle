@@ -10,13 +10,14 @@ namespace SlimeBattle.Player.Placement
     {
         Inactive, NoPosition, Free, Occupied, OutOfBounds, Unavailable, InvalidPosition,
         AnchorFree, AnchorReplaceable, TypeMismatch, ReplacementDenied, ReplacementUnavailable,
-        InvalidArea, InventoryEmpty, CapacityReached
+        InvalidArea, InventoryEmpty, CapacityReached, Removable, NothingToRemove
     }
 
     public readonly struct PlacementPreview
     {
         public PlacementPreview(PlacementItemId item, Vector3Int cell, Vector3 center,
-            PlacementValidationStatus status, string message, PlacementAnchorSnapshot? anchor = null)
+            PlacementValidationStatus status, string message, PlacementAnchorSnapshot? anchor = null,
+            MechanismId removalTarget = default)
         {
             Item = item;
             Cell = cell;
@@ -24,6 +25,7 @@ namespace SlimeBattle.Player.Placement
             Status = status;
             Message = message ?? string.Empty;
             Anchor = anchor;
+            RemovalTarget = removalTarget;
         }
         public PlacementItemId Item { get; }
         public Vector3Int Cell { get; }
@@ -31,12 +33,13 @@ namespace SlimeBattle.Player.Placement
         public PlacementValidationStatus Status { get; }
         public string Message { get; }
         public PlacementAnchorSnapshot? Anchor { get; }
+        public MechanismId RemovalTarget { get; }
         public bool IsAnchor => Anchor.HasValue;
         public bool HasPosition => Status != PlacementValidationStatus.Inactive && Status != PlacementValidationStatus.NoPosition &&
             Status != PlacementValidationStatus.InvalidPosition;
         public bool CanConfirm => Status == PlacementValidationStatus.Free ||
             Status == PlacementValidationStatus.AnchorFree ||
-            Status == PlacementValidationStatus.AnchorReplaceable;
+            Status == PlacementValidationStatus.AnchorReplaceable || Status == PlacementValidationStatus.Removable;
     }
 
     public readonly struct PlacementValidationResult

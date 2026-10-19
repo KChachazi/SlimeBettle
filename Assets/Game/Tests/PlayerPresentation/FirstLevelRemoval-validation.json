@@ -1,0 +1,73 @@
+{
+  "verifiedAt": "2026-10-19T16:50:14.144608+08:00",
+  "unityVersion": "2022.3.62f2c1",
+  "testedCommit": "9623d6b00db529f045d0059c2a78309b688f34aa",
+  "baselineCommit": "bc6b19d76679940f3cc8f5a455dbd50cc9d12dd3",
+  "editMode": {
+    "total": 71,
+    "passed": 68,
+    "failed": 3,
+    "failures": [
+      {
+        "test": "SlimeBattle.Tests.FirstLevelAnchorReplacementEditModeTests.AnchorReplacementKeepsOldOnFailureAndPublishesOnlyCommittedChanges",
+        "reason": "The anchor or matching mechanism prefab is unavailable. Expected: True But was: False"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelCompositionSceneEditModeTests.SceneBindsProductionContextMapActorsAndCaveRules",
+        "reason": "Expected: 6 But was: 0"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelMechanismPlacementEditModeTests.PlacementBackendCreatesConfiguredMechanismAndKeepsOnlyTotalLimit",
+        "reason": "The requested position is outside a walkable placement area or is blocked. Expected: True But was: False"
+      }
+    ]
+  },
+  "playMode": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "failures": []
+  },
+  "masterBaseline": {
+    "total": 6,
+    "passed": 3,
+    "failed": 3,
+    "failures": [
+      {
+        "test": "SlimeBattle.Tests.FirstLevelAnchorReplacementEditModeTests.AnchorReplacementKeepsOldOnFailureAndPublishesOnlyCommittedChanges",
+        "reason": "The anchor or matching mechanism prefab is unavailable. Expected: True But was: False"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelCompositionSceneEditModeTests.SceneBindsProductionContextMapActorsAndCaveRules",
+        "reason": "Expected: 6 But was: 0"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelMechanismPlacementEditModeTests.PlacementBackendCreatesConfiguredMechanismAndKeepsOnlyTotalLimit",
+        "reason": "The requested position is outside a walkable placement area or is blocked. Expected: True But was: False"
+      }
+    ]
+  },
+  "newFailures": [],
+  "productionChecks": {
+    "entry": "Bootstrap -> MainMenu -> FirstLevel",
+    "mechanisms": [
+      "Food",
+      "Furnace",
+      "Obstacle"
+    ],
+    "input": "Virtual Mouse and Keyboard through the production InputSystem and uGUI button",
+    "assertions": [
+      "Click Remove, hover a placed mechanism, and click the map to remove it",
+      "Removed state, released grid occupancy, active count and budget return to zero",
+      "Obstacle movement blocker is unregistered",
+      "Escape exits removal and leaves the level Running",
+      "Pause clears removal and grid preview",
+      "Restart binds the Remove button to the new placement session"
+    ]
+  },
+  "limitations": [
+    "Three map regression tests fail identically on the branch and original master",
+    "Input validation uses virtual desktop devices in the Unity Editor; no physical Android device run"
+  ],
+  "screenshot": "FirstLevelRemoval.png"
+}

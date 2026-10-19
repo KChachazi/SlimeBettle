@@ -141,6 +141,7 @@ namespace SlimeBattle.UI
 
         public bool TryCloseReferencePage()
         { if(referencePages==null || !referencePages.IsOpen) return false; referencePages.Close(); return true; }
+        public bool TryCancelPlacement() => referencePages != null && referencePages.TryCancelPlacement();
         private void Pause() { if(referencePages!=null) referencePages.OpenSettings(); else owner?.SubmitCommand(UiCommand.Pause); }
         private void Resume() { referencePages?.CloseSilently(); owner?.SubmitCommand(UiCommand.Resume); }
         private void Restart() { owner?.SubmitCommand(UiCommand.Restart); }

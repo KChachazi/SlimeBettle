@@ -80,6 +80,7 @@ namespace SlimeBattle.Mechanisms
         private readonly List<SubscriptionToken> subscriptions = new List<SubscriptionToken>();
         private Transform placedParent;
         private EscortWeapon weapon;
+        private EscortWeaponAuthoring weaponAuthoring;
         private Transform weaponTransform;
         private float boardingRadius;
         private SlimeManager carrierSlimes;
@@ -627,10 +628,17 @@ namespace SlimeBattle.Mechanisms
                             authoring);
                         continue;
                     }
+                    if (!authoring.HasValidCarrierAnchors)
+                    {
+                        Debug.LogError("MechanismSystem: escort weapon requires four child carrier anchors.",
+                            authoring);
+                        continue;
+                    }
                     try
                     {
                         weapon = new EscortWeapon(MechanismId.NewId(), config,
                             route, authoring.transform, mapManager);
+                        weaponAuthoring = authoring;
                         weaponTransform = authoring.transform;
                         boardingRadius = config.BoardingRadiusWorldUnits;
                         weapon.Damaged += (snapshot, source, request, loss) =>
@@ -682,10 +690,17 @@ namespace SlimeBattle.Mechanisms
                     continue;
                 }
                 if (!inside || mustLeaveBoardingZone.Contains(slime.ActorId) ||
-                    weaponSnapshot.CarrierCount >= 4 || MustLeaveWeapon(slime)) continue;
-                if (carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform,
-                    slime.Position - weaponSnapshot.Position) && weapon.AddCarrier(slime.ActorId))
-                    weaponSnapshot = weapon.GetSnapshot();
+                    weaponSnapshot.CarrierCount >= EscortWeapon.MaximumCarrierCount ||
+                    MustLeaveWeapon(slime)) continue;
+                if (!weapon.TryAddCarrier(slime.ActorId, out var anchorIndex)) continue;
+                if (!weaponAuthoring.TryGetCarrierAnchor(anchorIndex, out var anchor) ||
+                    !carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform,
+                        anchor.localPosition))
+                {
+                    weapon.RemoveCarrier(slime.ActorId);
+                    continue;
+                }
+                weaponSnapshot = weapon.GetSnapshot();
             }
         }
 

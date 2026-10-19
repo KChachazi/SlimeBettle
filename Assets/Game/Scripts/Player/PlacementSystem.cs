@@ -19,7 +19,7 @@ namespace SlimeBattle.Player.Placement
         private readonly Func<Vector2, bool> canOccupy;
         private readonly float anchorPixelsPerWorldUnit;
         private readonly List<PlacementAnchorSnapshot> anchors = new List<PlacementAnchorSnapshot>();
-        private readonly List<Vector3> placedPositions = new List<Vector3>();
+        private readonly List<PlacementObjectSnapshot> placedObjects = new List<PlacementObjectSnapshot>();
         private bool hasAnchorChanges;
         private string anchorError;
         private string placementError;
@@ -52,7 +52,11 @@ namespace SlimeBattle.Player.Placement
 
         public event Action Changed;
         public event Action<PlacementResult> PlacementCompleted;
+        public event Action<PlacementResult> RemovalCompleted;
         public bool IsPlacing => !isDisposed && SelectedItem != PlacementItemId.None;
+        public bool IsRemoving { get; private set; }
+        public bool IsInteracting => IsPlacing || IsRemoving;
+        public bool CanRemove => !isDisposed && backend is IPlacementRemovalBackend removal && removal.SupportsRemoval;
         public bool IsRunning => !isDisposed && readPhase() == LevelState.Running;
         public PlacementItemId SelectedItem { get; private set; }
         public string Hint { get; private set; } = "Choose Food, Furnace or Obstacle.";
@@ -61,6 +65,20 @@ namespace SlimeBattle.Player.Placement
         public IReadOnlyCollection<Vector3Int> GetOccupiedCells() { return new List<Vector3Int>(occupied).AsReadOnly(); }
         public MapBounds? GetMapBounds() { return isDisposed ? null : readBounds(); }
         public IReadOnlyList<PlacementAnchorSnapshot> GetAnchors() { return anchors.AsReadOnly(); }
+
+        /// <summary>Read-only road/open-cell hint. Final confirmation still validates the backend request.</summary>
+        public bool IsCellPlaceable(Vector3Int cell)
+        {
+            if (!IsPlacing || !IsRunning || occupied.Contains(cell)) return false;
+            try
+            {
+                var bounds = readBounds();
+                var center = grid.GetCellCenter(cell);
+                return bounds.HasValue && bounds.Value.Contains(center) &&
+                    (canOccupy == null || canOccupy(new Vector2(center.x, center.y)));
+            }
+            catch (Exception) { return false; }
+        }
 
         public void BeginPlacement(PlacementItemId itemId)
         {
@@ -77,9 +95,28 @@ namespace SlimeBattle.Player.Placement
             Changed?.Invoke();
         }
 
+        public void BeginRemoval()
+        {
+            if (isDisposed) { throw new ObjectDisposedException(nameof(PlacementSystem)); }
+            CancelPlacement();
+            if (!IsRunning || !CanRemove)
+            {
+                Hint = !IsRunning ? "关卡运行中才可拆除。" : "当前机关后端不支持拆除。";
+                Changed?.Invoke();
+                return;
+            }
+            IsRemoving = true;
+            ReadAnchorData();
+            ReadPlacedData();
+            preview = new PlacementPreview(PlacementItemId.None, default, default,
+                PlacementValidationStatus.NoPosition, "点击已放置的机关拆除 · 取消可退出");
+            Hint = preview.Message;
+            Changed?.Invoke();
+        }
+
         public PlacementValidationResult PreviewPlacement(Vector3 worldPosition)
         {
-            if (!IsPlacing || !IsRunning)
+            if (!IsInteracting || !IsRunning)
             {
                 CancelPlacement();
                 return new PlacementValidationResult(preview);
@@ -88,7 +125,8 @@ namespace SlimeBattle.Player.Placement
             hasPosition = true;
             var next = Evaluate(worldPosition);
             var changed = hasAnchorChanges || hasOccupancyChanges || next.Cell != preview.Cell || next.Status != preview.Status ||
-                next.WorldCenter != preview.WorldCenter || next.Item != preview.Item || next.Message != preview.Message;
+                next.WorldCenter != preview.WorldCenter || next.Item != preview.Item || next.Message != preview.Message ||
+                next.RemovalTarget != preview.RemovalTarget;
             preview = next;
             if (changed) { Hint = preview.Message; Changed?.Invoke(); }
             hasOccupancyChanges = false;
@@ -138,6 +176,7 @@ namespace SlimeBattle.Player.Placement
         {
             revision++;
             SelectedItem = PlacementItemId.None;
+            IsRemoving = false;
             hasPosition = false;
             pointerWorld = default;
             preview = default;
@@ -148,9 +187,9 @@ namespace SlimeBattle.Player.Placement
         public void Refresh()
         {
             if (isDisposed) { return; }
-            if (!IsRunning) { if (IsPlacing) { CancelPlacement(); } return; }
-            if (IsPlacing && hasPosition) { PreviewPlacement(pointerWorld); }
-            else if (IsPlacing)
+            if (!IsRunning) { if (IsInteracting) { CancelPlacement(); } return; }
+            if (IsInteracting && hasPosition) { PreviewPlacement(pointerWorld); }
+            else if (IsInteracting)
             {
                 ReadAnchorData(); ReadPlacedData();
                 if (hasAnchorChanges || hasOccupancyChanges) { hasAnchorChanges = hasOccupancyChanges = false; Changed?.Invoke(); }
@@ -171,6 +210,23 @@ namespace SlimeBattle.Player.Placement
             if (!bounds.HasValue) { return At(PlacementValidationStatus.Unavailable, "Map bounds are not configured."); }
             if (!bounds.Value.Contains(worldPosition))
             { return At(PlacementValidationStatus.OutOfBounds, "Outside map bounds."); }
+            // Removal follows existing player objects, even if placement rules or map blockers changed.
+            if (IsRemoving)
+            {
+                if (placementError != null) { return At(PlacementValidationStatus.Unavailable, placementError); }
+                if (!CanRemove) { return At(PlacementValidationStatus.Unavailable, "当前机关后端不支持拆除。"); }
+                PlacementObjectSnapshot? target = null;
+                var targetDistance = float.PositiveInfinity;
+                foreach (var item in placedObjects)
+                {
+                    if (grid.WorldToCell(item.Position) != cell) { continue; }
+                    var distance = Vector2.SqrMagnitude((Vector2)(item.Position - worldPosition));
+                    if (distance < targetDistance) { target = item; targetDistance = distance; }
+                }
+                if (!target.HasValue) { return At(PlacementValidationStatus.NothingToRemove, "此格没有可拆除的玩家机关。"); }
+                return new PlacementPreview(PlacementItemId.None, cell, target.Value.Position,
+                    PlacementValidationStatus.Removable, "点击拆除该机关 · 取消可退出", removalTarget: target.Value.Id);
+            }
             if (anchorError != null) { return At(PlacementValidationStatus.Unavailable, anchorError); }
             var nearestDistance = float.PositiveInfinity;
             foreach (var candidate in anchors)
@@ -222,23 +278,24 @@ namespace SlimeBattle.Player.Placement
                 var snapshots = backend.ReadPlacedObjects();
                 if (snapshots == null) { throw new InvalidOperationException("Placement snapshots are unavailable."); }
                 var next = new HashSet<Vector3Int>();
-                var nextPositions = new List<Vector3>();
+                var nextObjects = new List<PlacementObjectSnapshot>();
                 foreach (var item in snapshots)
                 {
                     if (!item.Id.IsValid) { continue; }
-                    next.Add(grid.WorldToCell(item.Position)); nextPositions.Add(item.Position);
+                    next.Add(grid.WorldToCell(item.Position)); nextObjects.Add(item);
                 }
                 hasOccupancyChanges |= !occupied.SetEquals(next);
-                var samePositions = placedPositions.Count == nextPositions.Count;
-                for (var i = 0; samePositions && i < nextPositions.Count; i++) { samePositions = placedPositions[i] == nextPositions[i]; }
-                hasOccupancyChanges |= !samePositions;
-                placedPositions.Clear(); placedPositions.AddRange(nextPositions);
+                var sameObjects = placedObjects.Count == nextObjects.Count;
+                for (var i = 0; sameObjects && i < nextObjects.Count; i++)
+                { sameObjects = placedObjects[i].Id == nextObjects[i].Id && placedObjects[i].Position == nextObjects[i].Position; }
+                hasOccupancyChanges |= !sameObjects;
+                placedObjects.Clear(); placedObjects.AddRange(nextObjects);
                 occupied.Clear(); occupied.UnionWith(next); placementError = null;
             }
             catch (Exception exception)
             {
                 hasOccupancyChanges |= occupied.Count > 0;
-                occupied.Clear(); placedPositions.Clear(); placementError = "Placement data unavailable: " + exception.Message;
+                occupied.Clear(); placedObjects.Clear(); placementError = "Placement data unavailable: " + exception.Message;
             }
             hasOccupancyChanges |= previousError != placementError;
         }
@@ -288,6 +345,14 @@ namespace SlimeBattle.Player.Placement
         /// <summary>Local view feedback from the most recently read map and mechanism snapshots.</summary>
         public PlacementValidationStatus GetAnchorStatus(PlacementAnchorSnapshot anchor)
         {
+            if (IsRemoving)
+            {
+                if (placementError != null || !CanRemove) { return PlacementValidationStatus.Unavailable; }
+                foreach (var item in placedObjects)
+                    if (Vector2.SqrMagnitude((Vector2)item.Position - anchor.Position) <= 0.00000001f)
+                        return PlacementValidationStatus.Removable;
+                return PlacementValidationStatus.NothingToRemove;
+            }
             if (!IsPlacing || anchorError != null || placementError != null) { return PlacementValidationStatus.Unavailable; }
             var kind = SelectedItem == PlacementItemId.Food ? MechanismKind.Food :
                 SelectedItem == PlacementItemId.Furnace ? MechanismKind.Furnace : MechanismKind.Obstacle;
@@ -298,9 +363,9 @@ namespace SlimeBattle.Player.Placement
                 if (HasEmptyInventory()) return PlacementValidationStatus.InventoryEmpty;
             }
             catch (Exception) { return PlacementValidationStatus.Unavailable; }
-            foreach (var position in placedPositions)
+            foreach (var item in placedObjects)
             {
-                if (Vector2.SqrMagnitude((Vector2)position - anchor.Position) <= 0.00000001f)
+                if (Vector2.SqrMagnitude((Vector2)item.Position - anchor.Position) <= 0.00000001f)
                 {
                     if (!anchor.AllowsReplacement) return PlacementValidationStatus.ReplacementDenied;
                     return backend is IAnchorReplacementBackend replacement &&
@@ -358,6 +423,37 @@ namespace SlimeBattle.Player.Placement
             return result;
         }
 
+        public PlacementResult ConfirmRemoval()
+        {
+            if (isConfirming) { return new PlacementResult(false, default, "机关请求正在处理中。"); }
+            var result = new PlacementResult(false, default, "请选择拆除模式并点击已放置的机关。");
+            if (IsRemoving && IsRunning && hasPosition)
+            {
+                var previousTarget = preview.RemovalTarget;
+                preview = Evaluate(pointerWorld);
+                if (preview.Status != PlacementValidationStatus.Removable) { result = new PlacementResult(false, default, preview.Message); }
+                else if (previousTarget.IsValid && previousTarget != preview.RemovalTarget)
+                { result = new PlacementResult(false, default, "目标机关已变化，请重新选择。"); }
+                else
+                {
+                    var requestRevision = revision;
+                    isConfirming = true;
+                    try { result = ((IPlacementRemovalBackend)backend).RequestRemoval(preview.RemovalTarget); }
+                    catch (Exception exception) { result = new PlacementResult(false, default, "拆除失败：" + exception.Message); }
+                    finally { isConfirming = false; }
+                    if (isDisposed) { return result; }
+                    ReadPlacedData();
+                    if (!IsRunning) { CancelPlacement(); }
+                    else if (requestRevision == revision && IsRemoving) { preview = Evaluate(pointerWorld); }
+                    hasAnchorChanges = hasOccupancyChanges = false;
+                }
+            }
+            Hint = result.Succeeded ? "机关已拆除，可继续选择其他机关 · 取消可退出" : result.Reason;
+            Changed?.Invoke();
+            RemovalCompleted?.Invoke(result);
+            return result;
+        }
+
         public void Dispose()
         {
             if (isDisposed) { return; }
@@ -365,10 +461,11 @@ namespace SlimeBattle.Player.Placement
             isDisposed = true;
             occupied.Clear();
             anchors.Clear();
-            placedPositions.Clear();
+            placedObjects.Clear();
             Changed?.Invoke();
             Changed = null;
             PlacementCompleted = null;
+            RemovalCompleted = null;
         }
     }
 }

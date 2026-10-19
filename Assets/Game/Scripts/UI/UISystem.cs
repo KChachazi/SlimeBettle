@@ -145,6 +145,7 @@ namespace SlimeBattle.UI
             // A lifecycle cancellation must not toggle pause. Only the key edge does.
             if (!eventData.IsUserRequested) { return; }
             if(view!=null && view.TryCloseReferencePage()) return;
+            if(view!=null && view.TryCancelPlacement()) return;
             var current = levelManager.GetLevelState();
             if (current == LevelState.Running) { SubmitCommand(UiCommand.Pause); }
             else if (current == LevelState.Paused) { SubmitCommand(UiCommand.Resume); }

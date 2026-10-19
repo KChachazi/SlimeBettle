@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SlimeBattle.Mechanisms;
 
 namespace SlimeBattle.Player.Placement
 {
@@ -19,5 +20,12 @@ namespace SlimeBattle.Player.Placement
     public interface IAnchorReplacementBackend
     {
         bool SupportsAnchorReplacement { get; }
+    }
+
+    /// <summary>Optional removal capability. The backend owns cleanup and configured cooldowns.</summary>
+    public interface IPlacementRemovalBackend
+    {
+        bool SupportsRemoval { get; }
+        PlacementResult RequestRemoval(MechanismId mechanismId);
     }
 }

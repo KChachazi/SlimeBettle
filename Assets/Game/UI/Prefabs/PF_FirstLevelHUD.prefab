@@ -4539,7 +4539,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 7934419392044668474}
         m_TargetAssemblyTypeName: SlimeBattle.UI.ReferenceUiView, SlimeBattle.Runtime
-        m_MethodName: ShowUnavailableRemove
+        m_MethodName: ToggleRemoval
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -12503,6 +12503,7 @@ MonoBehaviour:
   volumeSlider: {fileID: 5048723750109361657}
   volumeText: {fileID: 7792783715123377863}
   feedbackText: {fileID: 3701945294253445273}
+  removeButton: {fileID: 2301136594796296957}
 --- !u!1 &7791772745425422807
 GameObject:
   m_ObjectHideFlags: 0

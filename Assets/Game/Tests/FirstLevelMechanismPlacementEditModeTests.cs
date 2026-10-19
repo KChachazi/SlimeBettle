@@ -130,6 +130,33 @@ namespace SlimeBattle.Tests
             }
         }
 
+        [Test]
+        public void RemovalBackendReleasesObjectAndBudgetAndPreservesConfiguredCooldown()
+        {
+            var food = Config("food", MechanismKind.Food);
+            var furnace = Config("furnace", MechanismKind.Furnace);
+            var obstacle = Config("obstacle", MechanismKind.Obstacle);
+            obstacle.Configure(MechanismKind.Obstacle, true, 0f, 0f, 0, 0f, 1f);
+            var configs = new ConfigRegistry(new ConfigAsset[] { food, furnace, obstacle });
+            map = new MapManager(scene, null);
+            status = new StatusManager(configs, null, _ => null);
+            mechanisms = new MechanismSystem(configs, 1, map, status, null, scene);
+            var backend = new MechanismPlacementBackend(mechanisms);
+            var request = new PlacementRequest(PlacementItemId.Obstacle, new Vector3Int(3, 3, 0), new Vector3(3.5f, 3.5f));
+            var placed = backend.RequestPlacement(request);
+            Assert.IsTrue(placed.Succeeded, placed.Reason);
+            Assert.IsTrue(backend.SupportsRemoval);
+            Assert.IsTrue(backend.RequestRemoval(placed.MechanismId).Succeeded);
+            Assert.AreEqual(0, backend.GetBudgetSnapshot().ActiveCount);
+            Assert.IsEmpty(backend.ReadPlacedObjects());
+            Assert.IsFalse(backend.RequestRemoval(placed.MechanismId).Succeeded);
+            Assert.IsTrue(mechanisms.TryGetPlacementCooldown(obstacle.ConfigId, out var cooldown));
+            Assert.That(cooldown.RemainingSeconds, Is.GreaterThan(0f));
+            Assert.IsFalse(backend.RequestPlacement(request).Succeeded);
+            mechanisms.Tick(obstacle.PlacementCooldownSeconds);
+            Assert.IsTrue(backend.RequestPlacement(request).Succeeded);
+        }
+
         private MechanismConfig Config(string id, MechanismKind kind)
         {
             var config = ScriptableObject.CreateInstance<MechanismConfig>();

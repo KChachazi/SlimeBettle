@@ -9,6 +9,8 @@
 
 协作边界：`MechanismSystem` 是 Map 领域下辖子模块，由小智维护；本系统只通过其公开放置、替换、回收和快照接口协作，不访问机关内部状态。
 
+2026-10-19 拆除实现：按当前需求接通 `FirstLevel` 所用 HUD Prefab 的“拆除”按钮。`BeginRemoval()` 进入持续拆除模式，`PreviewPlacement()` 按指针所在格查询活跃玩家机关，`ConfirmRemoval()` 重新校验关卡阶段和目标身份后通过可选的 `IPlacementRemovalBackend.RequestRemoval()` 回收；正式后端调用已有 `MechanismSystem.RequestRemove()`，由其清理碰撞阻挡、Anchor 占用和对象并启动配置冷却。空格、已消耗/已回收对象和场景预置机关不可拆除。点击取消、再次点击拆除、选择放置物、暂停、重开和结算退出拆除。预览和网格通过 `IsInteracting` 同时支持放置与拆除，`IsPlacing` 仍只表示放置。资源返还规则保持待确认；本次不添加库存/退款规则。
+
 2026-10-16 实现状态：已消费现有 MapManager 的 Anchor 只读快照，支持像素比例换算、最近点吸附、类型限制、独立标记和确认复核；点击地图即提交。`PlacementPreview.Anchor` / `PlacementRequest.AnchorId` 保留原地图身份。当前没有公开的安全替换事务，因此已占用 Anchor 区分配置禁止替换与安全替换未接入，两者均拒绝并保留旧对象。下文的替换职责仍是目标设计，不能视为已实现。接口兼容细节见小宸实现与接入通知及全局 API 表 2026-10-16 补充。
 
 ## 1. 职责

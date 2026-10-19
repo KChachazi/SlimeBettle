@@ -117,6 +117,22 @@ namespace SlimeBattle.Tests
                 Assert.IsNotNull(weapon);
                 Assert.That(weapon.WeaponConfigId.Value, Is.EqualTo("mvp_escort_weapon"));
                 Assert.That(weapon.RouteId.Value, Is.EqualTo("route_escort"));
+                Assert.IsTrue(weapon.HasValidCarrierAnchors);
+                var anchorNames = new[]
+                {
+                    "CarrierAnchor_TopLeft", "CarrierAnchor_BottomRight",
+                    "CarrierAnchor_TopRight", "CarrierAnchor_BottomLeft"
+                };
+                for (var i = 0; i < anchorNames.Length; i++)
+                {
+                    Assert.IsTrue(weapon.TryGetCarrierAnchor(i, out var anchor));
+                    Assert.AreEqual(anchorNames[i], anchor.name);
+                }
+                var renderer = weapon.GetComponent<SpriteRenderer>();
+                Assert.IsNotNull(renderer);
+                Assert.AreEqual("Assets/Game/Art/Sprites/SPR_EscortWoodCrate.png",
+                    AssetDatabase.GetAssetPath(renderer.sprite));
+                Assert.That(renderer.color.a, Is.EqualTo(0.82f).Within(0.001f));
             }
             finally
             {

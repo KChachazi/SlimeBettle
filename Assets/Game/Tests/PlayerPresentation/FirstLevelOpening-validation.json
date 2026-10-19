@@ -1,0 +1,138 @@
+{
+  "verifiedAt": "2026-10-19T17:21:50.7292272+08:00",
+  "unityVersion": "2022.3.62f2c1",
+  "testedCommit": "88b8c2d00da85011087aa8cde4350ccc7c679c13",
+  "baselineCommit": "5e39ff82e24d2be804079c9a346e7f6192be7a6e",
+  "editorContext": "Bootstrap loaded in Unity Editor, identical context for branch and master baseline",
+  "editMode": {
+    "total": 126,
+    "passed": 117,
+    "failed": 9,
+    "endTime": "2026-10-19T09:20:31.4362005Z",
+    "failures": [
+      {
+        "test": "SlimeBattle.Tests.FirstLevelAnchorReplacementEditModeTests.AnchorReplacementKeepsOldOnFailureAndPublishesOnlyCommittedChanges",
+        "reason": "The anchor or matching mechanism prefab is unavailable.\n  Expected: True\n  But was:  False"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelCompositionSceneEditModeTests.FormalFirstLevelSceneUsesPersistentManagerAndBuildEntry",
+        "reason": "Expected: null\n  But was:  <LevelManager (SlimeBattle.Core.LevelManager)>"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelCompositionSceneEditModeTests.SceneBindsProductionContextMapActorsAndCaveRules",
+        "reason": "Expected: 6\n  But was:  0"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelMechanismPlacementEditModeTests.PlacementBackendCreatesConfiguredMechanismAndKeepsOnlyTotalLimit",
+        "reason": "The requested position is outside a walkable placement area or is blocked.\n  Expected: True\n  But was:  False"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelPlayerAnchorMapEditModeTests.ExistingMapPrefabProvidesAllSixAnchorsToPlayerThroughPublicQueries",
+        "reason": "Expected: 6\n  But was:  0"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelRouteEditModeTests.FurnaceGuidanceRemainsActiveAfterArrival",
+        "reason": "System.ArgumentOutOfRangeException : Specified argument was out of the range of valid values.\nParameter name: index"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelRouteEditModeTests.SlimesChooseOnceAtForkAndWaitWhenEveryBranchIsBlocked",
+        "reason": "System.ArgumentOutOfRangeException : Specified argument was out of the range of valid values.\nParameter name: index"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelRouteEditModeTests.WaitingSlimesStayNearTheirSpawnUntilRouteRelease",
+        "reason": "System.ArgumentOutOfRangeException : Specified argument was out of the range of valid values.\nParameter name: index"
+      },
+      {
+        "test": "SlimeBattle.Tests.MovementSystemEditModeTests.IdleBodyLosesCollisionVelocityAndNewMoveStillWorks",
+        "reason": "Expected: greater than 0.0f\n  But was:  0.0f"
+      }
+    ]
+  },
+  "affectedUiAndPlacement": {
+    "total": 65,
+    "passed": 65,
+    "failed": 0
+  },
+  "playMode": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "endTime": "2026-10-19T09:20:58.6527554Z",
+    "assembly": "SlimeBattle.FirstLevelUI.PlayMode.Tests"
+  },
+  "masterBaseline": {
+    "total": 61,
+    "passed": 52,
+    "failed": 9,
+    "endTime": "2026-10-19T09:19:24.6614745Z",
+    "assembly": "SlimeBattle.P0.Tests",
+    "runtimeAndRelevantTestsMatchMaster": true,
+    "failures": [
+      {
+        "test": "SlimeBattle.Tests.FirstLevelAnchorReplacementEditModeTests.AnchorReplacementKeepsOldOnFailureAndPublishesOnlyCommittedChanges",
+        "reason": "The anchor or matching mechanism prefab is unavailable.\n  Expected: True\n  But was:  False"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelCompositionSceneEditModeTests.FormalFirstLevelSceneUsesPersistentManagerAndBuildEntry",
+        "reason": "Expected: null\n  But was:  <LevelManager (SlimeBattle.Core.LevelManager)>"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelCompositionSceneEditModeTests.SceneBindsProductionContextMapActorsAndCaveRules",
+        "reason": "Expected: 6\n  But was:  0"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelMechanismPlacementEditModeTests.PlacementBackendCreatesConfiguredMechanismAndKeepsOnlyTotalLimit",
+        "reason": "The requested position is outside a walkable placement area or is blocked.\n  Expected: True\n  But was:  False"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelPlayerAnchorMapEditModeTests.ExistingMapPrefabProvidesAllSixAnchorsToPlayerThroughPublicQueries",
+        "reason": "Expected: 6\n  But was:  0"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelRouteEditModeTests.FurnaceGuidanceRemainsActiveAfterArrival",
+        "reason": "System.ArgumentOutOfRangeException : Specified argument was out of the range of valid values.\nParameter name: index"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelRouteEditModeTests.SlimesChooseOnceAtForkAndWaitWhenEveryBranchIsBlocked",
+        "reason": "System.ArgumentOutOfRangeException : Specified argument was out of the range of valid values.\nParameter name: index"
+      },
+      {
+        "test": "SlimeBattle.Tests.FirstLevelRouteEditModeTests.WaitingSlimesStayNearTheirSpawnUntilRouteRelease",
+        "reason": "System.ArgumentOutOfRangeException : Specified argument was out of the range of valid values.\nParameter name: index"
+      },
+      {
+        "test": "SlimeBattle.Tests.MovementSystemEditModeTests.IdleBodyLosesCollisionVelocityAndNewMoveStillWorks",
+        "reason": "Expected: greater than 0.0f\n  But was:  0.0f"
+      }
+    ]
+  },
+  "newFailures": [],
+  "productionChecks": {
+    "entry": "Bootstrap -> MainMenu -> FirstLevel",
+    "input": "Virtual Mouse and Keyboard through production InputSystem and uGUI",
+    "mechanisms": [
+      "Food",
+      "Furnace",
+      "Obstacle"
+    ],
+    "assertions": [
+      "Default opening camera exposes a legal cell outside the HUD, with no test camera movement during placement/removal",
+      "Green road hints are visible after selecting each mechanism through the actual UI button",
+      "Pointer preview accepts the visible cell and map click creates each mechanism",
+      "Remove button and map click remove each mechanism, releasing occupancy and movement blockers",
+      "Escape cancels removal while the level remains Running",
+      "Periodic refresh and pause/resume preserve a later player pan",
+      "Restart clears the old interaction session, restores the opening focus and binds removal to the new context"
+    ]
+  },
+  "limitations": [
+    "The project-wide Edit Mode suite is not fully passing: nine failures also reproduce on the master baseline in the same Editor scene context",
+    "Existing map Anchor/route fixtures and scene/physics test assumptions are outside this presentation fix",
+    "The formal FirstLevel retains its existing EscortWeapon objective; this change does not alter map routes, mechanics, win/loss or waiting-window rules",
+    "No Android device validation"
+  ],
+  "screenshots": [
+    "FirstLevelOpeningPlacement.png",
+    "FirstLevelOpeningRemoval.png"
+  ]
+}

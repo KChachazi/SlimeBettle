@@ -80,14 +80,18 @@ namespace SlimeBattle.UI
             food.interactable = !capacity.HasInventory || capacity.FoodRemaining > 0;
             furnace.interactable = !capacity.HasInventory || capacity.FurnaceRemaining > 0;
             obstacle.interactable = !capacity.HasInventory || capacity.ObstacleRemaining > 0;
-            cancel.interactable = placement.IsPlacing;
+            cancel.interactable = placement.IsInteracting;
+            var cancelLabel = cancel.GetComponentInChildren<Text>(true);
+            if (cancelLabel != null) cancelLabel.text = placement.IsRemoving
+                ? (useChineseLabels ? "取消拆除" : "Cancel removal")
+                : (useChineseLabels ? "取消放置" : "Cancel placement");
             Highlight(food, PlacementItemId.Food);
             Highlight(furnace, PlacementItemId.Furnace);
             Highlight(obstacle, PlacementItemId.Obstacle);
             if (foodSelected != null) foodSelected.SetActive(placement.SelectedItem == PlacementItemId.Food);
             if (furnaceSelected != null) furnaceSelected.SetActive(placement.SelectedItem == PlacementItemId.Furnace);
             if (obstacleSelected != null) obstacleSelected.SetActive(placement.SelectedItem == PlacementItemId.Obstacle);
-            if(useReferenceLayout) cancel.gameObject.SetActive(placement.IsPlacing);
+            if(useReferenceLayout) cancel.gameObject.SetActive(placement.IsInteracting);
         }
 
         private void Highlight(Button button, PlacementItemId item)
