@@ -281,9 +281,11 @@ namespace SlimeBattle.Core
             if (disposed || state != LevelState.Running || !triggered.Result.IsAccepted ||
                 MechanismSystem == null || SlimeManager == null ||
                 !MechanismSystem.TryGetSnapshot(triggered.MechanismId, out var mechanism) ||
-                mechanism.Kind != MechanismKind.Food ||
                 !SlimeManager.TryGetSnapshot(triggered.ActorId, out var parent) ||
                 !parent.IsAlive) return;
+
+            SlimeManager.NotifyMechanismTriggered(triggered.ActorId, mechanism.Kind);
+            if (mechanism.Kind != MechanismKind.Food) return;
 
             var offset = parent.PixelsPerUnit > 0f ? 35f / parent.PixelsPerUnit : 0.35f;
             SlimeManager.SpawnSlime(new SlimeSpawnRequest(parent.ConfigId,

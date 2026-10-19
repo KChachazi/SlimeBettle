@@ -4,16 +4,19 @@ using SlimeBattle.Actors.AI.DecisionTree;
 using SlimeBattle.Actors.AI.StateMachine;
 using SlimeBattle.Actors.SlimeGroups;
 using SlimeBattle.Data;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.Slimes;
 using SlimeBattle.Status;
 using UnityEngine;
 
 namespace SlimeBattle.Actors.Slimes
 {
-    [RequireComponent(typeof(SpriteRenderer), typeof(Rigidbody2D), typeof(Collider2D))]
+    [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
     public sealed class SlimeActor : MonoBehaviour, IEffectReceiver, IActorControlReceiver,
-        IActorHealthLimitReceiver
+        IActorHealthLimitReceiver, IGameplayPixelsPerUnitProvider
     {
+        [SerializeField, Min(1f)] private float gameplayPixelsPerUnit = 64f;
+
         private ActorCore core;
         private SlimeConfig config;
         private SlimeRuntimeData runtime;
@@ -21,6 +24,7 @@ namespace SlimeBattle.Actors.Slimes
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
         private ActorVisualFeedback visualFeedback;
+        private SlimeVisualPresenter visualPresenter;
         private bool disposed;
         private bool isCarrying;
         private float pixelsPerUnit;
@@ -31,6 +35,7 @@ namespace SlimeBattle.Actors.Slimes
         public ActorId ActorId => core == null ? default(ActorId) : core.GetActorId();
         public bool IsAlive => !disposed && core != null && core.IsAlive();
         public bool IsCarrying => isCarrying;
+        public float GameplayPixelsPerUnit => gameplayPixelsPerUnit;
         public string LastDecisionReason { get; private set; } = string.Empty;
         public ActorId GetActorId() => ActorId;
         public ActorType GetActorType() => ActorType.Slime;
@@ -51,10 +56,13 @@ namespace SlimeBattle.Actors.Slimes
             visualFeedback = GetComponent<ActorVisualFeedback>();
             if (visualFeedback == null) visualFeedback = gameObject.AddComponent<ActorVisualFeedback>();
             visualFeedback.Initialize();
+            visualPresenter = GetComponent<SlimeVisualPresenter>();
             transform.position = position;
             config = slimeConfig;
-            var sprite = GetComponent<SpriteRenderer>().sprite;
-            pixelsPerUnit = sprite == null ? 0f : sprite.pixelsPerUnit;
+            if (gameplayPixelsPerUnit <= 0f || float.IsNaN(gameplayPixelsPerUnit) ||
+                float.IsInfinity(gameplayPixelsPerUnit))
+                throw new InvalidOperationException("Slime gameplay PPU must be positive and finite.");
+            pixelsPerUnit = gameplayPixelsPerUnit;
             core = new ActorCore(actorId, factionId, ActorType.Slime,
                 config.ConfigId, position, config.MaxHealth);
             runtime = new SlimeRuntimeData();
@@ -62,6 +70,7 @@ namespace SlimeBattle.Actors.Slimes
             decisionTree.SetRoot(new BasicSlimeDecision(runtime, config.AttackRange, config.ConfigId));
             stateMachine = new ActorStateMachine(config.AttackRange, config.AttackPower,
                 config.AttackInterval, config.AttackWindup);
+            visualPresenter?.Initialize(this);
         }
 
         public void Tick(ActorContext context)
@@ -81,7 +90,9 @@ namespace SlimeBattle.Actors.Slimes
                 : modifierProvider.GetAttackSpeedMultiplier(ActorId);
             var stateContext = new StateContext(context.DeltaTime, snapshot,
                 context.Perception, context.Actions, attackSpeedMultiplier);
-            if (intent.IsValid) stateMachine.SubmitIntent(intent, stateContext);
+            if (intent.IsValid && stateMachine.SubmitIntent(intent, stateContext) ==
+                StateMachineResult.Accepted && intent.Type == ActionIntentType.Attack)
+                visualPresenter?.PlayAttack();
             stateMachine.Tick(stateContext);
         }
 
@@ -100,11 +111,11 @@ namespace SlimeBattle.Actors.Slimes
         private static SlimeNeedState GetPrimaryNeed(ActorSnapshot snapshot)
         {
             var statuses = snapshot.StatusIds;
-            if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Frozen)) return SlimeNeedState.Frozen;
-            if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Burning)) return SlimeNeedState.Burning;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Afraid)) return SlimeNeedState.Afraid;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Hungry)) return SlimeNeedState.Hungry;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Cold)) return SlimeNeedState.Cold;
+            if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Frozen)) return SlimeNeedState.Frozen;
+            if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Burning)) return SlimeNeedState.Burning;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Agitated)) return SlimeNeedState.Agitated;
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Hot)) return SlimeNeedState.Hot;
             return SlimeNeedState.None;
@@ -126,8 +137,26 @@ namespace SlimeBattle.Actors.Slimes
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
             }
             visualFeedback?.NotifyEffect(effect, result);
+            if (result.DidKill) visualPresenter?.StopForDeath();
+            else if (effect.IsDamage && result.Changed) visualPresenter?.PlayHit();
             if (result.DidKill) Died?.Invoke(this, effect);
             return result;
+        }
+
+        internal bool NotifyMechanismTriggered(MechanismKind kind)
+        {
+            if (!IsAlive || visualPresenter == null) return false;
+            if (kind == MechanismKind.Food)
+            {
+                visualPresenter.PlayFood();
+                return true;
+            }
+            if (kind == MechanismKind.Furnace)
+            {
+                visualPresenter.PlayFurnace();
+                return true;
+            }
+            return false;
         }
 
         public bool RemoveResolvedStatus(string statusId)

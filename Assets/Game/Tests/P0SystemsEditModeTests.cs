@@ -248,7 +248,9 @@ namespace SlimeBattle.Tests
             assets.Add(actorObject);
             actorObject.AddComponent<CircleCollider2D>();
             var actor = actorObject.AddComponent<SlimeActor>();
-            actorObject.GetComponent<SpriteRenderer>().sprite = NewTestSprite();
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(actorObject.transform, false);
+            visual.AddComponent<SpriteRenderer>().sprite = NewTestSprite();
             return actor;
         }
 
