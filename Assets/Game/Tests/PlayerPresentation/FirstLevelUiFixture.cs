@@ -56,6 +56,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             adapter=gameObject.AddComponent<PlacementInputAdapter>(); adapter.Initialize(Input,Camera,Placement);
             Hud=Instantiate(hudPrefab,transform); Selection=Instantiate(selectionPrefab,transform); Selection.Initialize(Placement);
             var pages=Hud.GetComponent<ReferenceUiView>();
+            if(pages!=null) pages.InitializePlacement(Placement);
             if(pages!=null) pages.Initialize(command=>
             {
                 if(command==UiCommand.Pause) SetPhase(LevelState.Paused);

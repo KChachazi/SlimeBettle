@@ -89,7 +89,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var catalog=Button("CatalogButton",hud,"图鉴",new Vector2(-65,91),new Vector2(142,62),Cream,Ink,44,StorybookSurface.SurfaceKind.Notched);
             Anchor(catalog.transform,new Vector2(1,0)); Click(catalog,pages.OpenCatalog);
             var remove=Button("RemoveButton",hud,"拆除",new Vector2(-65,203),new Vector2(96,82),Cocoa,Cream,38);
-            Anchor(remove.transform,new Vector2(1,0)); Click(remove,pages.ShowUnavailableRemove);
+            Anchor(remove.transform,new Vector2(1,0)); Click(remove,pages.ToggleRemoval); Set(pages,"removeButton",remove);
             var hint=Label("FlowHint",hud,"",new Vector2(0,82),new Vector2(520,28),14,Cream,false);
             Anchor(hint.transform,new Vector2(0.5f,0));
             var feedback=Label("FeatureFeedback",hud,"",new Vector2(0,111),new Vector2(520,28),14,Cream,false);

@@ -107,6 +107,7 @@ namespace SlimeBattle.Player
                 IsPlaceableMapPosition);
             var source = new FirstLevelUiSnapshotSource(Placement, statusSource);
             GetComponent<PlayerPresentationRoot>().Initialize(levelManager, cameraSystem, source);
+            GetComponent<PlayerPresentationRoot>().InitializePlacement(Placement);
             gridView.Initialize(Placement, grid);
             gridView.enabled = true;
             selectionView.Initialize(Placement);

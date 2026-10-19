@@ -61,7 +61,7 @@ namespace SlimeBattle.Player.Placement
         private void Render()
         {
             if (visuals == null) { return; }
-            var visible = isActiveAndEnabled && placement.IsPlacing && placement.IsRunning;
+            var visible = isActiveAndEnabled && placement.IsInteracting && placement.IsRunning;
             visuals.SetActive(visible);
             if (!visible) { DestroyPreview(); return; }
             foreach (var line in lines) { line.gameObject.SetActive(false); }
@@ -100,8 +100,8 @@ namespace SlimeBattle.Player.Placement
                 previewRenderer.sortingOrder = 102;
             }
             SetCell(previewRenderer, preview.Cell);
-            if (preview.IsAnchor) { previewRenderer.transform.position = preview.WorldCenter; }
-            previewRenderer.color = preview.CanConfirm ? freeColor :
+            if (preview.IsAnchor || placement.IsRemoving) { previewRenderer.transform.position = preview.WorldCenter; }
+            previewRenderer.color = preview.Status == PlacementValidationStatus.Removable ? occupiedColor : preview.CanConfirm ? freeColor :
                 preview.Status == PlacementValidationStatus.OutOfBounds ||
                     preview.Status == PlacementValidationStatus.InvalidArea ? outsideColor :
                 preview.Status == PlacementValidationStatus.Occupied ? occupiedColor : new Color(1f, 0.75f, 0.2f, 0.75f);
@@ -135,7 +135,8 @@ namespace SlimeBattle.Player.Placement
                 var item = anchorVisuals[index++]; item.Root.SetActive(true); item.Root.name = "PlacementAnchor_" + anchor.AnchorId.Value;
                 item.Root.transform.position = new Vector3(anchor.Position.x, anchor.Position.y, grid.GetCellCenter(default).z);
                 var status = placement.GetAnchorStatus(anchor);
-                var color = status == PlacementValidationStatus.AnchorFree ? new Color(0.15f, 0.9f, 1f, 0.95f) :
+                var color = status == PlacementValidationStatus.Removable ? occupiedColor :
+                    status == PlacementValidationStatus.AnchorFree ? new Color(0.15f, 0.9f, 1f, 0.95f) :
                     status == PlacementValidationStatus.TypeMismatch || status == PlacementValidationStatus.ReplacementDenied ? occupiedColor :
                     new Color(1f, 0.75f, 0.2f, 0.95f);
                 const float side = 0.68f;

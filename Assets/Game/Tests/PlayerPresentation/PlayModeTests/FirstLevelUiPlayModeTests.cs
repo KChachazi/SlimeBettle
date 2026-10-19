@@ -10,6 +10,8 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using System.Collections.Generic;
 
 namespace SlimeBattle.Tests.PlayerPresentation
@@ -41,6 +43,85 @@ namespace SlimeBattle.Tests.PlayerPresentation
             }
             Button("CancelButton").onClick.Invoke(); yield return null;
             Assert.That(fixture.Placement.IsPlacing,Is.False); Assert.That(fixture.GridView.IsVisible,Is.False);
+        }
+        [UnityTest] public IEnumerator RemoveButtonTargetsPlacedObjectsAndClearsOnPauseAndRestart()
+        {
+            Button("FoodButton").onClick.Invoke();
+            fixture.Placement.PreviewPlacement(new Vector3(-1.2f, 0.3f));
+            Assert.That(fixture.Placement.ConfirmPlacement().Succeeded, Is.True);
+            Button("RemoveButton").onClick.Invoke(); yield return null;
+            Assert.That(fixture.Placement.IsRemoving, Is.True);
+            Assert.That(fixture.GridView.IsVisible, Is.True);
+            Assert.That(Button("CancelButton").GetComponentInChildren<Text>().text, Is.EqualTo("取消拆除"));
+            fixture.Placement.PreviewPlacement(new Vector3(-1.2f, 0.3f));
+            Assert.That(fixture.Placement.ConfirmRemoval().Succeeded, Is.True);
+            Assert.That(fixture.Backend.ReadPlacedObjects(), Is.Empty);
+            Button("RemoveButton").onClick.Invoke(); yield return null;
+            Assert.That(fixture.Placement.IsInteracting, Is.False);
+            Button("RemoveButton").onClick.Invoke();
+            Button("CancelButton").onClick.Invoke(); yield return null;
+            Assert.That(fixture.Placement.IsInteracting, Is.False);
+            Button("RemoveButton").onClick.Invoke();
+            fixture.SetPhase(LevelState.Paused); yield return null;
+            Assert.That(fixture.Placement.IsRemoving, Is.False);
+            Assert.That(fixture.GridView.IsVisible, Is.False);
+            Assert.That(Button("RemoveButton").interactable, Is.False);
+            fixture.Restart(); Button("RemoveButton").onClick.Invoke();
+            Assert.That(fixture.Placement.IsRemoving, Is.True);
+            fixture.Restart(); yield return null;
+            Assert.That(fixture.Placement.IsRemoving, Is.False);
+        }
+
+        [UnityTest] public IEnumerator RemovalInputBlocksToolbarClicksAndRemovesOnMapClick()
+        {
+            var position = new Vector3(-1.2f, 0.3f);
+            Button("FoodButton").onClick.Invoke(); fixture.Placement.PreviewPlacement(position);
+            Assert.That(fixture.Placement.ConfirmPlacement().Succeeded, Is.True);
+            Button("RemoveButton").onClick.Invoke();
+            var settings = UnityEngine.InputSystem.InputSystem.settings;
+            var previousInputBehavior = settings.editorInputBehaviorInPlayMode;
+            var previousBackgroundBehavior = settings.backgroundBehavior;
+            settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+            settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            var existingPointers = UnityEngine.InputSystem.InputSystem.devices.OfType<Pointer>().Where(device => device.enabled).ToArray();
+            foreach (var pointer in existingPointers) UnityEngine.InputSystem.InputSystem.DisableDevice(pointer);
+            var mouse = UnityEngine.InputSystem.InputSystem.AddDevice<Mouse>();
+            try
+            {
+                var uiPosition = RectTransformUtility.WorldToScreenPoint(null, Button("RemoveButton").transform.position);
+                // Movement alone must never remove. A world click behind the toolbar must be blocked.
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = uiPosition });
+                yield return null; yield return null;
+                Assert.That(fixture.Backend.ReadPlacedObjects(), Has.Count.EqualTo(1));
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = uiPosition }.WithButton(MouseButton.Left));
+                yield return null; yield return null;
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = uiPosition });
+                yield return null; yield return null;
+                Assert.That(fixture.Backend.RemovalRequests, Is.Zero, "Toolbar clicks must never submit a world removal.");
+                if (!fixture.Placement.IsRemoving) Button("RemoveButton").onClick.Invoke();
+                var mapPosition = fixture.Camera.WorldToScreen(position);
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = mapPosition });
+                yield return null; yield return null;
+                Assert.That(mouse.position.ReadValue(), Is.EqualTo(mapPosition), "Queued mouse state must reach the Input System.");
+                Assert.That(fixture.Input.ReadSnapshot().PointerPosition, Is.EqualTo(mapPosition), "Gameplay input must use the test pointer.");
+                Assert.That(fixture.Placement.GetCurrentPreview().Status, Is.EqualTo(PlacementValidationStatus.Removable));
+                Assert.That(fixture.Backend.RemovalRequests, Is.Zero);
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = mapPosition }.WithButton(MouseButton.Left));
+                yield return null; yield return null;
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = mapPosition });
+                yield return null; yield return null;
+                Assert.That(fixture.Backend.RemovalRequests, Is.EqualTo(1));
+                Assert.That(fixture.Backend.ReadPlacedObjects(), Is.Empty);
+            }
+            finally
+            {
+                UnityEngine.InputSystem.InputSystem.RemoveDevice(mouse);
+                foreach (var pointer in existingPointers) UnityEngine.InputSystem.InputSystem.EnableDevice(pointer);
+                settings.editorInputBehaviorInPlayMode = previousInputBehavior;
+                settings.backgroundBehavior = previousBackgroundBehavior;
+            }
         }
         [UnityTest] public IEnumerator AnchorViewsSnapToExactMapPositionAndClearOnCancelAndPause()
         {
@@ -143,5 +224,6 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(pages.IsOpen,Is.False,"Auxiliary pages must not cover a result or loading transition.");
         }
     }
+
 }
 #endif
