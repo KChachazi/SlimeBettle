@@ -82,8 +82,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2577d7bd3302ec4b9080f33bb234751, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   gameplayPixelsPerUnit: 64
 --- !u!50 &1740000000000000001
 Rigidbody2D:
@@ -122,8 +122,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7d742136904542fbbea046ecd09edf75, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &3818799613427862685
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -134,10 +134,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 82fad492a4ef5aa4a927146342b90ca1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   animator: {fileID: 3107633840660910745}
-  stateOverrides: []
+  stateOverrides:
+  - state: 4
+    controller: {fileID: 22100000, guid: baa4b43c73be1984586b4b068f4103c4, type: 2}
+  - state: 1
+    controller: {fileID: 22100000, guid: 7d491fdf94fc1d24caa50d1e30200fa9, type: 2}
+  - state: 5
+    controller: {fileID: 22100000, guid: 22669d2721492634a9e706518f174199, type: 2}
   movementThreshold: 0.001
   movementGraceSeconds: 0.12
   collisionAnimationCooldown: 0.35
@@ -242,7 +248,7 @@ Animator:
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
-  m_WarningMessage:
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0

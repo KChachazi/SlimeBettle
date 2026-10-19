@@ -131,14 +131,17 @@ namespace SlimeBattle.Actors.Slimes
                 return EffectApplyResult.Immune("Carried slime is part of the weapon.");
             }
             var result = core.ApplyResolvedEffect(effect);
+            var deathAnimationDuration = 0f;
             if (result.DidKill)
             {
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
+                deathAnimationDuration = visualPresenter == null
+                    ? 0f : visualPresenter.PlayDeath();
             }
-            visualFeedback?.NotifyEffect(effect, result);
-            if (result.DidKill) visualPresenter?.StopForDeath();
-            else if (effect.IsDamage && result.Changed) visualPresenter?.PlayHit();
+            visualFeedback?.NotifyEffect(effect, result, deathAnimationDuration);
+            if (!result.DidKill && effect.IsDamage && result.Changed)
+                visualPresenter?.PlayHit();
             if (result.DidKill) Died?.Invoke(this, effect);
             return result;
         }
