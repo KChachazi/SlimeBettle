@@ -66,6 +66,20 @@ namespace SlimeBattle.Player.Placement
         public MapBounds? GetMapBounds() { return isDisposed ? null : readBounds(); }
         public IReadOnlyList<PlacementAnchorSnapshot> GetAnchors() { return anchors.AsReadOnly(); }
 
+        /// <summary>Read-only road/open-cell hint. Final confirmation still validates the backend request.</summary>
+        public bool IsCellPlaceable(Vector3Int cell)
+        {
+            if (!IsPlacing || !IsRunning || occupied.Contains(cell)) return false;
+            try
+            {
+                var bounds = readBounds();
+                var center = grid.GetCellCenter(cell);
+                return bounds.HasValue && bounds.Value.Contains(center) &&
+                    (canOccupy == null || canOccupy(new Vector2(center.x, center.y)));
+            }
+            catch (Exception) { return false; }
+        }
+
         public void BeginPlacement(PlacementItemId itemId)
         {
             if (!Enum.IsDefined(typeof(PlacementItemId), itemId) || itemId == PlacementItemId.None)
