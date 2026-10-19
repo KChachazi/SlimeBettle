@@ -1,5 +1,6 @@
 using System;
 using SlimeBattle.Core;
+using SlimeBattle.Player.Placement;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,6 +15,8 @@ namespace SlimeBattle.UI
         [SerializeField] private Slider volumeSlider;
         [SerializeField] private Text volumeText;
         [SerializeField] private Text feedbackText;
+        [SerializeField] private Button removeButton;
+        private PlacementSystem placement;
         private Action<UiCommand> submit;
         private LevelState phase;
         private bool resumeOnClose;
@@ -22,6 +25,13 @@ namespace SlimeBattle.UI
         public event Action VisibilityChanged;
 
         public void Initialize(Action<UiCommand> submitCommand) { submit=submitCommand; }
+        public void InitializePlacement(PlacementSystem placementSystem)
+        {
+            if (placement != null) placement.Changed -= RenderRemoval;
+            placement = placementSystem;
+            if (placement != null && isActiveAndEnabled) placement.Changed += RenderRemoval;
+            RenderRemoval();
+        }
         public void SetLevelState(LevelState state)
         {
             // A restart/result cannot leave a stale modal covering the authoritative view.
@@ -52,7 +62,27 @@ namespace SlimeBattle.UI
         }
         public void BackToSettings() { Open(Page.Settings); }
         public void CloseSilently() { CurrentPage=Page.None; resumeOnClose=false; RefreshPages(); }
-        public void ShowUnavailableRemove() { if(feedbackText!=null) feedbackText.text="拆除功能尚未接入"; }
+        public void ToggleRemoval()
+        {
+            if (placement == null) { if (feedbackText != null) feedbackText.text = "拆除模块未接入"; return; }
+            if (!isActiveAndEnabled || IsOpen || !placement.IsRunning) return;
+            if (feedbackText != null) feedbackText.text = string.Empty;
+            if (placement.IsRemoving) placement.CancelPlacement(); else placement.BeginRemoval();
+        }
+        public bool TryCancelPlacement()
+        {
+            if (placement == null || !placement.IsInteracting) return false;
+            placement.CancelPlacement();
+            return true;
+        }
+        private void RenderRemoval()
+        {
+            if (removeButton == null) return;
+            removeButton.interactable = placement != null && placement.IsRunning && placement.CanRemove && !IsOpen;
+            if (removeButton.targetGraphic != null)
+                removeButton.targetGraphic.color = placement != null && placement.IsRemoving
+                    ? new Color(0.82f, 0.36f, 0.23f) : new Color(0.33f, 0.25f, 0.18f);
+        }
         public void Quit()
         {
             var root=FindObjectOfType<GameRoot>();
@@ -87,7 +117,13 @@ namespace SlimeBattle.UI
         {
             if(pages!=null) for(var i=0;i<pages.Length;i++) if(pages[i]!=null) pages[i].SetActive((int)CurrentPage==i+1);
             VisibilityChanged?.Invoke();
+            RenderRemoval();
         }
-        private void OnDisable() { CloseSilently(); }
+        private void OnEnable() { if (placement != null) placement.Changed += RenderRemoval; RenderRemoval(); }
+        private void OnDisable()
+        {
+            if (placement != null) placement.Changed -= RenderRemoval;
+            CloseSilently();
+        }
     }
 }

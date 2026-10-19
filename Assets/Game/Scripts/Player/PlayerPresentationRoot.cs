@@ -76,6 +76,9 @@ namespace SlimeBattle.Player
             eventObject.transform.SetParent(eventSystemParent != null ? eventSystemParent : transform, false);
         }
 
+        public void InitializePlacement(Placement.PlacementSystem placement)
+        { if (hudView != null) hudView.GetComponent<ReferenceUiView>()?.InitializePlacement(placement); }
+
         private void OnEnable() { if (isInitialized) { Bind(); } }
         private void OnDisable() { Unbind(); }
 

@@ -141,7 +141,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
     }
 
     /// <summary>TEST_ONLY backend owns colored test sprites, never MechanismAuthoring or Actor objects.</summary>
-    public sealed class TestPlacementBackend : IPlacementBackend, IDisposable
+    public sealed class TestPlacementBackend : IPlacementBackend, IPlacementRemovalBackend, IDisposable
     {
         private readonly List<PlacementObjectSnapshot> snapshots = new List<PlacementObjectSnapshot>();
         private readonly Dictionary<MechanismId, GameObject> visuals = new Dictionary<MechanismId, GameObject>();
@@ -153,6 +153,18 @@ namespace SlimeBattle.Tests.PlayerPresentation
         public TestPlacementBackend(Transform parent = null, Sprite foodSprite = null, Sprite furnaceSprite = null, Sprite obstacleSprite = null)
         { this.parent = parent; this.foodSprite = foodSprite; this.furnaceSprite = furnaceSprite; this.obstacleSprite = obstacleSprite; }
         public bool IsAvailable { get; set; } = true;
+        public bool SupportsRemoval => IsAvailable;
+        public int RemovalRequests { get; private set; }
+        public PlacementResult RequestRemoval(MechanismId mechanismId)
+        {
+            RemovalRequests++;
+            BeforeRequest?.Invoke();
+            if (ThrowOnRequest) throw new InvalidOperationException("TEST removal failure");
+            if (RejectNext || !IsAvailable || !snapshots.Any(item => item.Id == mechanismId))
+            { RejectNext = false; return new PlacementResult(false, mechanismId, "TEST removal rejected"); }
+            Remove(mechanismId);
+            return new PlacementResult(true, mechanismId, string.Empty);
+        }
         public bool RejectNext { get; set; }
         public bool ThrowOnRequest { get; set; }
         public bool ReturnInvalidId { get; set; }

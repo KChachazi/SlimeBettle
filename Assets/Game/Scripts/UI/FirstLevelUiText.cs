@@ -5,7 +5,12 @@ namespace SlimeBattle.UI
     /// <summary>Presentation wording; backend rejection reasons remain visible verbatim.</summary>
     public static class FirstLevelUiText
     {
-        public static string PlacementHint(PlacementSystem placement) => Hint(placement.Hint);
+        public static string PlacementHint(PlacementSystem placement)
+        {
+            if (placement.IsRemoving && placement.Hint == "Outside map bounds.") return "超出地图边界，请在地图内选择机关";
+            if (placement.IsRemoving && placement.Hint == "Map bounds are not configured.") return "地图边界未接入，暂时无法拆除";
+            return Hint(placement.Hint);
+        }
 
         public static string Hint(string message)
         {

@@ -7,7 +7,7 @@ namespace SlimeBattle.Player.Placement
     /// Current-level bridge: Placement submits a kind and snapped position;
     /// MechanismSystem owns prefab creation and runtime state.
     /// </summary>
-    public sealed class MechanismPlacementBackend : IPlacementBackend, IAnchorReplacementBackend
+    public sealed class MechanismPlacementBackend : IPlacementBackend, IAnchorReplacementBackend, IPlacementRemovalBackend
     {
         private readonly MechanismSystem mechanisms;
         public MechanismPlacementBackend(MechanismSystem mechanisms) { this.mechanisms = mechanisms; }
@@ -16,6 +16,12 @@ namespace SlimeBattle.Player.Placement
             mechanisms.TryGetPlayerConfigId(MechanismKind.Furnace, out _) &&
             mechanisms.TryGetPlayerConfigId(MechanismKind.Obstacle, out _);
         public bool SupportsAnchorReplacement => IsAvailable;
+        public bool SupportsRemoval => mechanisms != null;
+        public PlacementResult RequestRemoval(MechanismId mechanismId)
+        {
+            var removed = mechanisms != null && mechanisms.RequestRemove(mechanismId);
+            return new PlacementResult(removed, mechanismId, removed ? string.Empty : "机关已失效或当前无法拆除。");
+        }
         public PlacementResult RequestPlacement(PlacementRequest request)
         {
             if (!IsAvailable) return new PlacementResult(false, default, "Mechanism prefabs are not configured.");

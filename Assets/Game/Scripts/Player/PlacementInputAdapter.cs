@@ -54,14 +54,17 @@ namespace SlimeBattle.Player.Placement
             if (data.Command.Kind == PlayerCommandKind.PrimaryAction)
             {
                 if (Preview(data.Command.ScreenPosition))
-                    placement.ConfirmPlacement();
+                {
+                    if (placement.IsRemoving) { placement.ConfirmRemoval(); }
+                    else { placement.ConfirmPlacement(); }
+                }
             }
         }
         private void OnMoved(PointerMovedEvent data) { Preview(data.Position); }
 
         private void LateUpdate()
         {
-            if (input == null || placement == null || !placement.IsPlacing) { return; }
+            if (input == null || placement == null || !placement.IsInteracting) { return; }
             var snapshot = input.ReadSnapshot();
             if (snapshot.Frame == Time.frameCount && snapshot.Mode == InputMode.Gameplay &&
                 !snapshot.PointerBlocked && snapshot.CameraDrag == Vector2.zero)
@@ -70,7 +73,7 @@ namespace SlimeBattle.Player.Placement
 
         private bool Preview(Vector2 screenPosition)
         {
-            if (!isActiveAndEnabled || !placement.IsPlacing || input.GetInputMode() != InputMode.Gameplay)
+            if (!isActiveAndEnabled || !placement.IsInteracting || input.GetInputMode() != InputMode.Gameplay)
                 return false;
             if (EventSystem.current != null)
             {

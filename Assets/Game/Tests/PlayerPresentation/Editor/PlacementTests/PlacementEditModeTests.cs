@@ -235,6 +235,86 @@ namespace SlimeBattle.Tests.PlayerPresentation
         }
 
         [Test]
+        public void RemovalReleasesCellAndStaysActiveUntilCancelledOrAnotherItemSelected()
+        {
+            Preview();
+            var placed = placement.ConfirmPlacement();
+            placement.BeginRemoval();
+            Assert.That(placement.IsPlacing, Is.False);
+            placement.PreviewPlacement(new Vector3(0.2f, 0.3f));
+            Assert.That(placement.GetCurrentPreview().RemovalTarget, Is.EqualTo(placed.MechanismId));
+            Assert.That(placement.ConfirmRemoval().Succeeded, Is.True);
+            Assert.That(backend.ReadPlacedObjects(), Is.Empty);
+            Assert.That(placement.GetOccupiedCells(), Is.Empty);
+            Assert.That(placement.IsRemoving, Is.True);
+            Assert.That(placement.ConfirmRemoval().Succeeded, Is.False);
+            Assert.That(backend.RemovalRequests, Is.EqualTo(1));
+            placement.BeginPlacement(PlacementItemId.Obstacle);
+            Assert.That(placement.IsRemoving, Is.False);
+            placement.PreviewPlacement(new Vector3(0.2f, 0.3f));
+            Assert.That(placement.ConfirmPlacement().Succeeded, Is.True);
+            placement.BeginRemoval(); placement.CancelPlacement();
+            Assert.That(placement.IsInteracting, Is.False);
+        }
+
+        [TestCase("empty")]
+        [TestCase("outside")]
+        [TestCase("paused")]
+        [TestCase("expired")]
+        [TestCase("replaced")]
+        public void RemovalRevalidatesTargetAndPhaseBeforeCallingBackend(string condition)
+        {
+            var id = MechanismId.NewId();
+            backend.Add(id, new Vector3(0.5f, 0.5f));
+            placement.BeginRemoval();
+            placement.PreviewPlacement(new Vector3(0.2f, 0.3f));
+            if (condition == "empty") placement.PreviewPlacement(new Vector3(2f, 2f));
+            if (condition == "outside") placement.PreviewPlacement(new Vector3(10f, 10f));
+            if (condition == "paused") phase = LevelState.Paused;
+            if (condition == "expired" || condition == "replaced") backend.Remove(id);
+            if (condition == "replaced") backend.Add(MechanismId.NewId(), new Vector3(0.5f, 0.5f));
+            Assert.That(placement.ConfirmRemoval().Succeeded, Is.False);
+            Assert.That(backend.RemovalRequests, Is.Zero);
+            if (condition == "paused")
+            {
+                placement.Refresh();
+                Assert.That(placement.IsInteracting, Is.False);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RemovalBackendFailurePreservesOccupancy(bool throws)
+        {
+            var id = MechanismId.NewId();
+            backend.Add(id, new Vector3(0.5f, 0.5f));
+            placement.BeginRemoval(); placement.PreviewPlacement(new Vector3(0.2f, 0.3f));
+            backend.ThrowOnRequest = throws; backend.RejectNext = !throws;
+            Assert.That(placement.ConfirmRemoval().Succeeded, Is.False);
+            Assert.That(placement.GetOccupiedCells(), Has.Count.EqualTo(1));
+            Assert.That(backend.ReadPlacedObjects().Single().Id, Is.EqualTo(id));
+            Assert.That(placement.IsRemoving, Is.True);
+        }
+
+        [Test]
+        public void RemovalIgnoresPlacementOnlyBlockersAndHandlesReentrantPhaseChange()
+        {
+            placement.Dispose();
+            placement = new PlacementSystem(grid, () => bounds, () => phase, backend,
+                PlacementConfirmationMode.Single, canOccupy: _ => false);
+            backend.Add(MechanismId.NewId(), new Vector3(0.5f, 0.5f));
+            placement.BeginRemoval(); placement.PreviewPlacement(new Vector3(0.2f, 0.3f));
+            backend.BeforeRequest = () =>
+            {
+                Assert.That(placement.ConfirmRemoval().Succeeded, Is.False);
+                phase = LevelState.Failed;
+            };
+            Assert.That(placement.ConfirmRemoval().Succeeded, Is.True);
+            Assert.That(backend.RemovalRequests, Is.EqualTo(1));
+            Assert.That(placement.IsInteracting, Is.False);
+        }
+
+        [Test]
         public void HudDisplaysReadOnlyLimitAndWeaponAndRetainsOldConstructor()
         {
             var oldState = new UiState(default, LevelState.Running, "old objective");
