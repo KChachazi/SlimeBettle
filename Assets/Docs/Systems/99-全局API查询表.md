@@ -34,6 +34,8 @@
 | API-CORE-015 | Core 结果规则组件 | 兼容结果事件适配 | `WeaponDestroyedEvent` / `WeaponReachedGoalEvent` | 兼容关卡结果事实 | 仅启用护送武器链路的关卡 | 保留兼容；不作为最新第一关成功条件 |
 | API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器；效果端口可为 null | 无 | 关卡装配方 | P0 接入边界；MovementSystem 接管移动请求；效果端口为空时仅移动可用 |
 | API-CORE-013 | LevelContext | MapManager / MovementSystem | 无 | 当前关卡地图和移动服务 | 当前关卡系统 | P0：静态阻挡识别及 Rigidbody2D 移动已接入 |
+| API-CORE-016 | LevelManager | RequestReturnToPreviousFlow() | 无 | ReturnToPreviousFlowRequestedEvent，由 GameRoot 观察 | UISystem | 已实现 |
+| API-CORE-017 | LevelManager | RequestUnloadToScene(string) | 已登记的目标场景名 | bool 是否接受；Unloading → Unloaded | GameRoot 应用流程 | 已实现 |
 
 AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Actor 的公开 Tick/效果接收/位置回报接口及上述感知、行动端口测试通路；`FleeCheckSucceeded` 是注入的概率判定结果，效果请求只记录，不由场景扣血。
 
@@ -150,7 +152,7 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | API-PRESENT-001 | CameraSystem | ScreenToWorld(Vector2) | 屏幕像素位置 | Vector3，XY 玩法平面世界位置 | 玩家操作适配、UI | P0 已实现 |
 | API-PRESENT-002 | CameraSystem | SetBounds(CameraBounds) | 镜头边界 | 无 | MapManager、LevelContext | 已确认 |
 | API-UI-001 | UISystem | Refresh(UiState) | UI 状态 | 无 | UI 内部、状态同步 | 已确认 |
-| API-UI-002 | UISystem | SubmitCommand(UiCommand) | Pause / Resume / Restart | void；UiCommandSubmittedEvent.Accepted | 按钮、面板 | P0 已实现 |
+| API-UI-002 | UISystem | SubmitCommand(UiCommand) | Pause / Resume / Restart / ReturnToMainMenu | void；UiCommandSubmittedEvent.Accepted | 按钮、面板 | 已实现 |
 
 ### 7.1 小宸 P0 补充接口（2026-10-09）
 

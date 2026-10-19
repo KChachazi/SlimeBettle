@@ -16,10 +16,13 @@ namespace SlimeBattle.UI
         [SerializeField] private Text volumeText;
         [SerializeField] private Text feedbackText;
         [SerializeField] private Button removeButton;
+        [SerializeField] private Button[] returnToMenuButtons;
+        [SerializeField] private bool useIllustratedSprites;
         private PlacementSystem placement;
         private Action<UiCommand> submit;
         private LevelState phase;
         private bool resumeOnClose;
+        private bool transitionPending;
         public Page CurrentPage { get; private set; }
         public bool IsOpen => CurrentPage != Page.None;
         public event Action VisibilityChanged;
@@ -38,6 +41,20 @@ namespace SlimeBattle.UI
             if(IsOpen && ((state!=LevelState.Paused && state!=LevelState.Running) ||
                 (state==LevelState.Running && phase==LevelState.Paused))) CloseSilently();
             phase=state;
+            RefreshReturnButtons();
+        }
+        public void SetTransitionPending(bool pending) { transitionPending=pending; RefreshReturnButtons(); }
+        public void ReturnToMainMenu()
+        {
+            if (!transitionPending && CanReturnToMenu()) submit?.Invoke(UiCommand.ReturnToMainMenu);
+        }
+        private bool CanReturnToMenu() => phase==LevelState.Running || phase==LevelState.Paused ||
+            phase==LevelState.Succeeded || phase==LevelState.Failed;
+        private void RefreshReturnButtons()
+        {
+            if (returnToMenuButtons==null) return;
+            foreach (var button in returnToMenuButtons)
+                if (button!=null) button.interactable=!transitionPending && CanReturnToMenu();
         }
         public void OpenBag() { Open(Page.Bag); }
         public void OpenCatalog() { Open(Page.Catalog); }
@@ -81,7 +98,8 @@ namespace SlimeBattle.UI
             removeButton.interactable = placement != null && placement.IsRunning && placement.CanRemove && !IsOpen;
             if (removeButton.targetGraphic != null)
                 removeButton.targetGraphic.color = placement != null && placement.IsRemoving
-                    ? new Color(0.82f, 0.36f, 0.23f) : new Color(0.33f, 0.25f, 0.18f);
+                    ? (useIllustratedSprites ? new Color(1f, 0.73f, 0.58f) : new Color(0.82f, 0.36f, 0.23f))
+                    : (useIllustratedSprites ? Color.white : new Color(0.33f, 0.25f, 0.18f));
         }
         public void Quit()
         {

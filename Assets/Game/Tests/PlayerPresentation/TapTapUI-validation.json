@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-20",
+  "unityVersion": "2022.3.62f2c1",
+  "baseCommit": "5e9342e",
+  "branch": "xchen/feat-taptap-ui",
+  "compilation": {
+    "success": true,
+    "evidence": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/Production-PlayMode.xml"
+  },
+  "sourceAssets": {
+    "count": 48,
+    "bytesMatchOriginals": true,
+    "manifest": "Assets/Game/UI/Art/TapTap/source-map.json",
+    "referenceImagesImported": false
+  },
+  "editMode": {
+    "passed": 70,
+    "failed": 0,
+    "total": 70,
+    "evidence": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/UIImport-EditMode.xml"
+  },
+  "playMode": {
+    "passed": 9,
+    "failed": 0,
+    "total": 9,
+    "evidence": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/UIImport-PlayMode.xml"
+  },
+  "productionRecheck": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "evidence": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/Production-PlayMode.xml"
+  },
+  "returnToMenuUpdate": {
+    "editMode": { "passed": 16, "failed": 0, "evidence": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/Return-EditMode.xml" },
+    "playMode": { "passed": 10, "failed": 0, "evidence": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/Return-PlayMode.xml" },
+    "verified": [
+      "Settings Continue resumes the paused game",
+      "Real pointer clicks return to MainMenu from settings, pause, success and failure panels",
+      "Four consecutive entries create fresh contexts using the same single GameRoot",
+      "Return clears level ID, disposes old context and mechanisms, and removes gameplay presentation",
+      "Duplicate return requests and pending UI commands are rejected"
+    ],
+    "preview": "Assets/Game/Tests/PlayerPresentation/TapTapUIReview/Settings.png"
+  },
+  "verified": [
+    "Main menu and chapter navigation through actual pointer input into FirstLevel",
+    "Food, furnace and obstacle selection, placement and removal in the production scene",
+    "Toolbar and modal raycast blocking, map input, Escape, pause, restart and subscription cleanup",
+    "Catalog page boundaries, exclusive content visibility and unavailable chapter restrictions",
+    "Prefab references, bundled Chinese fonts and unit scale on screen-space canvas roots"
+  ],
+  "layoutSizes": [
+    "1280x720",
+    "1024x768",
+    "1920x1080",
+    "1920x820"
+  ],
+  "previews": [
+    "UserSettings/TapTapUI/Preview.png",
+    "UserSettings/TapTapUI/Gameplay-Placement.png",
+    "UserSettings/TapTapUI/Gameplay-Removal.png",
+    "UserSettings/ReferenceUiPreview/",
+    "UserSettings/CodexVisualPolish/"
+  ],
+  "scope": {
+    "uiPrefabs": [
+      "PF_FirstLevelHUD",
+      "PF_FirstLevelPlacementSelection",
+      "PF_ReferenceMainMenu"
+    ],
+    "scene": "MainMenu",
+    "sharedGameplayRulesChanged": false,
+    "playerOrCameraPrefabsRebuilt": false,
+    "buildSettingsChanged": false
+  },
+  "notes": [
+    "Eight instructional panels, their confirmation button and the Finish ribbon are imported but not auto-displayed; their gameplay text and completion data still need an authoritative source.",
+    "Inventory, saves and catalog unlocks are not implemented by this visual update.",
+    "Third chapter stays unavailable; FirstLevel and Castle retain their existing entry methods.",
+    "Production was rechecked after replacing frame-count waits with bounded real-time scene-loading waits in the test.",
+    "Rendered game captures temporarily use a camera canvas; world preview overlays can appear over them. Normal gameplay uses overlay canvases.",
+    "Android touch input and device safe areas were not device-tested."
+  ]
+}

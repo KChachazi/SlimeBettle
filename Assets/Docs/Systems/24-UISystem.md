@@ -96,7 +96,7 @@ void Initialize(LevelManager manager, InputSystem input,
 - UiState 是只读显示快照：LevelId、LevelState、ObjectiveText、SlimeCount、EnemyCount、Hint、ResultText。数量 -1 表示未接入并显示 `--`，不是 0 存活。UI 不根据数量或文本推断胜负。
 - `IUiSnapshotSource.ReadSnapshot(LevelContext context)` 是提供给关卡接入层的显示适配接口，不替代 Core 结果规则组件或各领域 API。目标/Actor/机关负责人实现适配器，调用自己的公开快照 API，返回史莱姆数量、终点统计、普通格/Anchor 放置状态、路线提示和结果原因；兼容武器状态可选返回。UI 在初始化、阶段变化和最多每秒 5 次刷新时查询。LevelId / LevelState 始终使用 LevelManager 的权威状态，忽略来源的同名字段。
 - 快照来源缺失时显示 Waiting for level result data；异常时降级并仅记录一次警告。来源不持有旧 Context，重开后从参数查询新一局。UISystem.Refresh 只修改显示缓存，不发布关卡结果。
-- UiPanelId 为 Hud / Pause / Result；OpenPanel / ClosePanel 只管理展示，不能代替暂停和胜负判定。UiCommand 为 Pause / Resume / Restart，分别调用 LevelManager 的三个公开流程请求；状态不匹配和重复重开拒绝。重开完成或加载失败解除 pending。
+- UiPanelId 为 Hud / Pause / Result；OpenPanel / ClosePanel 只管理展示，不能代替暂停和胜负判定。UiCommand 为 Pause / Resume / Restart / ReturnToMainMenu，分别调用 LevelManager 的公开流程请求；返回使用 RequestReturnToPreviousFlow，由 GameRoot 决定目标，UI 不直接加载场景。状态不匹配和重复切换拒绝。重开完成或加载失败解除 pending；返回后旧 UI 随关卡销毁。设置、暂停、结算页提供返回入口，切换期间禁用按钮；设置页的继续游戏保留关闭并恢复原运行状态的行为。
 - 只响应 `CancelInputEvent.IsUserRequested == true` 切换暂停/恢复。生命周期取消不会切换关卡状态。加载、初始化、卸载时禁用游戏输入；暂停、结算时保留 UI 操作。
 - BattleHudView.Create 可创建最小 HUD，支持指定 Font；默认内置 LegacyRuntime.ttf，默认英文文案避免未导入中文字体时出现方框。Canvas 以 1280×720、宽高折中缩放作为测试值，不作为最终屏幕方向/适配规则。正式中文字体、安全区域与超长文本仍需设备验证。
 - 对外面板/指令事件采用 C# event；订阅方在禁用时移除。关卡销毁后不得缓存旧 UI 或来源引用。

@@ -38,10 +38,10 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Game/UI/Fonts/NotoSansCJKsc-Regular.otf");
             if (font == null) { throw new InvalidOperationException("Import the bundled Noto Chinese font first."); }
             var selection = BuildSelection();
-            PrefabUtility.SaveAsPrefabAsset(selection.gameObject, SelectionPath);
+            ReferenceUiPrefabBuilder.SaveUiPrefab(selection.gameObject, SelectionPath);
             UnityEngine.Object.DestroyImmediate(selection.gameObject);
             var hud = BuildHud();
-            PrefabUtility.SaveAsPrefabAsset(hud.gameObject, HudPath);
+            ReferenceUiPrefabBuilder.SaveUiPrefab(hud.gameObject, HudPath);
             UnityEngine.Object.DestroyImmediate(hud.gameObject);
             BuildPlayer();
             BuildScenery();
@@ -163,6 +163,11 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         public static void CaptureLayouts()
         {
             Build();
+            CaptureCurrentLayouts();
+        }
+
+        public static void CaptureCurrentLayouts()
+        {
             var preview=EditorSceneManager.NewPreviewScene();
             var owner=new GameObject("TEST_ONLY_UI_LayoutCapture");
             SceneManager.MoveGameObjectToScene(owner,preview);

@@ -14,23 +14,27 @@ namespace SlimeBattle.UI
         [SerializeField] private GameObject selectButton;
         [SerializeField] private Text selectionHint;
         [SerializeField] private MainMenuLevelEntry entry;
+        [SerializeField] private bool useIllustratedCards;
         private int selected=-1;
         public int SelectedLevel => selected;
         public void OpenLevels() { home.SetActive(false); levels.SetActive(true); SelectLevel(-1); }
         public void Back() { levels.SetActive(false); home.SetActive(true); }
         public void SelectLevel(int index)
         {
+            if(index < -1 || index >= cards.Length) return;
             selected=index;
             for(var i=0;i<cards.Length;i++)
             {
-                cards[i].localScale=Vector3.one*(i==selected?1.4f:1);
-                cards[i].GetComponent<Image>().color=i==selected?new Color(0.29f,0.34f,0.19f):new Color(0.44f,0.34f,0.23f);
-                cards[i].SetSiblingIndex(i==selected?cards.Length:Mathf.Min(i,cards.Length));
+                cards[i].localScale=Vector3.one*(i==selected?(useIllustratedCards?1.08f:1.4f):1);
+                cards[i].GetComponent<Image>().color=useIllustratedCards
+                    ? (i==selected?new Color(1f,0.94f,0.78f):Color.white)
+                    : (i==selected?new Color(0.29f,0.34f,0.19f):new Color(0.44f,0.34f,0.23f));
             }
+            if(selected>=0) cards[selected].SetAsLastSibling();
             selectButton.SetActive(index>=0);
             selectButton.GetComponent<Button>().interactable =
                 index == FirstLevelIndex || index == CastleLevelIndex;
-            selectionHint.text=string.Empty;
+            selectionHint.text=index>CastleLevelIndex?"第 3 章尚未开放":string.Empty;
         }
         public void StartSelectedLevel()
         {

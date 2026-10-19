@@ -97,6 +97,16 @@ namespace SlimeBattle.UI
                             if (!accepted) { isRestartPending = false; }
                         }
                         break;
+                    case UiCommand.ReturnToMainMenu:
+                        if (before == LevelState.Running || before == LevelState.Paused ||
+                            before == LevelState.Succeeded || before == LevelState.Failed)
+                        {
+                            isRestartPending = true;
+                            levelManager.RequestReturnToPreviousFlow();
+                            accepted = levelManager.GetLevelState() == LevelState.Unloading;
+                            if (!accepted) { isRestartPending = false; }
+                        }
+                        break;
                 }
             }
             Render();

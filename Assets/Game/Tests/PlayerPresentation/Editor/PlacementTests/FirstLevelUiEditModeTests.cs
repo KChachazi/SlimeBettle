@@ -39,7 +39,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         {
             var hud=InstantiateHud();
             hud.Render(new UiState(default,LevelState.Running,"测试",0,weaponText:"weapon destroyed"),true,false,false,false);
-            Assert.That(Label(hud,"Counts").text,Is.EqualTo("史莱姆数量 0 / --"));
+            Assert.That(Label(hud,"Counts").text,Is.EqualTo("0 / --"));
             Assert.That(Label(hud,"Goal").text,Does.Contain("未接入"));
             Assert.That(Label(hud,"WaitingWindow").text,Does.Contain("未接入"));
             Assert.That(Find(hud,"ResultPanel").activeSelf,Is.False);
@@ -122,9 +122,68 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var menu=instance.GetComponent<ReferenceMainMenuView>(); menu.OpenLevels();
             var select=instance.GetComponentsInChildren<Button>(true).Single(b=>b.name=="SelectLevelButton");
             Assert.That(select.gameObject.activeSelf,Is.False);
-            menu.SelectLevel(1); Assert.That(select.interactable,Is.False);
+            menu.SelectLevel(2); Assert.That(select.interactable,Is.False);
+            menu.SelectLevel(1); Assert.That(select.interactable,Is.True,"Castle already has a production scene and entry.");
             menu.SelectLevel(0); Assert.That(select.interactable,Is.True);
             menu.Back(); Assert.That(Find(menu,"LevelSelection").activeSelf,Is.False);
+        }
+
+        [Test]
+        public void CatalogPaginationClampsAndOnlyShowsTheCurrentContent()
+        {
+            var hud=InstantiateHud();
+            var catalog=hud.GetComponentInChildren<TapTapCatalogView>(true);
+            Assert.IsNotNull(catalog);
+            var previous=hud.GetComponentsInChildren<Button>(true).Single(b=>b.name=="CatalogPrevious");
+            var next=hud.GetComponentsInChildren<Button>(true).Single(b=>b.name=="CatalogNext");
+            catalog.Previous(); Assert.That(catalog.PageIndex,Is.Zero); Assert.That(previous.interactable,Is.False);
+            catalog.Next(); Assert.That(catalog.PageIndex,Is.EqualTo(1));
+            Assert.That(Find(catalog,"CatalogContent1").activeSelf,Is.False);
+            Assert.That(Find(catalog,"CatalogContent2").activeSelf,Is.True);
+            catalog.Next(); catalog.Next(); Assert.That(catalog.PageIndex,Is.EqualTo(2));
+            Assert.That(next.interactable,Is.False);
+            catalog.Previous(); Assert.That(catalog.PageIndex,Is.EqualTo(1)); Assert.That(next.interactable,Is.True);
+        }
+
+        [Test]
+        public void MenuReturnCommandsUseTheCurrentBindingAndBlockPendingTransitions()
+        {
+            var hud=InstantiateHud(); var pages=hud.GetComponent<ReferenceUiView>();
+            var received=0;
+            pages.Initialize(command=>{ Assert.That(command,Is.EqualTo(UiCommand.ReturnToMainMenu)); received++; });
+            foreach(var phase in new[]{LevelState.Paused,LevelState.Succeeded,LevelState.Failed})
+            {
+                hud.Render(new UiState(default,phase,""),true,phase==LevelState.Paused,phase!=LevelState.Paused,false);
+                var name=phase==LevelState.Paused?"SettingsReturnToMenuButton":"ResultReturnToMenuButton";
+                var button=Find(hud,name).GetComponent<Button>();
+                Assert.That(button.interactable,Is.True);
+                Assert.That(button.onClick.GetPersistentTarget(0),Is.SameAs(pages));
+                Assert.That(button.onClick.GetPersistentMethodName(0),Is.EqualTo(nameof(ReferenceUiView.ReturnToMainMenu)));
+                pages.ReturnToMainMenu();
+                hud.Render(new UiState(default,phase,""),true,false,phase!=LevelState.Paused,true);
+                Assert.That(button.interactable,Is.False);
+                pages.ReturnToMainMenu();
+            }
+            Assert.That(received,Is.EqualTo(3),"Pending returns cannot submit another command.");
+            hud.Unbind(); pages.SetTransitionPending(false); pages.ReturnToMainMenu();
+            Assert.That(received,Is.EqualTo(3),"An unbound view must not retain the previous owner.");
+        }
+
+        [TestCase("PF_FirstLevelPlacementSelection.prefab","FoodButton")]
+        [TestCase("PF_FirstLevelPlacementSelection.prefab","FurnaceButton")]
+        [TestCase("PF_FirstLevelPlacementSelection.prefab","ObstacleButton")]
+        [TestCase("PF_FirstLevelHUD.prefab","RemoveButton")]
+        public void IllustratedButtonsKeepTheirHitAreasOnTheRightToolbar(string file,string name)
+        {
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(Folder+file);
+            var button=prefab.GetComponentsInChildren<Button>(true).Single(b=>b.name==name);
+            var rect=(RectTransform)button.transform;
+            Assert.IsNotNull(button.image.sprite);
+            Assert.That(rect.anchorMin.x,Is.EqualTo(1));
+            Assert.That(rect.anchoredPosition.x-rect.sizeDelta.x/2,Is.GreaterThan(-350),
+                "Transparent export margins must not create a full-screen clickable button.");
+            Assert.That(rect.sizeDelta.x,Is.LessThan(340));
+            Assert.That(rect.sizeDelta.y,Is.LessThan(180));
         }
     }
 }
