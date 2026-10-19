@@ -15,7 +15,6 @@ namespace SlimeBattle.Data
         [SerializeField, Min(0)] private int activationLimit = 1;
         [SerializeField, Min(0f)] private float activationCooldownSeconds;
         [SerializeField, Min(0f)] private float placementCooldownSeconds;
-        [SerializeField, Min(0)] private int initialInventoryCount;
         [SerializeField, Min(0)] private int durability;
         [SerializeField, Min(0f)] private float collisionRadiusPixels;
         [SerializeField] private MechanismAuthoring placementPrefab;
@@ -28,8 +27,6 @@ namespace SlimeBattle.Data
         public int ActivationLimit => activationLimit;
         public float ActivationCooldownSeconds => activationCooldownSeconds;
         public float PlacementCooldownSeconds => placementCooldownSeconds;
-        /// <summary>Zero means this config does not use a finite level inventory.</summary>
-        public int InitialInventoryCount => initialInventoryCount;
         /// <summary>Zero means the mechanism has no durability rule.</summary>
         public int Durability => durability;
         public float CollisionRadiusPixels => collisionRadiusPixels;
@@ -59,11 +56,10 @@ namespace SlimeBattle.Data
             placementPrefab = value;
         }
 
-        public void ConfigureObstacleRules(int newInitialInventoryCount,
-            int newDurability, float newCollisionRadiusPixels)
+        public void ConfigureObstacleRules(int newDurability,
+            float newCollisionRadiusPixels)
         {
             EnsureAuthoring();
-            initialInventoryCount = newInitialInventoryCount;
             durability = newDurability;
             collisionRadiusPixels = newCollisionRadiusPixels;
         }
@@ -83,14 +79,14 @@ namespace SlimeBattle.Data
                 report.AddError($"{name}: PlacementRadiusWorldUnits must be finite and non-negative.");
             if (activationLimit < 0)
                 report.AddError($"{name}: ActivationLimit must be non-negative; zero means unlimited.");
-            if (initialInventoryCount < 0 || durability < 0 ||
+            if (durability < 0 ||
                 !IsFiniteNonNegative(collisionRadiusPixels))
-                report.AddError($"{name}: Inventory, durability and collision radius values must be non-negative.");
+                report.AddError($"{name}: Durability and collision radius values must be non-negative.");
             if (kind == MechanismKind.Obstacle &&
-                (initialInventoryCount > 0 || durability > 0 || collisionRadiusPixels > 0f) &&
-                (initialInventoryCount <= 0 || durability <= 0 || collisionRadiusPixels <= 0f))
-                report.AddError($"{name}: First-level obstacle inventory, durability and collision radius " +
-                    "must either all be configured or all be zero.");
+                (durability > 0 || collisionRadiusPixels > 0f) &&
+                (durability <= 0 || collisionRadiusPixels <= 0f))
+                report.AddError($"{name}: Obstacle durability and collision radius " +
+                    "must either both be configured or both be zero.");
             if (!IsFiniteNonNegative(activationCooldownSeconds) ||
                 !IsFiniteNonNegative(placementCooldownSeconds))
                 report.AddError($"{name}: Cooldown values must be finite and non-negative.");

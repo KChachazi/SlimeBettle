@@ -49,9 +49,17 @@ namespace SlimeBattle.Actors.Spawning
                     if (wanderSnapshot.Guides != null)
                         guides.AddRange(wanderSnapshot.Guides);
                 }
-                if (mechanisms != null && slimes != null &&
-                    slimes.TryGetSnapshot(actorId, out var slime) &&
-                    slime.IsAlive && !slime.IsCarrying)
+                var slime = default(SlimeSnapshot);
+                var canWander = slimes != null &&
+                    slimes.TryGetSnapshot(actorId, out slime) &&
+                    slime.IsAlive && !slime.IsCarrying;
+                if (canWander)
+                {
+                    var wanderSnapshot = wander.GetPerception(actorId);
+                    if (wanderSnapshot.Guides != null)
+                        guides.AddRange(wanderSnapshot.Guides);
+                }
+                if (mechanisms != null && canWander)
                 {
                     foreach (var source in mechanisms.GetGuideSourcesInRange(
                         slime.Position, slime.PixelsPerUnit))
@@ -82,6 +90,7 @@ namespace SlimeBattle.Actors.Spawning
         [SerializeField] private Transform presentationRoot;
         [SerializeField] private bool startCurrentSceneOnPlay;
         [SerializeField] private string defaultRouteId = "route_escort";
+        [SerializeField, Min(0.1f)] private float slimeWanderRadius = 1.5f;
         [SerializeField] private Vector2 enemyActivityHalfExtents =
             new Vector2(4f, 4f);
         private LevelContext installed;
@@ -108,9 +117,6 @@ namespace SlimeBattle.Actors.Spawning
             if (levelManager != null) levelManager.LevelStarted -= OnLevelStarted;
             installed = null;
         }
-
-        [System.Obsolete("First-level Slime routes now start immediately from the authored checkpoint route.")]
-        public bool ReleaseSlimeRoutes() => installed != null;
 
         private void OnLevelStarted(LevelStartedEvent started)
         {
@@ -142,11 +148,10 @@ namespace SlimeBattle.Actors.Spawning
                 context.GuardManager, context.MechanismSystem);
             var wanderPerception = new RandomWalkPerceptionSource(
                 context.SlimeManager, context.EnemyManager,
-                context.MovementSystem, mapWanderBounds, context.MapManager);
-            var perception = new DefaultRoutePerceptionSource(
-                new FirstLevelPerception(targetPerception, wanderPerception,
-                    context.SlimeManager, context.MechanismSystem),
-                context.SlimeManager, route);
+                context.MovementSystem, mapWanderBounds, context.MapManager,
+                slimeWanderRadius);
+            var perception = new FirstLevelPerception(targetPerception,
+                wanderPerception, context.SlimeManager, context.MechanismSystem);
             if (!context.SlimeManager.TrySetSpawnParent(entitiesRoot) ||
                 !context.EnemyManager.TrySetSpawnParent(entitiesRoot) ||
                 !context.GuardManager.TrySetSpawnParent(entitiesRoot) ||
@@ -156,13 +161,27 @@ namespace SlimeBattle.Actors.Spawning
                 return;
             }
             context.BindActorPorts(perception, null);
-            var slimeId = context.SlimeManager.SpawnSlime(new SlimeSpawnRequest(
-                slimeConfig.ConfigId, route.Waypoints[0].Position));
-            if (!slimeId.IsValid)
+            var slimeSpawnPoints = new List<MapPointSnapshot>(
+                context.MapManager.GetMapPoints(MapPointKind.SlimeSpawn));
+            slimeSpawnPoints.Sort((left, right) => string.CompareOrdinal(
+                left.PointId.Value, right.PointId.Value));
+            var slimeCount = context.CampaignResources.SlimeCount;
+            if (slimeCount > slimeSpawnPoints.Count)
             {
-                Debug.LogError("Initial Slime spawn failed: " +
-                    context.SlimeManager.LastFailureReason, this);
+                Debug.LogError($"First level requires {slimeCount} Slime spawn points; " +
+                    $"MAP_FirstLevel provides {slimeSpawnPoints.Count}.", this);
                 return;
+            }
+            for (var i = 0; i < slimeCount; i++)
+            {
+                var slimeId = context.SlimeManager.SpawnSlime(new SlimeSpawnRequest(
+                    slimeConfig.ConfigId, slimeSpawnPoints[i].Position));
+                if (!slimeId.IsValid)
+                {
+                    Debug.LogError("Initial Slime spawn failed: " +
+                        context.SlimeManager.LastFailureReason, this);
+                    return;
+                }
             }
             foreach (var point in context.MapManager.GetMapPoints(MapPointKind.EnemySpawn))
             {

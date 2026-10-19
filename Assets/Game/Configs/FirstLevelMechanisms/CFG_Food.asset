@@ -20,7 +20,6 @@ MonoBehaviour:
   activationLimit: 1
   activationCooldownSeconds: 0
   placementCooldownSeconds: 0
-  initialInventoryCount: 0
   durability: 0
   collisionRadiusPixels: 40
   placementPrefab: {fileID: 4158809275090521991, guid: b8b3157dc63bc194aa051428df75a060, type: 3}

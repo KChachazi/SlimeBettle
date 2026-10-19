@@ -136,6 +136,34 @@ namespace SlimeBattle.Tests
         }
 
         [Test]
+        public void CarrierSlotsFillInAnchorOrderAndReuseTheLowestVacancy()
+        {
+            map = new MapManager(scene, null);
+            weapon = CreateWeapon();
+            var ids = new[] { ActorId.NewId(), ActorId.NewId(),
+                ActorId.NewId(), ActorId.NewId() };
+            var expectedSlots = new[]
+            {
+                EscortWeaponAuthoring.TopLeftAnchorIndex,
+                EscortWeaponAuthoring.BottomRightAnchorIndex,
+                EscortWeaponAuthoring.TopRightAnchorIndex,
+                EscortWeaponAuthoring.BottomLeftAnchorIndex
+            };
+
+            for (var i = 0; i < ids.Length; i++)
+            {
+                Assert.IsTrue(weapon.TryAddCarrier(ids[i], out var anchorIndex));
+                Assert.AreEqual(expectedSlots[i], anchorIndex);
+            }
+            Assert.IsFalse(weapon.TryAddCarrier(ActorId.NewId(), out _));
+            Assert.IsFalse(weapon.TryAddCarrier(ids[0], out _));
+
+            Assert.IsTrue(weapon.RemoveCarrier(ids[1]));
+            Assert.IsTrue(weapon.TryAddCarrier(ActorId.NewId(), out var reusedIndex));
+            Assert.AreEqual(EscortWeaponAuthoring.BottomRightAnchorIndex, reusedIndex);
+        }
+
+        [Test]
         public void MechanismPublishesAcceptedDamageOnceAndStopsWhenPausedOrDisposed()
         {
             var routeObject = CreateObject("route");
@@ -159,6 +187,19 @@ namespace SlimeBattle.Tests
             var weaponSerialized = new SerializedObject(authoring);
             weaponSerialized.FindProperty("weaponConfigId").stringValue = "weapon";
             weaponSerialized.FindProperty("routeId").stringValue = "route";
+            var anchors = weaponSerialized.FindProperty("carrierAnchors");
+            anchors.arraySize = EscortWeapon.MaximumCarrierCount;
+            var anchorNames = new[]
+            {
+                "CarrierAnchor_TopLeft", "CarrierAnchor_BottomRight",
+                "CarrierAnchor_TopRight", "CarrierAnchor_BottomLeft"
+            };
+            for (var i = 0; i < anchors.arraySize; i++)
+            {
+                var anchor = CreateObject(anchorNames[i]);
+                anchor.transform.SetParent(authoring.transform, false);
+                anchors.GetArrayElementAtIndex(i).objectReferenceValue = anchor.transform;
+            }
             weaponSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             using (var bus = new LevelEventBus())

@@ -93,7 +93,8 @@ namespace SlimeBattle.Tests
             Assert.AreNotEqual(first, second);
             Assert.AreNotEqual(first, hostile);
             Assert.IsTrue(slimes.TryGetActor(first, out var firstComponent));
-            Assert.IsNotNull(firstComponent.GetComponent<SpriteRenderer>());
+            Assert.IsNull(firstComponent.GetComponent<SpriteRenderer>());
+            Assert.IsNotNull(firstComponent.GetComponentInChildren<SpriteRenderer>());
             Assert.AreNotSame(slimePrefab, firstComponent);
             Assert.IsTrue(enemies.TryGetActor(hostile, out var enemyComponent));
             Assert.IsNotNull(enemyComponent.GetComponent<SpriteRenderer>());
@@ -101,6 +102,9 @@ namespace SlimeBattle.Tests
             Assert.IsFalse(rejected.IsValid);
             StringAssert.Contains("limit", slimes.LastFailureReason);
             Assert.AreEqual(2, slimes.GetAliveSnapshots().Count);
+            Assert.IsTrue(slimes.TryGetSnapshot(first, out var slimeSnapshot));
+            Assert.AreEqual(64f, slimeSnapshot.PixelsPerUnit);
+            Assert.AreEqual(100f, firstComponent.GetComponentInChildren<SpriteRenderer>().sprite.pixelsPerUnit);
             Assert.IsTrue(enemies.TryGetSnapshot(hostile, out var enemySnapshot));
             Assert.IsTrue(enemySnapshot.IsAlive);
             Assert.IsTrue(slimes.RequestDespawn(first, DespawnReason.Removed));
@@ -421,9 +425,18 @@ namespace SlimeBattle.Tests
         private SlimeActor NewSlimePrefab()
         {
             var actorObject = new GameObject("Test Slime Prefab");
-            assets.Add(actorObject);
             actorObject.AddComponent<CircleCollider2D>();
-            return actorObject.AddComponent<SlimeActor>();
+            var actor = actorObject.AddComponent<SlimeActor>();
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(actorObject.transform, false);
+            var texture = new Texture2D(16, 16);
+            var sprite = Sprite.Create(texture, new Rect(0, 0, 16, 16),
+                new Vector2(.5f, .5f), 100f);
+            visual.AddComponent<SpriteRenderer>().sprite = sprite;
+            assets.Add(sprite);
+            assets.Add(texture);
+            assets.Add(actorObject);
+            return actor;
         }
 
         private EnemyActor NewEnemyPrefab()

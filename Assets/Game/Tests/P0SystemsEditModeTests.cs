@@ -92,7 +92,8 @@ namespace SlimeBattle.Tests
             Assert.IsTrue(registry.ValidateAll().IsValid);
 
             var context = new LevelContext(new LevelId("level"), registry, level,
-                NewSlimePrefab(), NewEnemyPrefab());
+                NewSlimePrefab(), NewEnemyPrefab(),
+                campaignResources: NewCampaignResources("level"));
             try
             {
                 context.Initialize();
@@ -140,7 +141,8 @@ namespace SlimeBattle.Tests
             var slimePrefab = NewSlimePrefab();
             var enemyPrefab = NewEnemyPrefab();
             var oldLevel = new LevelContext(new LevelId("level"), registry, level,
-                slimePrefab, enemyPrefab);
+                slimePrefab, enemyPrefab,
+                campaignResources: NewCampaignResources("level"));
             oldLevel.Initialize();
             var oldId = oldLevel.SlimeManager.SpawnSlime(new SlimeSpawnRequest(slime.ConfigId, Vector2.zero));
             Assert.IsTrue(oldLevel.TryResolveActor(oldId, out var oldActor));
@@ -149,7 +151,8 @@ namespace SlimeBattle.Tests
             oldLevel.Dispose();
 
             var newLevel = new LevelContext(new LevelId("level"), registry, level,
-                slimePrefab, enemyPrefab);
+                slimePrefab, enemyPrefab,
+                campaignResources: NewCampaignResources("level"));
             newLevel.Initialize();
             var newId = newLevel.SlimeManager.SpawnSlime(new SlimeSpawnRequest(slime.ConfigId, Vector2.zero));
             Assert.AreNotEqual(oldId, newId);
@@ -242,13 +245,26 @@ namespace SlimeBattle.Tests
             return asset;
         }
 
+        private CampaignResourceLedger NewCampaignResources(string levelId)
+        {
+            var config = ScriptableObject.CreateInstance<CampaignResourceConfig>();
+            config.ConfigureInitialResources(8, 20, 10, 30, 3, 10, 5, 15);
+            assets.Add(config);
+            var resources = new CampaignResourceLedger(config);
+            resources.StartNewCampaign();
+            resources.BeginLevel(new LevelId(levelId), false);
+            return resources;
+        }
+
         private SlimeActor NewSlimePrefab()
         {
             var actorObject = new GameObject("Test Slime Prefab");
             assets.Add(actorObject);
             actorObject.AddComponent<CircleCollider2D>();
             var actor = actorObject.AddComponent<SlimeActor>();
-            actorObject.GetComponent<SpriteRenderer>().sprite = NewTestSprite();
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(actorObject.transform, false);
+            visual.AddComponent<SpriteRenderer>().sprite = NewTestSprite();
             return actor;
         }
 

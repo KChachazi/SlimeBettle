@@ -17,6 +17,7 @@ namespace SlimeBattle.World
         Fork = 12,
         Merge = 13,
         Goal = 14,
-        Mechanism = 15
+        Mechanism = 15,
+        SlimeSpawn = 16
     }
 }

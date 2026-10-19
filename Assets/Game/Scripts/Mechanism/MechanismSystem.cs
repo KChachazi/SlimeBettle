@@ -72,6 +72,7 @@ namespace SlimeBattle.Mechanisms
         private readonly ILevelEventBus eventBus;
         private readonly Scene scene;
         private readonly int maximumActivePlacedMechanisms;
+        private readonly CampaignResourceLedger campaignResources;
         private readonly Dictionary<MechanismId, MechanismRuntimeData> mechanisms =
             new Dictionary<MechanismId, MechanismRuntimeData>();
         private readonly Dictionary<ConfigId, float> placementCooldowns =
@@ -79,6 +80,7 @@ namespace SlimeBattle.Mechanisms
         private readonly List<SubscriptionToken> subscriptions = new List<SubscriptionToken>();
         private Transform placedParent;
         private EscortWeapon weapon;
+        private EscortWeaponAuthoring weaponAuthoring;
         private Transform weaponTransform;
         private float boardingRadius;
         private SlimeManager carrierSlimes;
@@ -93,6 +95,9 @@ namespace SlimeBattle.Mechanisms
 
         public int MaximumActivePlacedMechanisms => maximumActivePlacedMechanisms;
         public int ActivePlacedMechanismCount => disposed ? 0 : CountActivePlacedMechanisms();
+        public bool HasCampaignInventory => campaignResources != null;
+        public int GetAvailablePlacementStock(MechanismKind kind) =>
+            disposed || campaignResources == null ? 0 : campaignResources.GetMechanismCount(kind);
 
         public bool TrySetPlacedParent(Transform parent)
         {
@@ -104,13 +109,15 @@ namespace SlimeBattle.Mechanisms
 
         internal MechanismSystem(ConfigRegistry configs, int maximumActivePlacedMechanisms,
             MapManager mapManager, StatusManager statusManager,
-            ILevelEventBus eventBus, Scene scene)
+            ILevelEventBus eventBus, Scene scene,
+            CampaignResourceLedger campaignResources = null)
         {
             this.configs = configs ?? throw new ArgumentNullException(nameof(configs));
             this.mapManager = mapManager ?? throw new ArgumentNullException(nameof(mapManager));
             this.statusManager = statusManager ?? throw new ArgumentNullException(nameof(statusManager));
             this.eventBus = eventBus;
             this.scene = scene;
+            this.campaignResources = campaignResources;
             if (maximumActivePlacedMechanisms < 0 || maximumActivePlacedMechanisms > 20)
                 throw new ArgumentOutOfRangeException(nameof(maximumActivePlacedMechanisms));
             this.maximumActivePlacedMechanisms = maximumActivePlacedMechanisms;
@@ -308,8 +315,8 @@ namespace SlimeBattle.Mechanisms
                 failureReason = "The active placed-mechanism limit was reached.";
                 return false;
             }
-            if (config.InitialInventoryCount > 0 &&
-                CountActivePlacedMechanisms(configId) >= config.InitialInventoryCount)
+            if (campaignResources != null &&
+                campaignResources.GetMechanismCount(config.Kind) <= 0)
             {
                 failureReason = "The mechanism inventory is empty.";
                 return false;
@@ -388,9 +395,8 @@ namespace SlimeBattle.Mechanisms
                 CountActivePlacedMechanisms() >= maximumActivePlacedMechanisms)
                 return new MechanismPlacementResult(false, default,
                     "The active placed-mechanism limit was reached.");
-            if ((previous == null || previous.Config.ConfigId != configId) &&
-                config.InitialInventoryCount > 0 &&
-                CountActivePlacedMechanisms(configId) >= config.InitialInventoryCount)
+            if (campaignResources != null &&
+                campaignResources.GetMechanismCount(config.Kind) <= 0)
                 return new MechanismPlacementResult(false, default,
                     "The mechanism inventory is empty.");
             if (placementCooldowns.TryGetValue(configId, out var cooldown) && cooldown > 0f)
@@ -408,6 +414,16 @@ namespace SlimeBattle.Mechanisms
                 DestroyPlacedObject(instance.gameObject);
                 return new MechanismPlacementResult(false, default,
                     "The new mechanism could not be registered; the previous one remains.");
+            }
+
+            if (campaignResources != null &&
+                !campaignResources.TrySpendMechanism(config.Kind))
+            {
+                RemoveRuntimeMechanism(mechanisms[id], "Placement inventory changed.",
+                    startPlacementCooldown: false, hideAuthoring: false);
+                DestroyPlacedObject(instance.gameObject);
+                return new MechanismPlacementResult(false, default,
+                    "The mechanism inventory is empty.");
             }
 
             if (previous != null)
@@ -460,13 +476,24 @@ namespace SlimeBattle.Mechanisms
             var previousPosition = authoring.transform.position;
             authoring.transform.position = request.Position;
             var id = MechanismId.NewId();
-            if (!TryRegisterAuthoring(authoring, id, config, isPlayerPlaced: true))
+            if (!TryRegisterAuthoring(authoring, id, config, isPlayerPlaced: true,
+                publishEvent: false))
             {
                 authoring.transform.position = previousPosition;
                 return new MechanismPlacementResult(false, default(MechanismId),
                     "The mechanism instance could not be registered.");
             }
 
+            if (campaignResources != null &&
+                !campaignResources.TrySpendMechanism(config.Kind))
+            {
+                RemoveRuntimeMechanism(mechanisms[id], "Placement inventory changed.",
+                    startPlacementCooldown: false, hideAuthoring: false);
+                return new MechanismPlacementResult(false, default(MechanismId),
+                    "The mechanism inventory is empty.");
+            }
+
+            PublishStateChanged(mechanisms[id], MechanismState.Removed, "Registered.");
             StartPlacementCooldown(config);
             NotifyPlacedCarrierContacts(mechanisms[id]);
             return new MechanismPlacementResult(true, id, string.Empty);
@@ -601,10 +628,17 @@ namespace SlimeBattle.Mechanisms
                             authoring);
                         continue;
                     }
+                    if (!authoring.HasValidCarrierAnchors)
+                    {
+                        Debug.LogError("MechanismSystem: escort weapon requires four child carrier anchors.",
+                            authoring);
+                        continue;
+                    }
                     try
                     {
                         weapon = new EscortWeapon(MechanismId.NewId(), config,
                             route, authoring.transform, mapManager);
+                        weaponAuthoring = authoring;
                         weaponTransform = authoring.transform;
                         boardingRadius = config.BoardingRadiusWorldUnits;
                         weapon.Damaged += (snapshot, source, request, loss) =>
@@ -656,10 +690,17 @@ namespace SlimeBattle.Mechanisms
                     continue;
                 }
                 if (!inside || mustLeaveBoardingZone.Contains(slime.ActorId) ||
-                    weaponSnapshot.CarrierCount >= 4 || MustLeaveWeapon(slime)) continue;
-                if (carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform,
-                    slime.Position - weaponSnapshot.Position) && weapon.AddCarrier(slime.ActorId))
-                    weaponSnapshot = weapon.GetSnapshot();
+                    weaponSnapshot.CarrierCount >= EscortWeapon.MaximumCarrierCount ||
+                    MustLeaveWeapon(slime)) continue;
+                if (!weapon.TryAddCarrier(slime.ActorId, out var anchorIndex)) continue;
+                if (!weaponAuthoring.TryGetCarrierAnchor(anchorIndex, out var anchor) ||
+                    !carrierSlimes.TryAttachCarrier(slime.ActorId, weaponTransform,
+                        anchor.localPosition))
+                {
+                    weapon.RemoveCarrier(slime.ActorId);
+                    continue;
+                }
+                weaponSnapshot = weapon.GetSnapshot();
             }
         }
 
@@ -946,16 +987,6 @@ namespace SlimeBattle.Mechanisms
                 if (mechanism.IsPlayerPlaced && mechanism.State != MechanismState.Removed &&
                     mechanism.State != MechanismState.Exhausted) count++;
             }
-            return count;
-        }
-
-        private int CountActivePlacedMechanisms(ConfigId configId)
-        {
-            var count = 0;
-            foreach (var mechanism in mechanisms.Values)
-                if (mechanism.IsPlayerPlaced && mechanism.Config.ConfigId == configId &&
-                    mechanism.State != MechanismState.Removed &&
-                    mechanism.State != MechanismState.Exhausted) count++;
             return count;
         }
 

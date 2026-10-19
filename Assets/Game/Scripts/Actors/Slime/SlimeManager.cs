@@ -6,6 +6,7 @@ using SlimeBattle.Actors.Slimes;
 using SlimeBattle.Actors.SlimeGroups;
 using SlimeBattle.Core;
 using SlimeBattle.Data;
+using SlimeBattle.Mechanisms;
 using SlimeBattle.World;
 using SlimeBattle.World.Movement;
 using UnityEngine;
@@ -119,6 +120,12 @@ namespace SlimeBattle.Slimes
             if (disposed || !actors.TryGetValue(actorId, out var actor)) return false;
             snapshot = actor.GetSnapshot();
             return true;
+        }
+
+        internal bool NotifyMechanismTriggered(ActorId actorId, MechanismKind kind)
+        {
+            return !disposed && actors.TryGetValue(actorId, out var actor) &&
+                actor.NotifyMechanismTriggered(kind);
         }
 
         internal bool TryAttachCarrier(ActorId actorId, Transform weapon,
@@ -344,11 +351,9 @@ namespace SlimeBattle.Slimes
         private bool TryRegisterMovement(SlimeActor actor, float moveSpeedPixelsPerSecond)
         {
             if (movementSystem == null) return true;
-            var spriteRenderer = actor.GetComponent<SpriteRenderer>();
-            if (spriteRenderer == null || spriteRenderer.sprite == null) return false;
             return movementSystem.RegisterActor(actor.ActorId,
                 actor.GetComponent<Rigidbody2D>(), moveSpeedPixelsPerSecond,
-                spriteRenderer.sprite.pixelsPerUnit, actor.NotifyMovementResult,
+                actor.GameplayPixelsPerUnit, actor.NotifyMovementResult,
                 actor.NotifyMovementCompleted);
         }
 

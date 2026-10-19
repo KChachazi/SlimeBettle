@@ -26,9 +26,10 @@ The current background is `IMG_FirstLevel_AnningTown.png`, a 5760 × 5760 image 
 ## Runtime behavior
 
 - `MapLayoutAuthoring` draws road polygons, swamp polygons, the route, spawn points, and the trap point as Scene View Gizmos for debugging.
+- `MapRoot` has no physical `Collider2D` for the map. Its `Map Art` child is only a `SpriteRenderer`; `MapManager.CanOccupy` uses the road polygons from `MAP_FirstLevel.asset` and any registered static colliders to decide whether movement and placement are allowed.
 - `MapManager.CanOccupy` checks map bounds, road-area membership, and registered static blockers. Where any road areas are configured, points outside every road polygon are rejected.
 - `MovementSystem` checks the next physics-step position before setting the dynamic `Rigidbody2D` velocity. Leaving road or hitting a registered static blocker stops the current straight-line request and reports it as blocked. A 0.2-unit road tolerance bridges small source measurement seams; movement does not use pathfinding.
-- The Slime follows `route_escort`. Enemies spawn at the three authored points and their random-walk destinations are filtered through map occupancy.
+- The escort weapon follows `route_escort`. Free Slimes respond to active guidance sources; without one, they choose random destinations within 1.5 Unity units of their current position. Enemies spawn at the three authored points and their random-walk destinations are filtered through map occupancy.
 - Placement preview and final mechanism placement both validate against walkable road and static blockers.
 
 ## Current limits and verification

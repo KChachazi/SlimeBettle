@@ -23,6 +23,7 @@ namespace SlimeBattle.Actors.Spawning
         private readonly MovementSystem movementSystem;
         private readonly MapManager mapManager;
         private readonly EnemyActivityBounds defaultWanderBounds;
+        private readonly float slimeWanderRadius;
         private readonly System.Random random = new System.Random();
         private readonly Dictionary<ActorId, Vector2> destinations =
             new Dictionary<ActorId, Vector2>();
@@ -30,13 +31,15 @@ namespace SlimeBattle.Actors.Spawning
 
         public RandomWalkPerceptionSource(SlimeManager slimeManager,
             EnemyManager enemyManager, MovementSystem movementSystem,
-            EnemyActivityBounds defaultWanderBounds, MapManager mapManager = null)
+            EnemyActivityBounds defaultWanderBounds, MapManager mapManager = null,
+            float slimeWanderRadius = 0f)
         {
             this.slimeManager = slimeManager ?? throw new ArgumentNullException(nameof(slimeManager));
             this.enemyManager = enemyManager ?? throw new ArgumentNullException(nameof(enemyManager));
             this.movementSystem = movementSystem ?? throw new ArgumentNullException(nameof(movementSystem));
             this.defaultWanderBounds = defaultWanderBounds;
             this.mapManager = mapManager;
+            this.slimeWanderRadius = Mathf.Max(0f, Mathf.Abs(slimeWanderRadius));
         }
 
         public PerceptionSnapshot GetPerception(ActorId actorId)
@@ -53,7 +56,9 @@ namespace SlimeBattle.Actors.Spawning
                 shouldChooseDestination = ShouldChooseNewDestination(actorId, actor.Position, destination);
             if (shouldChooseDestination)
             {
-                destination = ChooseDestination(bounds, actor.Position);
+                destination = actor.ActorType == ActorType.Slime && slimeWanderRadius > 0f
+                    ? ChooseLocalSlimeDestination(actor.Position)
+                    : ChooseDestination(bounds, actor.Position);
                 destinations[actorId] = destination;
             }
 
@@ -112,6 +117,25 @@ namespace SlimeBattle.Actors.Spawning
                     minimum.y + (float)random.NextDouble() * (maximum.y - minimum.y));
                 if ((candidate - currentPosition).sqrMagnitude <
                     MinimumDestinationDistance * MinimumDestinationDistance) continue;
+                if (mapManager != null && !mapManager.CanOccupy(candidate,
+                    new OccupancyQuery(checkStaticBlockers: true, roadTolerance: 0.2f)))
+                    continue;
+                return candidate;
+            }
+            return currentPosition;
+        }
+
+        private Vector2 ChooseLocalSlimeDestination(Vector2 currentPosition)
+        {
+            var minimumDistance = Mathf.Min(MinimumDestinationDistance, slimeWanderRadius);
+            for (var attempt = 0; attempt < 12; attempt++)
+            {
+                var angle = (float)random.NextDouble() * Mathf.PI * 2f;
+                var distance = Mathf.Sqrt(minimumDistance * minimumDistance +
+                    (float)random.NextDouble() *
+                    (slimeWanderRadius * slimeWanderRadius - minimumDistance * minimumDistance));
+                var candidate = currentPosition + new Vector2(
+                    Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
                 if (mapManager != null && !mapManager.CanOccupy(candidate,
                     new OccupancyQuery(checkStaticBlockers: true, roadTolerance: 0.2f)))
                     continue;

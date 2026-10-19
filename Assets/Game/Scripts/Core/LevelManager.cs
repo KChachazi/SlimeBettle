@@ -15,6 +15,8 @@ namespace SlimeBattle.Core
         [SerializeField] private SlimeActor slimePrefab;
         [SerializeField] private EnemyActor enemyPrefab;
         [SerializeField] private GuardActor guardPrefab;
+        [SerializeField] private CampaignResourceConfig campaignResourceConfig;
+        private CampaignResourceLedger campaignResources;
         private bool initialized;
         private bool disposed;
         private Coroutine loadCoroutine;
@@ -57,6 +59,17 @@ namespace SlimeBattle.Core
             initialized = true;
         }
 
+        public bool StartNewCampaign()
+        {
+            if (!TryEnsureCampaignResources(out var error))
+            {
+                Debug.LogError("LevelManager: " + error, this);
+                return false;
+            }
+            campaignResources.StartNewCampaign();
+            return true;
+        }
+
         public void RequestLoadLevel(LevelId levelId)
         {
             if (!CanStartTransition())
@@ -76,6 +89,12 @@ namespace SlimeBattle.Core
                 return;
             }
 
+            if (!TryEnsureCampaignResources(out var campaignError))
+            {
+                NotifyLoadFailed(levelId, campaignError);
+                return;
+            }
+
             loadCoroutine = StartCoroutine(LoadLevelRoutine(levelId, false));
         }
 
@@ -87,6 +106,11 @@ namespace SlimeBattle.Core
             var scene = SceneManager.GetActiveScene();
             if (!scene.IsValid() || !scene.isLoaded || string.IsNullOrEmpty(scene.name))
                 return false;
+            if (!TryEnsureCampaignResources(out var campaignError))
+            {
+                NotifyLoadFailed(new LevelId(scene.name), campaignError);
+                return false;
+            }
             currentLevelId = new LevelId(scene.name);
             startedCurrentSceneInPlace = true;
             SetState(LevelState.Initializing);
@@ -168,6 +192,11 @@ namespace SlimeBattle.Core
             {
                 return false;
             }
+
+            if (result == LevelResult.Succeeded && campaignResources != null &&
+                currentContext != null && currentContext.SlimeManager != null)
+                campaignResources.AwardLevel(currentLevelId,
+                    currentContext.SlimeManager.GetAliveSnapshots().Count);
 
             SetState(result == LevelResult.Succeeded
                 ? LevelState.Succeeded
@@ -280,12 +309,19 @@ namespace SlimeBattle.Core
                 return false;
             }
 
+            if (!TryEnsureCampaignResources(out var campaignError))
+            {
+                FailActiveLoad(levelId, campaignError);
+                return false;
+            }
+            campaignResources.BeginLevel(levelId, isRestart);
+
             registry.Freeze();
 
             try
             {
                 currentContext = new LevelContext(levelId, registry, levelConfig,
-                    slimePrefab, enemyPrefab, guardPrefab);
+                    slimePrefab, enemyPrefab, guardPrefab, campaignResources);
                 currentContext.Initialize();
                 currentContext.ResultRules.ResultDecided += OnResultDecided;
             }
@@ -331,6 +367,23 @@ namespace SlimeBattle.Core
         private bool CanStartTransition()
         {
             return initialized && !disposed && loadCoroutine == null;
+        }
+
+        private bool TryEnsureCampaignResources(out string error)
+        {
+            if (campaignResourceConfig == null)
+            {
+                error = "CampaignResourceConfig is not assigned.";
+                return false;
+            }
+            if (campaignResources == null)
+            {
+                if (!campaignResourceConfig.TryValidate(out error)) return false;
+                campaignResources = new CampaignResourceLedger(campaignResourceConfig);
+            }
+            if (!campaignResources.IsStarted) campaignResources.StartNewCampaign();
+            error = string.Empty;
+            return true;
         }
 
         private void SetState(LevelState nextState)
