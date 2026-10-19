@@ -124,6 +124,28 @@ namespace SlimeBattle.Tests
         }
 
         [Test]
+        public void MovingStateKeepsRequestForSmallMovingTargetDrift()
+        {
+            var self = Snapshot("self", "slime", Vector2.zero);
+            var world = new FakeWorld();
+            var state = new ActorStateMachine(2f, 10f, 1f);
+            var context = new StateContext(.1f, self, world, world);
+
+            Assert.AreEqual(StateMachineResult.Accepted,
+                state.SubmitIntent(ActionIntent.Move(Vector2.right), context));
+            Assert.AreEqual(StateMachineResult.Accepted,
+                state.SubmitIntent(ActionIntent.Move(new Vector2(1.05f, 0f)), context));
+            Assert.AreEqual(1, world.Moves.Count);
+            Assert.AreEqual(0, world.CancelCount);
+
+            Assert.AreEqual(StateMachineResult.Accepted,
+                state.SubmitIntent(ActionIntent.Move(new Vector2(1.12f, 0f)), context));
+            Assert.AreEqual(2, world.Moves.Count);
+            Assert.AreEqual(1, world.CancelCount);
+            Assert.AreEqual(new Vector2(1.12f, 0f), world.Moves[1].Destination);
+        }
+
+        [Test]
         public void AttackRechecksTargetAndSubmitsOnlyOneEffectRequest()
         {
             var self = Snapshot("self", "slime", Vector2.zero);
@@ -464,6 +486,27 @@ namespace SlimeBattle.Tests
                         destination: new Vector2(2f, 0f))));
                 Assert.AreEqual(ActionIntentType.Move, escortIntent.Type);
                 Assert.AreEqual(new Vector2(2f, 0f), escortIntent.Destination);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
+
+        [Test]
+        public void GuardKeepsFollowingWhenEscortPostMovesWithinOldArrivalTolerance()
+        {
+            var config = ScriptableObject.CreateInstance<GuardConfig>();
+            try
+            {
+                config.SetConfigId("guard-moving-escort-post");
+                config.ConfigureStats(10, 100, 1f, 1f);
+                var guard = new ActorSnapshot(new ActorId("guard"),
+                    new FactionId("slime"), ActorType.Guard, true, Vector2.zero,
+                    100f, 100f);
+                var intent = new GuardDecision(config).Evaluate(new DecisionContext(
+                    guard, new PerceptionSnapshot(1, null, hasDestination: true,
+                        destination: new Vector2(.08f, 0f))));
+
+                Assert.AreEqual(ActionIntentType.Move, intent.Type);
+                Assert.AreEqual(new Vector2(.08f, 0f), intent.Destination);
             }
             finally { UnityEngine.Object.DestroyImmediate(config); }
         }

@@ -6,6 +6,7 @@ namespace SlimeBattle.Actors.Guards
 {
     internal sealed class GuardDecision : DecisionNode
     {
+        private const float EscortArrivalTolerance = 0.05f;
         private readonly ConfigId abilityId;
         private readonly float attackRange;
         private readonly float leashDistance;
@@ -48,7 +49,7 @@ namespace SlimeBattle.Actors.Guards
                     : ActionIntent.Move(nearest.Position, "Intercept nearby enemy.");
 
             return Vector2.Distance(context.Actor.Position,
-                standPosition) > .1f
+                standPosition) > EscortArrivalTolerance
                 ? ActionIntent.Move(standPosition, "Return to guard post.")
                 : ActionIntent.Wait("Hold guard post.");
         }

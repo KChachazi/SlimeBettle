@@ -72,6 +72,84 @@ namespace SlimeBattle.Tests.MapMovement
         }
 
         [UnityTest]
+        public IEnumerator GuardStaysNearTheMovingEscortWeapon()
+        {
+            var operation = SceneManager.LoadSceneAsync("Bootstrap", LoadSceneMode.Single);
+            while (operation != null && !operation.isDone) yield return null;
+
+            MainMenuLevelEntry entry = null;
+            for (var frame = 0; frame < 300 && entry == null; frame++)
+            {
+                if (SceneManager.GetActiveScene().name == "MainMenu")
+                    entry = Object.FindObjectOfType<MainMenuLevelEntry>(true);
+                if (entry == null) yield return null;
+            }
+            Assert.IsNotNull(entry);
+
+            var root = Object.FindObjectOfType<GameRoot>();
+            Assert.IsNotNull(root);
+            var manager = root.GetLevelManager();
+            Assert.IsNotNull(manager);
+            try
+            {
+                string loadFailure = null;
+                manager.LevelLoadFailed += failure => loadFailure = failure.Reason;
+                entry.StartFirstLevel();
+
+                for (var frame = 0; frame < 600; frame++)
+                {
+                    if (manager.GetLevelState() == LevelState.Running &&
+                        manager.GetCurrentLevelId().Value == "FirstLevel") break;
+                    yield return null;
+                }
+                Assert.AreEqual(LevelState.Running, manager.GetLevelState(), loadFailure);
+                Assert.AreEqual("FirstLevel", manager.GetCurrentLevelId().Value);
+                Assert.IsNotNull(Object.FindObjectOfType<FirstLevelCompositionRoot>());
+
+                var context = manager.GetCurrentContext();
+                Assert.IsNotNull(context);
+                Assert.AreEqual(1, context.GuardManager.GetAliveSnapshots().Count);
+                context.EnemyManager.Dispose();
+                Assert.IsTrue(context.MechanismSystem.TryGetWeaponSnapshot(out var initialWeapon));
+                Assert.AreEqual("route_escort", initialWeapon.RouteId.Value);
+
+                var weaponMoved = false;
+                for (var frame = 0; frame < 360; frame++)
+                {
+                    yield return null;
+                    if (!context.MechanismSystem.TryGetWeaponSnapshot(out var currentWeapon) ||
+                        currentWeapon.CarrierCount == 0 ||
+                        Vector2.Distance(initialWeapon.Position, currentWeapon.Position) <= .25f)
+                        continue;
+                    weaponMoved = true;
+                    break;
+                }
+                Assert.IsTrue(weaponMoved,
+                    "The formal first level must start escort transport before checking guard follow.");
+
+                var maximumGuardDistance = 0f;
+                var finalWeapon = initialWeapon;
+                for (var frame = 0; frame < 240; frame++)
+                {
+                    yield return null;
+                    Assert.IsTrue(context.MechanismSystem.TryGetWeaponSnapshot(
+                        out finalWeapon));
+                    var guard = context.GuardManager.GetAliveSnapshots()[0];
+                    maximumGuardDistance = Mathf.Max(maximumGuardDistance,
+                        Vector2.Distance(guard.Position, finalWeapon.Position));
+                }
+                Assert.That(Vector2.Distance(initialWeapon.Position, finalWeapon.Position),
+                    Is.GreaterThan(.5f));
+                Assert.That(maximumGuardDistance, Is.LessThan(2f),
+                    "The guard must remain around the moving weapon throughout the route segment.");
+            }
+            finally
+            {
+                manager.Dispose();
+            }
+        }
+
+        [UnityTest]
         public IEnumerator FreeSlimesWanderLocallyInsteadOfFollowingTheWeaponRoute()
         {
             var previous = SceneManager.GetActiveScene();

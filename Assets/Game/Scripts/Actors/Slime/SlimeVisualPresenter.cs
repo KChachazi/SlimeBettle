@@ -72,6 +72,24 @@ namespace SlimeBattle.Actors.Slimes
         public void PlayFurnace() => PlayOneShot("Furnace");
         public void PlayHit() => PlayOneShot("Hit");
 
+        public float PlayDeath()
+        {
+            if (!initialized || animator == null)
+            {
+                StopForDeath();
+                return 0f;
+            }
+
+            UpdateAnimationSet();
+            var deathClip = ResolveDeathClip();
+            stopped = true;
+            actionPlaying = false;
+            activeStateShortHash = Animator.StringToHash("Death");
+            animator.enabled = true;
+            animator.Play(Animator.StringToHash("Base Layer.Death"), 0, 0f);
+            return deathClip == null ? 0f : deathClip.length;
+        }
+
         public void StopForDeath()
         {
             stopped = true;
@@ -128,6 +146,35 @@ namespace SlimeBattle.Actors.Slimes
                 animator.Play(StatePath(activeStateShortHash), 0, normalizedTime);
             }
             activeNeedState = needState;
+        }
+
+        private AnimationClip ResolveDeathClip()
+        {
+            AnimationClip baseDeathClip = null;
+            if (normalController != null)
+            {
+                foreach (var clip in normalController.animationClips)
+                {
+                    if (clip != null && clip.name == "Slime_Normal_Death")
+                    {
+                        baseDeathClip = clip;
+                        break;
+                    }
+                }
+            }
+
+            if (baseDeathClip == null) return null;
+            var overrideController = animator.runtimeAnimatorController as AnimatorOverrideController;
+            if (overrideController == null) return baseDeathClip;
+
+            var overrides = new List<KeyValuePair<AnimationClip, AnimationClip>>();
+            overrideController.GetOverrides(overrides);
+            foreach (var clipOverride in overrides)
+            {
+                if (clipOverride.Key == baseDeathClip)
+                    return clipOverride.Value == null ? baseDeathClip : clipOverride.Value;
+            }
+            return baseDeathClip;
         }
 
         private RuntimeAnimatorController ResolveController(SlimeNeedState needState)
@@ -205,6 +252,7 @@ namespace SlimeBattle.Actors.Slimes
             if (stateHash == Animator.StringToHash("Furnace")) return "Base Layer.Furnace";
             if (stateHash == Animator.StringToHash("Hit")) return "Base Layer.Hit";
             if (stateHash == Animator.StringToHash("Collision")) return "Base Layer.Collision";
+            if (stateHash == Animator.StringToHash("Death")) return "Base Layer.Death";
             return "Base Layer.Idle";
         }
 
