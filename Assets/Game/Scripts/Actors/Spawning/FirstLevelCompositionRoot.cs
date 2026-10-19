@@ -130,7 +130,12 @@ namespace SlimeBattle.Actors.Spawning
                 entitiesRoot == null || mechanismsRoot == null ||
                 presentationRoot == null || context.GuardManager == null)
             {
-                Debug.LogError("FirstLevelCompositionRoot references are incomplete.", this);
+                Debug.LogError($"FirstLevelCompositionRoot references are incomplete " +
+                    $"(slimeConfig={slimeConfig != null}, enemyConfig={enemyConfig != null}, " +
+                    $"mapRoot={mapRoot != null}, entitiesRoot={entitiesRoot != null}, " +
+                    $"mechanismsRoot={mechanismsRoot != null}, " +
+                    $"presentationRoot={presentationRoot != null}, " +
+                    $"guardManager={context.GuardManager != null}).", this);
                 return;
             }
             if (!context.MapManager.TryGetRoute(new MapRouteId(defaultRouteId), out var route) ||
