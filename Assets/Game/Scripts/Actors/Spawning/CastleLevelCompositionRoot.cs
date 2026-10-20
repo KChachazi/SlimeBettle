@@ -41,14 +41,14 @@ namespace SlimeBattle.Actors.Spawning
             public PerceptionSnapshot GetPerception(ActorId actorId)
             {
                 var target = targets.GetPerception(actorId);
-                var roaming = wander.GetPerception(actorId);
                 var guides = new List<GuidanceObservation>();
                 if (target.Guides != null) guides.AddRange(target.Guides);
-                if (roaming.Guides != null) guides.AddRange(roaming.Guides);
                 if (mechanisms != null && slimes != null &&
                     slimes.TryGetSnapshot(actorId, out var slime) &&
                     slime.IsAlive && !slime.IsCarrying)
                 {
+                    var roaming = wander.GetPerception(actorId);
+                    if (roaming.Guides != null) guides.AddRange(roaming.Guides);
                     foreach (var source in mechanisms.GetGuideSourcesInRange(
                         slime.Position, slime.PixelsPerUnit))
                     {

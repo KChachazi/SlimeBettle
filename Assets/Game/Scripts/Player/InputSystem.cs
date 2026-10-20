@@ -32,6 +32,8 @@ namespace SlimeBattle.Player.Input
         private bool hasFocus = true;
         private bool isPointerCaptured;
         private bool isCameraDragging;
+        private bool isPointerGestureClaimed;
+        private bool isPointerGestureDragging;
         private bool isPointerBlocked;
         private bool shouldWaitForRelease;
 
@@ -63,6 +65,17 @@ namespace SlimeBattle.Player.Input
         }
 
         public InputMode GetInputMode() { return mode; }
+
+        public bool IsPointerGestureClaimed => isPointerGestureClaimed;
+        public bool IsPointerGestureDragging => isPointerGestureDragging;
+
+        public bool ClaimPointerGesture()
+        {
+            if (!isPointerCaptured || isPointerBlocked) return false;
+            isPointerGestureClaimed = true;
+            isCameraDragging = false;
+            return true;
+        }
 
         // Reading does not consume edges; every consumer sees the same frame.
         public PlayerInputSnapshot ReadSnapshot()
@@ -140,23 +153,31 @@ namespace SlimeBattle.Player.Input
             {
                 isPointerCaptured = true;
                 isCameraDragging = false;
+                isPointerGestureClaimed = false;
+                isPointerGestureDragging = false;
                 pressPosition = position;
+                inputEvents.Publish(new PointerPressedEvent(position));
             }
             var didRelease = isPointerCaptured && press.WasReleasedThisFrame();
             var isHeld = isPointerCaptured && press.IsPressed();
             var wasDragging = isCameraDragging;
-            if (canPlay && primaryPointer is Mouse && (isHeld || didRelease) &&
+            if ((isHeld || didRelease) &&
                 (position - pressPosition).sqrMagnitude >= cameraDragThreshold * cameraDragThreshold)
             {
-                isCameraDragging = true;
+                isPointerGestureDragging = true;
+                if (canPlay && primaryPointer is Mouse && !isPointerGestureClaimed)
+                    isCameraDragging = true;
             }
+            if (isPointerGestureClaimed) isCameraDragging = false;
             var cameraDrag = canPlay && isCameraDragging && (isHeld || didRelease)
                 ? (wasDragging ? delta : position - pressPosition) : Vector2.zero;
             // A mouse press can become a map drag. Commit its click only on release;
             // touch keeps its existing tap behavior and never pans the camera here.
             var didPrimary = primaryPointer is Mouse
-                ? didRelease && !isCameraDragging && canPlay && !isOverUi
-                : didPress;
+                ? didRelease && !isPointerGestureDragging && !isCameraDragging && canPlay && !isOverUi
+                : isPointerGestureClaimed
+                    ? didRelease && !isPointerGestureDragging && canPlay && !isOverUi
+                    : didPress;
             var movement = canPlay ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
             var didAttack = canPlay && !isOverUi && !isPointerBlocked && !isHeld && attack.WasPressedThisFrame();
             var didRotatePlacement = canPlay && !isOverUi && !isPointerBlocked && !isHeld &&
@@ -165,10 +186,6 @@ namespace SlimeBattle.Player.Input
                 movement, didPress, isHeld, didRelease, didAttack, didCancel,
                 cameraDrag, canPlay && !isOverUi ? ReadZoom() : 0f, isPointerBlocked);
 
-            if (didPress)
-            {
-                inputEvents.Publish(new PointerPressedEvent(position));
-            }
             if (didPrimary) { Submit(new PlayerCommand(PlayerCommandKind.PrimaryAction, Vector2.zero, position)); }
             if (isHeld && delta.sqrMagnitude > 0f)
             {
@@ -176,9 +193,11 @@ namespace SlimeBattle.Player.Input
             }
             if (didRelease)
             {
+                inputEvents.Publish(new PointerReleasedEvent(position));
                 isPointerCaptured = false;
                 isCameraDragging = false;
-                inputEvents.Publish(new PointerReleasedEvent(position));
+                isPointerGestureClaimed = false;
+                isPointerGestureDragging = false;
             }
             if (press.WasReleasedThisFrame()) { isPointerBlocked = false; primaryPointer = null; }
             if (movement != Vector2.zero || previousMovement != Vector2.zero)
@@ -232,6 +251,8 @@ namespace SlimeBattle.Player.Input
         {
             isPointerCaptured = false;
             isCameraDragging = false;
+            isPointerGestureClaimed = false;
+            isPointerGestureDragging = false;
             isPointerBlocked = false;
             primaryPointer = null;
             previousMovement = Vector2.zero;
