@@ -15,11 +15,11 @@ MonoBehaviour:
   configId: first_level_food
   kind: 1
   playerPlaceable: 1
-  attractionRadiusPixels: 400
-  placementRadiusWorldUnits: 0.4
-  activationLimit: 1
+  attractionRadiusPixels: 500
+  placementRadiusWorldUnits: 0.5
+  activationLimit: 3
   activationCooldownSeconds: 0
   placementCooldownSeconds: 0
   durability: 0
-  collisionRadiusPixels: 40
+  collisionRadiusPixels: 50
   placementPrefab: {fileID: 4158809275090521991, guid: b8b3157dc63bc194aa051428df75a060, type: 3}
