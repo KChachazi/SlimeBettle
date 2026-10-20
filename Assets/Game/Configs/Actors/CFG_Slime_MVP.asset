@@ -15,8 +15,8 @@ MonoBehaviour:
   configId: mvp_slime
   attackPower: 30
   maxHealth: 500
-  moveSpeed: 200
-  attackInterval: 1
-  attackRange: 1.2
-  detectionRange: 1.5
+  moveSpeed: 100
+  attackInterval: 1.2
+  attackRange: 1
+  detectionRange: 3
   attackWindup: 0.15
