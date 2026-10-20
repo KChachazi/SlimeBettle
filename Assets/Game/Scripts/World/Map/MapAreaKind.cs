@@ -6,6 +6,7 @@ namespace SlimeBattle.World
         Terrain = 1,
         Region = 2,
         Placement = 3,
-        Goal = 4
+        Goal = 4,
+        Hazard = 5
     }
 }

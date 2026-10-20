@@ -33,6 +33,8 @@ namespace SlimeBattle.World
             {
                 Gizmos.color = area.Area.Kind == MapAreaKind.Road
                     ? new Color(0.15f, 0.9f, 0.35f, 0.9f)
+                    : area.Area.Kind == MapAreaKind.Hazard
+                        ? new Color(1f, 0.15f, 0.1f, 0.95f)
                     : area.Area.TerrainKind == MapTerrainKind.Swamp
                         ? new Color(0.1f, 0.65f, 1f, 0.95f)
                         : new Color(1f, 0.75f, 0.15f, 0.9f);
@@ -59,10 +61,14 @@ namespace SlimeBattle.World
             {
                 Gizmos.color = point.Kind == MapPointKind.EnemySpawn
                     ? Color.red
+                    : point.Kind == MapPointKind.EliteSpawn
+                        ? new Color(1f, 0.35f, 0.05f)
                     : point.Kind == MapPointKind.SlimeSpawn
                         ? Color.green
                     : point.Kind == MapPointKind.Trap
                         ? Color.magenta
+                    : point.Kind == MapPointKind.Supply
+                        ? new Color(1f, 0.8f, 0.15f)
                         : Color.white;
                 Gizmos.DrawSphere(point.Position, 0.13f);
                 if (point.Kind == MapPointKind.Trap && point.InteractionRadiusPixels > 0f)

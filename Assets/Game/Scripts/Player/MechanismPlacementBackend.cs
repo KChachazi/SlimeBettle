@@ -32,8 +32,10 @@ namespace SlimeBattle.Player.Placement
             if (!mechanisms.TryGetPlayerConfigId(kind, out var configId))
                 return new PlacementResult(false, default, "The selected mechanism is unavailable.");
             var result = request.AnchorId.IsValid
-                ? mechanisms.RequestPlaceAtAnchor(configId, request.AnchorId)
-                : mechanisms.RequestPlace(configId, request.WorldCenter);
+                ? mechanisms.RequestPlaceAtAnchor(configId, request.AnchorId,
+                    request.RotationDegrees)
+                : mechanisms.RequestPlace(configId, request.WorldCenter,
+                    request.RotationDegrees);
             return new PlacementResult(result.Succeeded, result.MechanismId, result.Reason);
         }
         public PlacementBudgetSnapshot GetBudgetSnapshot()
@@ -56,7 +58,14 @@ namespace SlimeBattle.Player.Placement
                 foreach (var snapshot in mechanisms.GetActiveSnapshots())
                 {
                     if (snapshot.IsPlayerPlaced && snapshot.State != MechanismState.Removed && snapshot.State != MechanismState.Exhausted)
-                    { placed.Add(new PlacementObjectSnapshot(snapshot.MechanismId, snapshot.Position)); }
+                    {
+                        var item = snapshot.Kind == MechanismKind.Obstacle
+                            ? PlacementItemId.Obstacle
+                            : snapshot.Kind == MechanismKind.Food
+                                ? PlacementItemId.Food : PlacementItemId.Furnace;
+                        placed.Add(new PlacementObjectSnapshot(snapshot.MechanismId,
+                            snapshot.Position, item, snapshot.RotationDegrees));
+                    }
                 }
             }
             return placed.AsReadOnly();

@@ -16,7 +16,9 @@ namespace SlimeBattle.Player.Input
         /// <summary>A mouse click (release without dragging) or touch press occurred at ScreenPosition.</summary>
         PrimaryAction,
         /// <summary>Reserved/debug request only; never applies combat effects.</summary>
-        Attack
+        Attack,
+        /// <summary>Rotates the currently selected placeable mechanism.</summary>
+        RotatePlacement
     }
 
     public readonly struct PlayerInputSnapshot

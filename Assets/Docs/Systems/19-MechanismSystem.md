@@ -5,7 +5,7 @@
 默认命名空间：`SlimeBattle.Mechanisms`  
 建议实现目录：`Assets/Game/Scripts/Mechanism/`  
 生命周期：当前关卡上下文生命周期  
-状态：食物/熔炉/障碍已有基础运行时；第一关机关与地图点的静态配置已录入；陷阱/补给触发运行时、首关装配和结果接入仍待实现/联调
+状态：食物/熔炉/障碍已有基础运行时；FirstLevel 的宝箱、滚石、沼泽表现和祭坛已由关卡装配器接入；本关特殊物仍使用轻量场景适配器，尚未统一迁入 MechanismSystem。
 逻辑归属：`Map` 领域下辖的动态机关子模块
 当前负责人：小智（已确认）
 
@@ -112,7 +112,7 @@ WeaponReachedGoalEvent
 | 食物 | 吸引范围内的史莱姆；进食后消失，并通过效果请求解除饥饿；本关若采用敌人掉落食物，按局部供给规则接入 | 具体引导范围、使用次数、重生/掉落来源待策划和配置确认 |
 | 熔炉 | 首关只作为史莱姆引导源和视觉机关，不产生寒冷/炙热状态 | 吸引范围和重装冷却保留为配置待确认，不在本轮写死 |
 | 障碍 | 阻挡史莱姆、魔物和守卫，改变空间事实；普通格子重复放置拒绝；L/SL Anchor 按配置允许替换旧障碍并回收旧对象 | 障碍耐久、同时存在上限和路线阻断后的选择时机待联调 |
-| 陷阱/补给 | 第一关策划范围内的路线关联运行时元素；由明确的公共接口触发并发布结果事实 | 最终所有者、激活条件和是否归入本系统待确认 |
+| 陷阱/补给 | 首关地刺由场景触发器向 StatusManager 请求持续伤害；宝箱由 Slime 接触后一次性增加 4 食物；滚石由 Slime 进入 Hazard 区域后延迟 1 秒向右滚动，每个单位在本次滚动中只受一次伤害 | 首关适配器暂由 FirstLevelCompositionRoot 装配；滚石伤害默认 20，可在场景上调整；之后可迁入统一机制接口 |
 | 护送武器 | 现有兼容链路：由史莱姆运输、守卫保护，沿地图路线事实移动；到达终点发布事实 | 不作为最新第一关成功条件；生命、运输人数、载体减速和路线参数待代码/策划联调 |
 
 障碍数量当前按周目暂定为：一周目 8 个、二周目 5 个、三周目 3 个。这里的“周目总可用数量”和“同时存在上限”是两个不同配置字段，不能混为一个计数。
@@ -137,8 +137,14 @@ WeaponReachedGoalEvent
 - `MechanismSystem` 负责可交互环境元素及其引导源快照；
 - `StatusManager` 负责寒冷、炙热、燃烧、冻结等状态和持续效果；
 - `MovementSystem` 负责接触、阻挡、位置结果和移动请求；
-- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不创建动态对象、不做概率判定，也不结算事件效果；本系统不会把这些地图点自动实例化为机关；
+- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不自行创建动态对象、不做概率判定，也不结算事件效果；FirstLevel 的宝箱/滚石由关卡装配器显式创建，本系统的通用 Trap/Supply 接口仍待后续统一；
 - 通用掉落物、固定/随机事件和道具系统不进入本轮；第一关局部食物供给、陷阱和补给的运行时归属及具体接口仍待确认。
+
+### 5.5 FirstLevel 地图物件接入
+
+`MAP_FirstLevel` 使用稳定地图点定位 `treasure_chest_01`、`rolling_rock_01`、`stone_art_02`、`swamp_art_01` 和 `elite_altar_art_01`。正式关卡由 `FirstLevelCompositionRoot` 根据这些点创建对应 SpriteRenderer；第二块石头仅表现，不带触发器。滚石触发区 `rolling_rock_trigger_01` 是 MapAreaKind.Hazard 多边形，装配器据其边界创建实际 Trigger Collider2D。只有 `rolling_rock_01` 会响应 Slime 进入，等待 1 秒后向右移动至触发区右边界。默认滚速为 6 Unity units/s，单次伤害为 20 HP，均可在 FirstLevel 场景的装配器组件上调整；伤害经 StatusManager 结算并按 ActorId 去重。
+
+宝箱只接受活着的 Slime 接触，调用 `CampaignResourceLedger.AddFood(4)`，受关卡食物库存上限约束，成功增加后隐藏。祭坛 Sprite 与地图中的 EliteSpawn 点分别表达视觉和刷怪事实；当前无专属精英配置，仍使用该关已配置的 EnemyConfig。
 
 Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager 的区域事实并按配置申请或解除对应状态。暖区的吸引源快照由 MechanismSystem 从 MapManager 的区域边界和配置范围生成；区域归属本身不等同于吸引范围。`GetGuideSourcesInRange` 将像素半径按 Actor 精灵的 `pixelsPerUnit` 转换为世界距离，供感知层选择。
 
