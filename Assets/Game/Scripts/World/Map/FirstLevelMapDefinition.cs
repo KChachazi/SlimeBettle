@@ -304,7 +304,8 @@ namespace SlimeBattle.World
             if (entry.Kind == MapAreaKind.Region)
                 return Enum.IsDefined(typeof(MapRegionKind), entry.RegionKind) &&
                     entry.RegionKind != MapRegionKind.None;
-            return entry.Kind == MapAreaKind.Placement || entry.Kind == MapAreaKind.Goal;
+            return entry.Kind == MapAreaKind.Placement || entry.Kind == MapAreaKind.Goal ||
+                entry.Kind == MapAreaKind.Hazard;
         }
 
         private static List<PlacementAnchorId> BuildAnchorIds(List<string> values)

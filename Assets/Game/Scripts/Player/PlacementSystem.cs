@@ -30,6 +30,7 @@ namespace SlimeBattle.Player.Placement
         private bool isConfirming;
         private bool hasOccupancyChanges;
         private int revision;
+        private int rotationQuarterTurns;
         private PlacementPreview preview;
 
         public PlacementSystem(PlacementGridAuthoring grid, Func<MapBounds?> readBounds,
@@ -59,6 +60,7 @@ namespace SlimeBattle.Player.Placement
         public bool CanRemove => !isDisposed && backend is IPlacementRemovalBackend removal && removal.SupportsRemoval;
         public bool IsRunning => !isDisposed && readPhase() == LevelState.Running;
         public PlacementItemId SelectedItem { get; private set; }
+        public float CurrentRotationDegrees => rotationQuarterTurns * 90f;
         public string Hint { get; private set; } = "Choose Food, Furnace or Obstacle.";
         public PlacementPreview GetCurrentPreview() { return preview; }
         public PlacementBudgetSnapshot GetBudgetSnapshot() { return isDisposed ? default : backend.GetBudgetSnapshot(); }
@@ -69,13 +71,14 @@ namespace SlimeBattle.Player.Placement
         /// <summary>Read-only road/open-cell hint. Final confirmation still validates the backend request.</summary>
         public bool IsCellPlaceable(Vector3Int cell)
         {
-            if (!IsPlacing || !IsRunning || occupied.Contains(cell)) return false;
+            if (!IsPlacing || !IsRunning || HasFootprintOverlap(cell, SelectedItem,
+                    rotationQuarterTurns)) return false;
             try
             {
                 var bounds = readBounds();
                 var center = grid.GetCellCenter(cell);
                 return bounds.HasValue && bounds.Value.Contains(center) &&
-                    (canOccupy == null || canOccupy(new Vector2(center.x, center.y)));
+                    IsFootprintWalkable(center, SelectedItem, rotationQuarterTurns);
             }
             catch (Exception) { return false; }
         }
@@ -88,6 +91,7 @@ namespace SlimeBattle.Player.Placement
             CancelPlacement();
             if (!IsRunning) { Hint = "Placement is only available while the level is running."; Changed?.Invoke(); return; }
             SelectedItem = itemId;
+            rotationQuarterTurns = 0;
             ReadAnchorData();
             ReadPlacedData();
             preview = new PlacementPreview(itemId, default, default, PlacementValidationStatus.NoPosition, "Click/tap a map cell to place it.");
@@ -126,12 +130,26 @@ namespace SlimeBattle.Player.Placement
             var next = Evaluate(worldPosition);
             var changed = hasAnchorChanges || hasOccupancyChanges || next.Cell != preview.Cell || next.Status != preview.Status ||
                 next.WorldCenter != preview.WorldCenter || next.Item != preview.Item || next.Message != preview.Message ||
-                next.RemovalTarget != preview.RemovalTarget;
+                next.RemovalTarget != preview.RemovalTarget ||
+                next.RotationDegrees != preview.RotationDegrees;
             preview = next;
             if (changed) { Hint = preview.Message; Changed?.Invoke(); }
             hasOccupancyChanges = false;
             hasAnchorChanges = false;
             return new PlacementValidationResult(preview);
+        }
+
+        public bool RotateCurrentPlacement()
+        {
+            if (!IsPlacing || SelectedItem != PlacementItemId.Obstacle || !IsRunning)
+                return false;
+            rotationQuarterTurns = (rotationQuarterTurns + 1) % 4;
+            if (hasPosition) PreviewPlacement(pointerWorld);
+            Hint = "Obstacle rotated to " + CurrentRotationDegrees +
+                " degrees. " + (hasPosition ? preview.Message :
+                    "Right-click to rotate; click to place.");
+            Changed?.Invoke();
+            return true;
         }
 
         public PlacementResult ConfirmPlacement()
@@ -142,7 +160,7 @@ namespace SlimeBattle.Player.Placement
             preview = Evaluate(pointerWorld);
             if (!preview.CanConfirm) { return Reject(preview.Message); }
             var request = new PlacementRequest(SelectedItem, preview.Cell, preview.WorldCenter,
-                preview.Anchor?.AnchorId ?? default);
+                preview.Anchor?.AnchorId ?? default, preview.RotationDegrees);
             var requestRevision = revision;
             PlacementResult result;
             isConfirming = true;
@@ -158,7 +176,7 @@ namespace SlimeBattle.Player.Placement
             if (!IsRunning) { CancelPlacement(); }
             if (result.Succeeded)
             {
-                occupied.Add(request.Cell);
+                ReadPlacedData();
                 if (requestRevision == revision)
                 {
                     if (confirmationMode == PlacementConfirmationMode.Single) { CancelPlacement(); }
@@ -176,6 +194,7 @@ namespace SlimeBattle.Player.Placement
         {
             revision++;
             SelectedItem = PlacementItemId.None;
+            rotationQuarterTurns = 0;
             IsRemoving = false;
             hasPosition = false;
             pointerWorld = default;
@@ -246,15 +265,16 @@ namespace SlimeBattle.Player.Placement
             try
             {
                 if (placementError != null) { return At(PlacementValidationStatus.Unavailable, placementError); }
-                if (canOccupy != null && !canOccupy(new Vector2(center.x, center.y)))
+                if (!IsFootprintWalkable(center, SelectedItem, rotationQuarterTurns))
                     return At(PlacementValidationStatus.InvalidArea,
-                        "Placement must stay on a walkable road area.");
+                        "The complete mechanism footprint must stay on a walkable road area.");
                 if (anchor.HasValue)
                 {
                     var status = GetAnchorStatus(anchor.Value);
                     return At(status, AnchorMessage(anchor.Value, status));
                 }
-                if (occupied.Contains(cell)) { return At(PlacementValidationStatus.Occupied, "This cell is occupied."); }
+                if (HasFootprintOverlap(cell, SelectedItem, rotationQuarterTurns))
+                    return At(PlacementValidationStatus.Occupied, "The mechanism footprint overlaps another placed item.");
                 if (!backend.IsAvailable) { return At(PlacementValidationStatus.Unavailable, "Mechanism creation API is not connected."); }
                 if (HasEmptyInventory())
                     return At(PlacementValidationStatus.InventoryEmpty,
@@ -267,7 +287,8 @@ namespace SlimeBattle.Player.Placement
             return At(PlacementValidationStatus.Free, "Free cell. Click/tap to place.");
 
             PlacementPreview At(PlacementValidationStatus status, string message)
-            { return new PlacementPreview(SelectedItem, cell, center, status, message, anchor); }
+            { return new PlacementPreview(SelectedItem, cell, center, status, message,
+                anchor, rotationDegrees: CurrentRotationDegrees); }
         }
 
         private void ReadPlacedData()
@@ -282,12 +303,16 @@ namespace SlimeBattle.Player.Placement
                 foreach (var item in snapshots)
                 {
                     if (!item.Id.IsValid) { continue; }
-                    next.Add(grid.WorldToCell(item.Position)); nextObjects.Add(item);
+                    nextObjects.Add(item);
+                    AddFootprintCells(next, item.Position, item.Item, item.RotationDegrees);
                 }
                 hasOccupancyChanges |= !occupied.SetEquals(next);
                 var sameObjects = placedObjects.Count == nextObjects.Count;
                 for (var i = 0; sameObjects && i < nextObjects.Count; i++)
-                { sameObjects = placedObjects[i].Id == nextObjects[i].Id && placedObjects[i].Position == nextObjects[i].Position; }
+                { sameObjects = placedObjects[i].Id == nextObjects[i].Id &&
+                    placedObjects[i].Position == nextObjects[i].Position &&
+                    placedObjects[i].Item == nextObjects[i].Item &&
+                    placedObjects[i].RotationDegrees == nextObjects[i].RotationDegrees; }
                 hasOccupancyChanges |= !sameObjects;
                 placedObjects.Clear(); placedObjects.AddRange(nextObjects);
                 occupied.Clear(); occupied.UnionWith(next); placementError = null;
@@ -339,6 +364,53 @@ namespace SlimeBattle.Player.Placement
                 a.AcceptedMechanismKinds.Count != b.AcceptedMechanismKinds.Count) { return false; }
             for (var i = 0; i < a.AcceptedMechanismKinds.Count; i++)
             { if (a.AcceptedMechanismKinds[i] != b.AcceptedMechanismKinds[i]) { return false; } }
+            return true;
+        }
+
+        private bool HasFootprintOverlap(Vector3Int centerCell, PlacementItemId item,
+            int quarterTurns)
+        {
+            if (item != PlacementItemId.Obstacle) return occupied.Contains(centerCell);
+            var axis = quarterTurns % 2 == 0 ? Vector3Int.up : Vector3Int.right;
+            return occupied.Contains(centerCell - axis) || occupied.Contains(centerCell) ||
+                occupied.Contains(centerCell + axis);
+        }
+
+        private void AddFootprintCells(HashSet<Vector3Int> cells, Vector3 position,
+            PlacementItemId item, float rotationDegrees)
+        {
+            var turns = Mathf.RoundToInt(Mathf.Repeat(rotationDegrees, 360f) / 90f) % 4;
+            var center = grid.WorldToCell(position);
+            if (item != PlacementItemId.Obstacle)
+            {
+                cells.Add(center);
+                return;
+            }
+
+            var axis = turns % 2 == 0 ? Vector3Int.up : Vector3Int.right;
+            cells.Add(center - axis);
+            cells.Add(center);
+            cells.Add(center + axis);
+        }
+
+        private bool IsFootprintWalkable(Vector3 center, PlacementItemId item,
+            int quarterTurns)
+        {
+            if (canOccupy == null) return true;
+            if (item != PlacementItemId.Obstacle)
+                return canOccupy(new Vector2(center.x, center.y));
+
+            var centerCell = grid.WorldToCell(center);
+            var axis = quarterTurns % 2 == 0 ? Vector3Int.up : Vector3Int.right;
+            var cellCenter = grid.GetCellCenter(centerCell);
+            var offset = grid.GetCellCenter(centerCell + axis) - cellCenter;
+            for (var step = -1; step <= 1; step++)
+            {
+                var point = center + offset * step;
+                var bounds = readBounds();
+                if (bounds.HasValue && !bounds.Value.Contains(point)) return false;
+                if (!canOccupy(new Vector2(point.x, point.y))) return false;
+            }
             return true;
         }
 

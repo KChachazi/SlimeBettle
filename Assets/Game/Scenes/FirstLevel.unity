@@ -306,6 +306,14 @@ MonoBehaviour:
   entitiesRoot: {fileID: 1497315027}
   mechanismsRoot: {fileID: 804170036}
   presentationRoot: {fileID: 59680050}
+  rollingRockSprite: {fileID: 21300000, guid: 36731316057647399423b5e28e96e0a2, type: 3}
+  treasureChestSprite: {fileID: 21300000, guid: a2eab1fd89c34879b2352539733bb8c4, type: 3}
+  swampSprite: {fileID: 21300000, guid: cf1a654274cf40e88bedb657599bf6e8, type: 3}
+  eliteAltarSprite: {fileID: 21300000, guid: 1cd5f4c95e904a688706b6c6187d513d, type: 3}
+  rollingRockDamage: 20
+  rollingRockSpeed: 6
+  rollingRockDelaySeconds: 1
+  treasureChestFoodReward: 4
   startCurrentSceneOnPlay: 0
   defaultRouteId: route_escort
   slimeWanderRadius: 1.5

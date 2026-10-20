@@ -109,6 +109,16 @@ namespace SlimeBattle.Player.Placement
                 previewRenderer.sortingOrder = 102;
             }
             SetCell(previewRenderer, preview.Cell);
+            if (preview.Item == PlacementItemId.Obstacle)
+            {
+                var size = grid.Grid.cellSize;
+                var scale = grid.transform.lossyScale;
+                previewRenderer.transform.localScale = new Vector3(
+                    size.x * scale.x * 0.92f,
+                    size.y * scale.y * 2.92f, 1f);
+                previewRenderer.transform.rotation = Quaternion.Euler(0f, 0f,
+                    preview.RotationDegrees) * grid.transform.rotation;
+            }
             if (preview.IsAnchor || placement.IsRemoving) { previewRenderer.transform.position = preview.WorldCenter; }
             previewRenderer.color = preview.Status == PlacementValidationStatus.Removable ? occupiedColor : preview.CanConfirm ? freeColor :
                 preview.Status == PlacementValidationStatus.OutOfBounds ||

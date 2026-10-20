@@ -345,7 +345,8 @@ namespace SlimeBattle.Mechanisms
         }
 
         /// <summary>Creates and registers a configured player mechanism in this level scene.</summary>
-        public MechanismPlacementResult RequestPlace(ConfigId configId, Vector2 position)
+        public MechanismPlacementResult RequestPlace(ConfigId configId, Vector2 position,
+            float rotationDegrees = 0f)
         {
             if (!CanPlace(configId, position, out var reason))
                 return new MechanismPlacementResult(false, default(MechanismId), reason);
@@ -356,7 +357,8 @@ namespace SlimeBattle.Mechanisms
                     "A matching mechanism prefab is required.");
 
             var instance = UnityEngine.Object.Instantiate(config.PlacementPrefab,
-                new Vector3(position.x, position.y, 0f), Quaternion.identity);
+                new Vector3(position.x, position.y, 0f),
+                Quaternion.Euler(0f, 0f, rotationDegrees));
             SceneManager.MoveGameObjectToScene(instance.gameObject, scene);
             if (placedParent != null) instance.transform.SetParent(placedParent, true);
             var result = RequestPlace(new MechanismPlacementRequest(instance, position));
@@ -366,7 +368,7 @@ namespace SlimeBattle.Mechanisms
 
         /// <summary>Replaces a player obstacle at a configured anchor without losing it on failure.</summary>
         public MechanismPlacementResult RequestPlaceAtAnchor(ConfigId configId,
-            PlacementAnchorId anchorId)
+            PlacementAnchorId anchorId, float rotationDegrees = 0f)
         {
             if (disposed || paused || !anchorId.IsValid ||
                 !mapManager.TryGetPlacementAnchor(anchorId, out var anchor) ||
@@ -407,7 +409,8 @@ namespace SlimeBattle.Mechanisms
                     "The mechanism placement is cooling down.");
 
             var instance = UnityEngine.Object.Instantiate(config.PlacementPrefab,
-                new Vector3(anchor.Position.x, anchor.Position.y, 0f), Quaternion.identity);
+                new Vector3(anchor.Position.x, anchor.Position.y, 0f),
+                Quaternion.Euler(0f, 0f, rotationDegrees));
             SceneManager.MoveGameObjectToScene(instance.gameObject, scene);
             if (placedParent != null) instance.transform.SetParent(placedParent, true);
             var id = MechanismId.NewId();
@@ -1047,7 +1050,9 @@ namespace SlimeBattle.Mechanisms
                 mechanism.Config.Kind, position, mechanism.State, mechanism.IsPlayerPlaced,
                 mechanism.Config.ActivationLimit, mechanism.RemainingActivations,
                 mechanism.CooldownRemainingSeconds, mechanism.Config.GuideSourceType,
-                mechanism.Config.AttractionRadiusPixels, mechanism.AnchorId);
+                mechanism.Config.AttractionRadiusPixels, mechanism.AnchorId,
+                mechanism.Authoring == null ? 0f :
+                    mechanism.Authoring.transform.eulerAngles.z);
         }
 
         private static MechanismRuntimeData CreateRuntimeData(MechanismId id,

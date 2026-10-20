@@ -51,6 +51,11 @@ namespace SlimeBattle.Player.Placement
 
         private void OnPrimary(PlayerCommandSubmittedEvent data)
         {
+            if (data.Command.Kind == PlayerCommandKind.RotatePlacement)
+            {
+                placement.RotateCurrentPlacement();
+                return;
+            }
             if (data.Command.Kind == PlayerCommandKind.PrimaryAction)
             {
                 if (Preview(data.Command.ScreenPosition))
