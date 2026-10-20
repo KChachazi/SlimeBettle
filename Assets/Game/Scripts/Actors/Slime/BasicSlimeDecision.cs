@@ -36,12 +36,14 @@ namespace SlimeBattle.Actors.Slimes
                 TryFindGuide(context, GuidanceKind.Food, out var food))
             {
                 runtime.TargetId = default(ActorId);
+                RememberWanderCenter(food);
                 return ActionIntent.Move(food, "饥饿：优先靠近食物");
             }
             if (SlimeStatusIds.Contains(statuses, SlimeStatusIds.Cold) &&
                 TryFindGuide(context, GuidanceKind.Warmth, out var warmth))
             {
                 runtime.TargetId = default(ActorId);
+                RememberWanderCenter(warmth);
                 return ActionIntent.Move(warmth, "寒冷：优先靠近热源");
             }
 
@@ -92,6 +94,7 @@ namespace SlimeBattle.Actors.Slimes
             if (TryFindNearestGuide(context, out var guide))
             {
                 runtime.TargetId = default(ActorId);
+                RememberWanderCenter(guide);
                 return ActionIntent.Move(guide, "正常/暴躁：优先靠近引导源");
             }
 
@@ -138,6 +141,12 @@ namespace SlimeBattle.Actors.Slimes
                 position = guides[i].Position;
             }
             return nearest < float.PositiveInfinity;
+        }
+
+        private void RememberWanderCenter(Vector2 position)
+        {
+            runtime.WanderCenter = position;
+            runtime.HasWanderCenter = true;
         }
     }
 }
