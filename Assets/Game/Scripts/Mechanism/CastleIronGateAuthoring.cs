@@ -10,11 +10,13 @@ namespace SlimeBattle.Mechanisms
     {
         [SerializeField] private SpriteRenderer gateRenderer;
         [SerializeField] private Collider2D gateCollider;
+        [SerializeField, Min(1)] private int enemiesToDefeat = 2;
 
         private LevelManager levelManager;
         private ILevelEventBus eventBus;
         private SubscriptionToken enemyDiedToken;
         private bool isOpen;
+        private int defeatedEnemyCount;
 
         private void OnEnable()
         {
@@ -55,9 +57,17 @@ namespace SlimeBattle.Mechanisms
             if (eventBus != null) eventBus.Unsubscribe(enemyDiedToken);
             eventBus = context.GetEventBus();
             isOpen = false;
+            defeatedEnemyCount = 0;
             if (gateCollider != null) gateCollider.enabled = true;
             if (gateRenderer != null) gateRenderer.enabled = true;
-            enemyDiedToken = eventBus.Subscribe<EnemyDiedEvent>(_ => Open());
+            enemyDiedToken = eventBus.Subscribe<EnemyDiedEvent>(OnEnemyDied);
+        }
+
+        private void OnEnemyDied(EnemyDiedEvent _)
+        {
+            if (isOpen) return;
+            defeatedEnemyCount++;
+            if (defeatedEnemyCount >= Mathf.Max(1, enemiesToDefeat)) Open();
         }
 
         private void Open()

@@ -145,11 +145,6 @@ MonoBehaviour:
     designPosition: {x: 2786.5, y: 4119.5}
     configId:
     interactionRadiusPixels: 0
-  - pointId: stone_art_02
-    kind: 18
-    designPosition: {x: 3915.5, y: 1010.5}
-    configId:
-    interactionRadiusPixels: 0
   - pointId: swamp_art_01
     kind: 18
     designPosition: {x: 1093.5, y: 4765.5}
@@ -165,6 +160,21 @@ MonoBehaviour:
     designPosition: {x: 1317.587302, y: 1887.492063}
     configId:
     interactionRadiusPixels: 304.761905
+  - pointId: trap_02
+    kind: 6
+    designPosition: {x: 3915.5, y: 1010.5}
+    configId:
+    interactionRadiusPixels: 290
+  - pointId: trap_03
+    kind: 6
+    designPosition: {x: 3550, y: 450}
+    configId:
+    interactionRadiusPixels: 290
+  - pointId: trap_04
+    kind: 6
+    designPosition: {x: 4200, y: 450}
+    configId:
+    interactionRadiusPixels: 290
   areas:
   - areaId: road_01
     kind: 0
@@ -355,6 +365,54 @@ MonoBehaviour:
     - {x: 3571.809524, y: 288.507937}
     - {x: 3571.809524, y: 881.777778}
     - {x: 2647.365079, y: 881.777778}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_13_lower_chest_access
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 2305, y: 470}
+    radiusPixels: 1
+    designVertices:
+    - {x: 1900, y: 240}
+    - {x: 2710, y: 240}
+    - {x: 2710, y: 700}
+    - {x: 1900, y: 700}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_14_lower_rock_passage
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 3850, y: 1010}
+    radiusPixels: 1
+    designVertices:
+    - {x: 3300, y: 560}
+    - {x: 4400, y: 560}
+    - {x: 4400, y: 1460}
+    - {x: 3300, y: 1460}
+    movementSpeedMultiplier: 1
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: road_15_lower_thorn_corridor
+    kind: 0
+    roadKind: 2
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 3850, y: 500}
+    radiusPixels: 1
+    designVertices:
+    - {x: 3200, y: 150}
+    - {x: 4500, y: 150}
+    - {x: 4500, y: 850}
+    - {x: 3200, y: 850}
     movementSpeedMultiplier: 1
     statusEffectConfigId:
     guidanceRadiusPixels: 0

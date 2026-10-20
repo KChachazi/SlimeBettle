@@ -16,6 +16,7 @@ namespace SlimeBattle.Mechanisms
         {
             levelManager = manager;
             foodReward = Mathf.Max(0, reward);
+            collected = false;
         }
 
         private void OnTriggerEnter2D(Collider2D other)
@@ -26,13 +27,13 @@ namespace SlimeBattle.Mechanisms
                 levelManager.GetLevelState() != LevelState.Running) return;
 
             var context = levelManager.GetCurrentContext();
-            if (context == null || context.CampaignResources == null ||
-                context.CampaignResources.AddFood(foodReward) <= 0) return;
+            if (context == null || context.CampaignResources == null) return;
 
             collected = true;
+            var foodAdded = context.CampaignResources.AddFood(foodReward);
             gameObject.SetActive(false);
             Debug.Log($"Treasure chest collected by Slime {slime.ActorId}; " +
-                $"food reward: {foodReward}.", this);
+                $"food gained: {foodAdded} (reward: {foodReward}).", this);
         }
     }
 }
