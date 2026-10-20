@@ -19,6 +19,7 @@ namespace SlimeBattle.Actors.Enemies
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
         private ActorVisualFeedback visualFeedback;
+        private EnemyVisualPresenter visualPresenter;
         private bool disposed;
 
         public event Action<EnemyActor, ResolvedEffect> Died;
@@ -42,6 +43,8 @@ namespace SlimeBattle.Actors.Enemies
             visualFeedback = GetComponent<ActorVisualFeedback>();
             if (visualFeedback == null) visualFeedback = gameObject.AddComponent<ActorVisualFeedback>();
             visualFeedback.Initialize();
+            visualPresenter = GetComponentInChildren<EnemyVisualPresenter>(true);
+            visualPresenter?.Initialize(this);
             transform.position = position;
             config = enemyConfig;
             core = new ActorCore(actorId, factionId, ActorType.Enemy,
@@ -67,7 +70,9 @@ namespace SlimeBattle.Actors.Enemies
                 : modifierProvider.GetAttackSpeedMultiplier(ActorId);
             var stateContext = new StateContext(context.DeltaTime, snapshot,
                 context.Perception, context.Actions, attackSpeedMultiplier);
-            if (intent.IsValid) stateMachine.SubmitIntent(intent, stateContext);
+            if (intent.IsValid && stateMachine.SubmitIntent(intent, stateContext) ==
+                StateMachineResult.Accepted && intent.Type == ActionIntentType.Attack)
+                visualPresenter?.PlayAttack();
             stateMachine.Tick(stateContext);
         }
 
@@ -81,13 +86,18 @@ namespace SlimeBattle.Actors.Enemies
         {
             if (disposed || core == null) return EffectApplyResult.Rejected("Enemy is unavailable.");
             var result = core.ApplyResolvedEffect(effect);
+            var deathAnimationDuration = 0f;
             if (result.DidKill)
             {
                 runtime.IsAttacking = false;
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
+                deathAnimationDuration = visualPresenter == null
+                    ? 0f : visualPresenter.PlayDeath();
             }
-            visualFeedback?.NotifyEffect(effect, result);
+            else if (effect.IsDamage && result.Changed)
+                visualPresenter?.PlayHit();
+            visualFeedback?.NotifyEffect(effect, result, deathAnimationDuration);
             if (result.DidKill) Died?.Invoke(this, effect);
             return result;
         }
