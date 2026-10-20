@@ -1,5 +1,6 @@
 /* LevelConfig 保存关卡设计值；同屏史莱姆上限默认 30，当前允许配置至 50。 */
 using SlimeBattle.Core;
+using SlimeBattle.Actors.Guards;
 using UnityEngine;
 
 namespace SlimeBattle.Data
@@ -22,6 +23,9 @@ namespace SlimeBattle.Data
         [SerializeField]
         private LevelObjectiveKind objectiveKind = LevelObjectiveKind.CaveOccupancy;
 
+        [SerializeField]
+        private GuardActor guardPrefab;
+
         [SerializeField, Range(0, 20)]
         private int maximumActivePlacedMechanisms = 5;
 
@@ -30,6 +34,7 @@ namespace SlimeBattle.Data
         public int MaxAliveSlimes => maxAliveSlimes;
         public ConfigId ObjectiveConfigId => new ConfigId(objectiveConfigId);
         public LevelObjectiveKind ObjectiveKind => objectiveKind;
+        public GuardActor GuardPrefab => guardPrefab;
         public int MaximumActivePlacedMechanisms => maximumActivePlacedMechanisms;
 
         public void SetMaxAliveSlimes(int value)

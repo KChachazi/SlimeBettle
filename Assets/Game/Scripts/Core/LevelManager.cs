@@ -320,8 +320,10 @@ namespace SlimeBattle.Core
 
             try
             {
+                var selectedGuardPrefab = levelConfig.GuardPrefab != null
+                    ? levelConfig.GuardPrefab : guardPrefab;
                 currentContext = new LevelContext(levelId, registry, levelConfig,
-                    slimePrefab, enemyPrefab, guardPrefab, campaignResources);
+                    slimePrefab, enemyPrefab, selectedGuardPrefab, campaignResources);
                 currentContext.Initialize();
                 currentContext.ResultRules.ResultDecided += OnResultDecided;
             }
