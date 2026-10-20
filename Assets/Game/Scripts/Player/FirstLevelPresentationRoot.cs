@@ -168,7 +168,7 @@ namespace SlimeBattle.Player
                 var slimes = context.SlimeManager.GetAliveSnapshots();
                 if (slimes.Count > 0) focus = slimes[0].Position;
             }
-            cameraSystem.SubmitCommand(new CameraCommand(CameraCommandKind.Focus, focus));
+            cameraSystem.ResetOpeningView(focus);
         }
 
         private void OnStarted(LevelStartedEvent data) { CreateSession(); }

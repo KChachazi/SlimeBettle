@@ -47,6 +47,48 @@ namespace SlimeBattle.Tests.PlayerPresentation
         }
 
         [UnityTest, Timeout(60000)]
+        public IEnumerator ProductionLevelsUseMapRelativeOpeningScale()
+        {
+            yield return SceneManager.LoadSceneAsync("Bootstrap");
+            var deadline = Time.realtimeSinceStartup + 20f;
+            while (SceneManager.GetActiveScene().name != "MainMenu" && Time.realtimeSinceStartup < deadline) yield return null;
+            gameRoot = Object.FindObjectOfType<GameRoot>();
+            Assert.IsNotNull(gameRoot);
+            var manager = gameRoot.GetLevelManager();
+            manager.LevelLoadFailed += failure => loadFailure = failure.Reason;
+            Assert.That(manager.StartNewCampaign(), Is.True);
+            foreach (var level in new[] { "FirstLevel", "Castle" })
+            {
+                gameRoot.RequestEnterLevel(new LevelId(level));
+                deadline = Time.realtimeSinceStartup + 20f;
+                while ((SceneManager.GetActiveScene().name != level || manager.GetLevelState() != LevelState.Running) &&
+                    manager.GetLevelState() != LevelState.Failed && Time.realtimeSinceStartup < deadline) yield return null;
+                Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), level + ": " + loadFailure);
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(level));
+                yield return null; yield return null;
+                var root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
+                var camera = root.GetComponentInChildren<Camera>();
+                Assert.That(manager.GetCurrentContext().MapManager.TryGetMapBounds(out var bounds), Is.True);
+                var mapSize = bounds.Max - bounds.Min;
+                var fitSize = Mathf.Max(mapSize.y, mapSize.x / camera.aspect) * 0.5f;
+                Assert.That(camera.orthographicSize / fitSize, Is.EqualTo(0.4f).Within(0.001f), level);
+                var visibleArea = 4f * camera.orthographicSize * camera.orthographicSize * camera.aspect;
+                TestContext.WriteLine($"{level}: aspect={camera.aspect:F4}, size={camera.orthographicSize:F3}, map area shown={visibleArea / (mapSize.x * mapSize.y):P1}");
+                var args = System.Environment.GetCommandLineArgs();
+                var captureIndex = System.Array.IndexOf(args, "-openingCameraCaptureDirectory");
+                if (captureIndex >= 0 && captureIndex + 1 < args.Length)
+                {
+                    // Match the exported viewport before recomputing the production opening view.
+                    // The batch Game view can be 4:3 even when a 16:9 render target is requested.
+                    camera.aspect = 1280f / 720f;
+                    Assert.That(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(out var weapon), Is.True);
+                    root.GetComponentInChildren<CameraSystem>().ResetOpeningView(weapon.Position);
+                    Capture(camera, root.gameObject, System.IO.Path.Combine(args[captureIndex + 1], level + ".png"));
+                }
+            }
+        }
+
+        [UnityTest, Timeout(60000)]
         public IEnumerator ProductionMapSupportsGentleNativeWheelZoomAndLeftButtonDrag()
         {
             yield return SceneManager.LoadSceneAsync("Bootstrap");
@@ -179,7 +221,12 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var resourceCapture = System.Environment.GetEnvironmentVariable("SLIME_RESOURCE_SCREENSHOT");
             if (!string.IsNullOrEmpty(resourceCapture)) Capture(sceneCamera, root.gameObject, resourceCapture);
             var initialCameraPosition = camera.GetState().Position;
+            var initialCameraSize = camera.GetState().OrthographicSize;
             Assert.That(context.MapManager.TryGetMapBounds(out var bounds), Is.True);
+            var mapSize = bounds.Max - bounds.Min;
+            var fitSize = Mathf.Max(mapSize.y, mapSize.x / sceneCamera.aspect) * 0.5f;
+            Assert.That(initialCameraSize / fitSize, Is.EqualTo(0.4f).Within(0.001f),
+                "The production opening must use the map-relative scale instead of the old fixed close-up.");
             grid.GetCoveredRange(bounds, out var minimum, out var maximum);
             var remove = root.GetComponentsInChildren<Button>(true).Single(button => button.name == "RemoveButton");
             var args = System.Environment.GetCommandLineArgs();
@@ -265,15 +312,19 @@ namespace SlimeBattle.Tests.PlayerPresentation
             }
             // Once the opening flow works, verify that later refresh/pause never snaps a panned view back.
             camera.SubmitCommand(new CameraCommand(CameraCommandKind.Pan, new Vector2(2f, 1f)));
+            camera.SubmitCommand(new CameraCommand(CameraCommandKind.Zoom, Vector2.zero, -1f));
             var pannedCameraPosition = camera.GetState().Position;
+            var playerCameraSize = camera.GetState().OrthographicSize;
             yield return new WaitForSecondsRealtime(0.25f);
             Assert.That(camera.GetState().Position, Is.EqualTo(pannedCameraPosition));
+            Assert.That(camera.GetState().OrthographicSize, Is.EqualTo(playerCameraSize));
             remove.onClick.Invoke();
             manager.RequestPause();
             Assert.That(root.Placement.IsRemoving, Is.False);
             Assert.That(root.GetComponent<PlacementGridView>().IsVisible, Is.False);
             manager.RequestResume();
             Assert.That(camera.GetState().Position, Is.EqualTo(pannedCameraPosition));
+            Assert.That(camera.GetState().OrthographicSize, Is.EqualTo(playerCameraSize));
             remove.onClick.Invoke();
             Assert.That(root.Placement.IsRemoving, Is.True);
             var oldPlacement = root.Placement;
@@ -289,6 +340,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
             AssertRemaining(root, PlacementItemId.Food, 60);
             AssertRemaining(root, PlacementItemId.Obstacle, 5);
             var restartedCamera = root.GetComponentInChildren<CameraSystem>();
+            Assert.That(restartedCamera.GetState().OrthographicSize, Is.EqualTo(initialCameraSize).Within(0.001f),
+                "Restart must restore the opening scale instead of keeping the previous player zoom.");
             Assert.That(Vector3.Distance(restartedCamera.GetState().Position, initialCameraPosition), Is.LessThan(0.1f),
                 "Restart must restore the new context's opening focus instead of keeping the previous pan.");
             remove = root.GetComponentsInChildren<Button>(true).Single(button => button.name == "RemoveButton");
@@ -434,7 +487,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             settings.backgroundBehavior = previousBackgroundBehavior;
             yield return null;
             var scene = SceneManager.GetActiveScene();
-            if (scene.name == "FirstLevel" || scene.name == "MainMenu" || scene.name == "Bootstrap")
+            if (scene.name == "FirstLevel" || scene.name == "Castle" || scene.name == "MainMenu" || scene.name == "Bootstrap")
             {
                 SceneManager.SetActiveScene(SceneManager.CreateScene("RemovalTestCleanup"));
                 yield return SceneManager.UnloadSceneAsync(scene);

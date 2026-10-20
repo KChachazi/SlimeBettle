@@ -9,6 +9,8 @@ namespace SlimeBattle.Presentation.Camera
     {
         [SerializeField] private float minimumSize = 2f;
         [SerializeField] private float maximumSize = 12f;
+        [Tooltip("Opening view size relative to fitting the entire map (1 = full map).")]
+        [SerializeField, Range(0.3f, 0.6f)] private float openingViewScale = 0.4f;
         [SerializeField] private float zoomSensitivity = 0.03f;
         [SerializeField] private float worldPlaneZ;
         private UnityEngine.Camera sceneCamera;
@@ -62,6 +64,20 @@ namespace SlimeBattle.Presentation.Camera
             CameraBoundsChanged?.Invoke(new CameraBoundsChangedEvent(bounds));
         }
 
+        /// <summary>Restores the map-relative opening zoom and focus once per level session.</summary>
+        public void ResetOpeningView(Vector2 focus)
+        {
+            if (!hasBounds) { throw new InvalidOperationException("Set map bounds before resetting the opening view."); }
+            if (!CameraBounds.IsFinite(focus.x) || !CameraBounds.IsFinite(focus.y)) { return; }
+            sceneCamera.orthographicSize = Mathf.Clamp(GetMapFitSize() * Mathf.Clamp(openingViewScale, 0.3f, 0.6f),
+                minimumSize, GetMaximumSize());
+            var position = transform.position;
+            position.x = focus.x;
+            position.y = focus.y;
+            transform.position = position;
+            Constrain();
+        }
+
         public void SubmitCommand(CameraCommand command)
         {
             if (!CameraBounds.IsFinite(command.PositionOrDelta.x) ||
@@ -109,10 +125,14 @@ namespace SlimeBattle.Presentation.Camera
         private float GetMaximumSize()
         {
             if (!hasBounds) { return maximumSize; }
-            var mapSize = bounds.Maximum - bounds.Minimum;
-            var fitSize = Mathf.Max(mapSize.y, mapSize.x / Mathf.Max(0.01f, sceneCamera.aspect)) * 0.5f;
             // Leave a little space around all four map edges at the widest zoom.
-            return Mathf.Max(maximumSize, fitSize * 1.05f);
+            return Mathf.Max(maximumSize, GetMapFitSize() * 1.05f);
+        }
+
+        private float GetMapFitSize()
+        {
+            var mapSize = bounds.Maximum - bounds.Minimum;
+            return Mathf.Max(mapSize.y, mapSize.x / Mathf.Max(0.01f, sceneCamera.aspect)) * 0.5f;
         }
 
         // Re-clamp after aspect/viewport changes; this updates presentation only.
