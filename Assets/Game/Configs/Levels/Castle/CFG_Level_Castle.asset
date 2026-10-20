@@ -16,4 +16,5 @@ MonoBehaviour:
   maxAliveSlimes: 20
   objectiveConfigId: mvp_objective
   objectiveKind: 1
+  guardPrefab: {fileID: 4975765493661712930, guid: 390ff2416dcab8744a0ffe60c62ee9c0, type: 3}
   maximumActivePlacedMechanisms: 20

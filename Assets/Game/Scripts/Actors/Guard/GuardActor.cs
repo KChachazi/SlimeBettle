@@ -16,6 +16,7 @@ namespace SlimeBattle.Actors.Guards
         private ActorStateMachine stateMachine;
         private IActorActionPort lastActions;
         private ActorVisualFeedback visualFeedback;
+        private GuardVisualPresenter visualPresenter;
         private bool disposed;
         private Vector2 standPosition;
 
@@ -31,6 +32,8 @@ namespace SlimeBattle.Actors.Guards
             visualFeedback = GetComponent<ActorVisualFeedback>();
             if (visualFeedback == null) visualFeedback = gameObject.AddComponent<ActorVisualFeedback>();
             visualFeedback.Initialize();
+            visualPresenter = GetComponentInChildren<GuardVisualPresenter>(true);
+            visualPresenter?.Initialize(this);
             transform.position = position;
             standPosition = position;
             config = guardConfig;
@@ -51,7 +54,9 @@ namespace SlimeBattle.Actors.Guards
                 context.Perception.GetPerception(ActorId)));
             var stateContext = new StateContext(context.DeltaTime, snapshot,
                 context.Perception, context.Actions);
-            if (intent.IsValid) stateMachine.SubmitIntent(intent, stateContext);
+            if (intent.IsValid && stateMachine.SubmitIntent(intent, stateContext) ==
+                StateMachineResult.Accepted && intent.Type == ActionIntentType.Attack)
+                visualPresenter?.PlayAttack();
             stateMachine.Tick(stateContext);
         }
 
@@ -64,12 +69,17 @@ namespace SlimeBattle.Actors.Guards
                 effect.Type != EffectType.Heal))
                 return EffectApplyResult.Rejected("Guard only accepts health effects.");
             var result = core.ApplyResolvedEffect(effect);
+            var deathAnimationDuration = 0f;
             if (result.DidKill)
             {
                 decisionTree.Stop();
                 stateMachine.RequestInterrupt(InterruptReason.Death, lastActions);
+                deathAnimationDuration = visualPresenter == null
+                    ? 0f : visualPresenter.PlayDeath();
             }
-            visualFeedback?.NotifyEffect(effect, result);
+            else if (effect.IsDamage && result.Changed)
+                visualPresenter?.PlayHit();
+            visualFeedback?.NotifyEffect(effect, result, deathAnimationDuration);
             if (result.DidKill) Died?.Invoke(this, effect);
             return result;
         }
