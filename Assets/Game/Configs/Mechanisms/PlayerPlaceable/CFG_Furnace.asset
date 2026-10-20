@@ -15,11 +15,11 @@ MonoBehaviour:
   configId: first_level_furnace
   kind: 2
   playerPlaceable: 1
-  attractionRadiusPixels: 500
+  attractionRadiusPixels: 750
   placementRadiusWorldUnits: 0
   activationLimit: 0
   activationCooldownSeconds: 0
-  placementCooldownSeconds: 0
+  placementCooldownSeconds: 10
   durability: 0
   collisionRadiusPixels: 0
   placementPrefab: {fileID: 347075861012833506, guid: fdcfcde0cf83cf84abe1d3e16b53d819, type: 3}
