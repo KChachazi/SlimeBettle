@@ -21,6 +21,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
     public sealed class FirstLevelRemovalScenePlayModeTests
     {
         private GameRoot gameRoot;
+        private string loadFailure;
         private Mouse mouse;
         private Keyboard keyboard;
         private Pointer[] existingPointers;
@@ -30,6 +31,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            loadFailure = string.Empty;
             var settings = UnityEngine.InputSystem.InputSystem.settings;
             previousInputBehavior = settings.editorInputBehaviorInPlayMode;
             previousBackgroundBehavior = settings.backgroundBehavior;
@@ -52,11 +54,12 @@ namespace SlimeBattle.Tests.PlayerPresentation
             gameRoot = Object.FindObjectOfType<GameRoot>();
             Assert.IsNotNull(gameRoot);
             var manager = gameRoot.GetLevelManager();
+            manager.LevelLoadFailed += failure => loadFailure = failure.Reason;
             Assert.That(manager.StartNewCampaign(), Is.True);
             gameRoot.RequestEnterLevel(new LevelId("FirstLevel"));
             deadline = Time.realtimeSinceStartup + 30f;
-            while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
-            Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
+            while (manager.GetLevelState() != LevelState.Running && manager.GetLevelState() != LevelState.Failed && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), loadFailure);
             yield return null; yield return null;
 
             var cameraSystem = Object.FindObjectOfType<CameraSystem>();
@@ -138,6 +141,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             gameRoot = Object.FindObjectOfType<GameRoot>();
             Assert.IsNotNull(gameRoot);
             var manager = gameRoot.GetLevelManager();
+            manager.LevelLoadFailed += failure => loadFailure = failure.Reason;
             var menu = Object.FindObjectOfType<ReferenceMainMenuView>();
             Assert.IsNotNull(menu, "Bootstrap must expose the illustrated production menu.");
             var newGame = menu.GetComponentsInChildren<Button>(true).Single(button => button.name == "NewGameButton");
@@ -149,16 +153,26 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var start = menu.GetComponentsInChildren<Button>(true).Single(button => button.name == "SelectLevelButton");
             yield return Click(RectTransformUtility.WorldToScreenPoint(null, start.transform.position));
             deadline = Time.realtimeSinceStartup + 30f;
-            while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
-            Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
+            while (manager.GetLevelState() != LevelState.Running && manager.GetLevelState() != LevelState.Failed && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), loadFailure);
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FirstLevel"));
             yield return null; yield return null;
             var root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
             Assert.IsNotNull(root?.Placement);
             var context = manager.GetCurrentContext();
+            Assert.That(root.Placement.GetBudgetSnapshot().HasInventory, Is.True);
+            Assert.That(root.Placement.GetBudgetSnapshot().FoodRemaining, Is.EqualTo(60));
+            Assert.That(root.Placement.GetBudgetSnapshot().ObstacleRemaining, Is.EqualTo(5));
+            AssertRemaining(root, PlacementItemId.Food, 60);
+            AssertRemaining(root, PlacementItemId.Obstacle, 5);
+            Assert.That(root.GetComponentsInChildren<Transform>(true).Any(t =>
+                t.name == "BagButton" || t.name == "CatalogButton" ||
+                t.name == "BagPanel" || t.name == "CatalogPanel"), Is.False);
             var grid = root.GetComponentInChildren<PlacementGridAuthoring>();
             var camera = root.GetComponentInChildren<CameraSystem>();
             var sceneCamera = camera.GetComponent<Camera>();
+            var resourceCapture = System.Environment.GetEnvironmentVariable("SLIME_RESOURCE_SCREENSHOT");
+            if (!string.IsNullOrEmpty(resourceCapture)) Capture(sceneCamera, root.gameObject, resourceCapture);
             var initialCameraPosition = camera.GetState().Position;
             Assert.That(context.MapManager.TryGetMapBounds(out var bounds), Is.True);
             grid.GetCoveredRange(bounds, out var minimum, out var maximum);
@@ -169,6 +183,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             if (captureIndex >= 0 && captureIndex + 1 < args.Length) capturePath = args[captureIndex + 1];
             foreach (var item in new[] { PlacementItemId.Food, PlacementItemId.Furnace, PlacementItemId.Obstacle })
             {
+                var remainingBefore = root.Placement.GetBudgetSnapshot().GetRemaining(item);
                 var kind = item == PlacementItemId.Food ? MechanismKind.Food :
                     item == PlacementItemId.Furnace ? MechanismKind.Furnace : MechanismKind.Obstacle;
                 Assert.That(context.MechanismSystem.TryGetPlayerConfigId(kind, out var configId), Is.True);
@@ -203,6 +218,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 }
                 yield return Click(screenPosition);
                 Assert.That(context.MechanismSystem.ActivePlacedMechanismCount, Is.EqualTo(1));
+                Assert.That(root.Placement.GetBudgetSnapshot().GetRemaining(item), Is.EqualTo(remainingBefore - 1));
+                AssertRemaining(root, item, remainingBefore - 1);
                 var placed = context.MechanismSystem.GetActiveSnapshots().Single(snapshot => snapshot.IsPlayerPlaced);
                 // Placement can snap to a nearby authored anchor; remove the actual object.
                 position = placed.Position;
@@ -230,6 +247,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
                     "Removing an obstacle must also unregister its movement blocker.");
                 Assert.That(context.MechanismSystem.ActivePlacedMechanismCount, Is.Zero);
                 Assert.That(root.Placement.GetBudgetSnapshot().ActiveCount, Is.Zero);
+                Assert.That(root.Placement.GetBudgetSnapshot().GetRemaining(item), Is.EqualTo(remainingBefore - 1));
+                AssertRemaining(root, item, remainingBefore - 1);
                 Assert.That(root.Placement.IsRemoving, Is.True);
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Escape));
                 yield return null; yield return null;
@@ -261,12 +280,24 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(manager.GetCurrentContext(), Is.Not.SameAs(context));
             Assert.That(root.Placement, Is.Not.SameAs(oldPlacement));
             Assert.That(root.Placement.IsInteracting, Is.False);
+            AssertRemaining(root, PlacementItemId.Food, 60);
+            AssertRemaining(root, PlacementItemId.Obstacle, 5);
             var restartedCamera = root.GetComponentInChildren<CameraSystem>();
             Assert.That(Vector3.Distance(restartedCamera.GetState().Position, initialCameraPosition), Is.LessThan(0.1f),
                 "Restart must restore the new context's opening focus instead of keeping the previous pan.");
             remove = root.GetComponentsInChildren<Button>(true).Single(button => button.name == "RemoveButton");
             remove.onClick.Invoke();
             Assert.That(root.Placement.IsRemoving, Is.True, "Restart must bind removal to the new level context.");
+        }
+
+        private static void AssertRemaining(FirstLevelPresentationRoot root, PlacementItemId item, int count)
+        {
+            if (item == PlacementItemId.Furnace) return;
+            var button = root.GetComponentsInChildren<Button>(true).Single(b => b.name == item + "Button");
+            var label = button.GetComponentsInChildren<Text>(true).Single(t => t.name == "Remaining");
+            Assert.That(label.gameObject.activeInHierarchy, Is.True);
+            Assert.That(label.text, Is.EqualTo("剩余 " + count));
+            Assert.That(label.raycastTarget, Is.False);
         }
 
         [UnityTest, Timeout(120000)]
@@ -278,6 +309,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             gameRoot = Object.FindObjectOfType<GameRoot>();
             Assert.IsNotNull(gameRoot);
             var manager = gameRoot.GetLevelManager();
+            manager.LevelLoadFailed += failure => loadFailure = failure.Reason;
             LevelContext previousContext = null;
             foreach (var phase in new[] { LevelState.Paused, LevelState.Paused, LevelState.Succeeded, LevelState.Failed })
             {
@@ -287,8 +319,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 yield return ClickButton(menu, "LevelCard1");
                 yield return ClickButton(menu, "SelectLevelButton");
                 deadline = Time.realtimeSinceStartup + 30f;
-                while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
-                Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
+                while (manager.GetLevelState() != LevelState.Running && manager.GetLevelState() != LevelState.Failed && Time.realtimeSinceStartup < deadline) yield return null;
+                Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), loadFailure);
                 yield return null; yield return null;
                 var context = manager.GetCurrentContext();
                 Assert.That(context, Is.Not.Null.And.Not.SameAs(previousContext));

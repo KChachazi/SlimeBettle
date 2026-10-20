@@ -42,13 +42,6 @@ namespace SlimeBattle.Actors.Spawning
                 var guides = new List<GuidanceObservation>();
                 if (targetSnapshot.Guides != null)
                     guides.AddRange(targetSnapshot.Guides);
-                if (targets.TryGetActorSnapshot(actorId, out var actor) &&
-                    actor.ActorType == ActorType.Enemy)
-                {
-                    var wanderSnapshot = wander.GetPerception(actorId);
-                    if (wanderSnapshot.Guides != null)
-                        guides.AddRange(wanderSnapshot.Guides);
-                }
                 var slime = default(SlimeSnapshot);
                 var canWander = slimes != null &&
                     slimes.TryGetSnapshot(actorId, out slime) &&

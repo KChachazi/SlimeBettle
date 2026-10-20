@@ -1,4 +1,4 @@
-/* 场景初始角色清单；Level_test 注入随机漫游感知，Actor 生命周期仍由正式 Manager 管理。 */
+/* 场景初始角色清单；仅史莱姆接收局部漫游感知，Actor 生命周期仍由正式 Manager 管理。 */
 using SlimeBattle.Core;
 using SlimeBattle.Actors.AI.DecisionTree;
 using SlimeBattle.Actors.AI.StateMachine;
@@ -29,14 +29,19 @@ namespace SlimeBattle.Actors.Spawning
             public PerceptionSnapshot GetPerception(ActorId id)
             {
                 var target = targets.GetPerception(id);
-                var roaming = wander.GetPerception(id);
-                var guides = new System.Collections.Generic.List<GuidanceObservation>(roaming.Guides);
-                if (mechanisms != null && slimes.TryGetSnapshot(id, out var slime) &&
+                var guides = new System.Collections.Generic.List<GuidanceObservation>();
+                if (target.Guides != null) guides.AddRange(target.Guides);
+                if (slimes.TryGetSnapshot(id, out var slime) && slime.IsAlive &&
                     !slime.IsCarrying)
-                    foreach (var source in mechanisms.GetGuideSourcesInRange(
-                        slime.Position, slime.PixelsPerUnit))
-                        guides.Add(new GuidanceObservation(source.Type == GuideSourceType.Food
-                            ? GuidanceKind.Food : GuidanceKind.Warmth, source.Position));
+                {
+                    var roaming = wander.GetPerception(id);
+                    if (roaming.Guides != null) guides.AddRange(roaming.Guides);
+                    if (mechanisms != null)
+                        foreach (var source in mechanisms.GetGuideSourcesInRange(
+                            slime.Position, slime.PixelsPerUnit))
+                            guides.Add(new GuidanceObservation(source.Type == GuideSourceType.Food
+                                ? GuidanceKind.Food : GuidanceKind.Warmth, source.Position));
+                }
                 return new PerceptionSnapshot(target.SampleTick, target.Targets,
                     target.HasDestination, target.Destination, guides,
                     target.HasEscapeDestination, target.EscapeDestination,

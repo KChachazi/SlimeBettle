@@ -197,6 +197,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnityTest] public IEnumerator ToolbarAndModalBlockRaycastsWhileMapRemainsClickable()
         {
             Canvas.ForceUpdateCanvases(); yield return null;
+            foreach(var item in new[]{"FoodButton","ObstacleButton"})
+                Assert.That(Button(item).GetComponentsInChildren<Text>(true).Single(t=>t.name=="Remaining").text,
+                    Is.EqualTo("剩余 --"),"Missing inventory must not be presented as zero stock.");
             var hits=new List<RaycastResult>();
             var pointer=new PointerEventData(EventSystem.current) { position=RectTransformUtility.WorldToScreenPoint(null,Button("FoodButton").transform.position) };
             EventSystem.current.RaycastAll(pointer,hits);
@@ -211,8 +214,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnityTest] public IEnumerator ReferencePagesPauseAndReturnWithoutPlacingOrResumingAnExistingPause()
         {
             var pages=fixture.Hud.GetComponent<ReferenceUiView>();
-            foreach(var entry in new[]{("BagButton","BagBackButton",ReferenceUiView.Page.Bag),
-                ("CatalogButton","CatalogBackButton",ReferenceUiView.Page.Catalog)})
+            foreach(var entry in new[]{("PauseButton","SettingsBackButton",ReferenceUiView.Page.Settings)})
             {
                 Button("FoodButton").onClick.Invoke();
                 Button(entry.Item1).onClick.Invoke(); yield return null;
@@ -232,7 +234,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(fixture.Phase,Is.EqualTo(LevelState.Paused),"Closing settings must preserve a preexisting pause.");
             fixture.SetPhase(LevelState.Succeeded); yield return null;
             Assert.That(pages.IsOpen,Is.False,"An authoritative result must clear auxiliary pages.");
-            pages.OpenBag();
+            pages.OpenSettings();
             Assert.That(pages.IsOpen,Is.False,"Auxiliary pages must not cover a result or loading transition.");
         }
     }

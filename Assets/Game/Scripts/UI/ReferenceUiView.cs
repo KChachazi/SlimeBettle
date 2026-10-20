@@ -6,10 +6,10 @@ using UnityEngine.UI;
 
 namespace SlimeBattle.UI
 {
-    /// <summary>Presentation-only pages. Empty slots stay empty until an inventory/catalog source exists.</summary>
+    /// <summary>Settings pages and gameplay toolbar actions.</summary>
     public sealed class ReferenceUiView : MonoBehaviour
     {
-        public enum Page { None, Bag, Catalog, Settings, Volume, Saves, Resolution }
+        public enum Page { None, Settings, Volume, Saves, Resolution }
         [SerializeField] private GameObject[] pages;
         [SerializeField] private Text resolutionText;
         [SerializeField] private Slider volumeSlider;
@@ -56,8 +56,6 @@ namespace SlimeBattle.UI
             foreach (var button in returnToMenuButtons)
                 if (button!=null) button.interactable=!transitionPending && CanReturnToMenu();
         }
-        public void OpenBag() { Open(Page.Bag); }
-        public void OpenCatalog() { Open(Page.Catalog); }
         public void OpenSettings() { Open(Page.Settings); }
         public void OpenVolume() { Open(Page.Volume); }
         public void OpenSaves() { Open(Page.Saves); }

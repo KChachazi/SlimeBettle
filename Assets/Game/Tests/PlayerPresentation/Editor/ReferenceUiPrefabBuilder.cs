@@ -28,6 +28,20 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         private static readonly Color Gold=new Color(1f,0.81f,0.39f);
         private static readonly Color Mint=new Color(0.79f,0.87f,0.63f);
 
+        [MenuItem("SlimeBattle/UI/Rebuild Gameplay HUD")]
+        public static void RebuildGameplayHud()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+                throw new System.InvalidOperationException("Exit Play Mode before authoring prefabs.");
+            var selection=BuildSelection();
+            SaveUiPrefab(selection.gameObject,FirstLevelUiPrefabBuilder.SelectionPath);
+            UnityEngine.Object.DestroyImmediate(selection.gameObject);
+            var hud=BuildHud();
+            SaveUiPrefab(hud.gameObject,FirstLevelUiPrefabBuilder.HudPath);
+            UnityEngine.Object.DestroyImmediate(hud.gameObject);
+            AssetDatabase.SaveAssets();
+        }
+
         private static void LoadAssets()
         {
             handwriting=AssetDatabase.LoadAssetAtPath<Font>("Assets/Game/UI/Fonts/LongCang-Regular.ttf");
@@ -54,6 +68,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var food=IllustratedTool(toolbar,"FoodButton","HudFood");
             var furnace=IllustratedTool(toolbar,"FurnaceButton","HudFurnace");
             var obstacle=IllustratedTool(toolbar,"ObstacleButton","HudObstacle");
+            Set(view,"foodRemainingText",RemainingBadge(food));
+            Set(view,"obstacleRemainingText",RemainingBadge(obstacle));
             var cancel=Button("CancelButton",panel,"取消放置",new Vector2(-410,34),new Vector2(154,40),Cream,Ink,26);
             Anchor(cancel.transform,new Vector2(1,0));
             var budget=Label("Budget",panel,"放置配额未接入",new Vector2(-430,-127),new Vector2(280,34),13,Ink,false);
@@ -83,11 +99,6 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var pause=SourceButton("PauseButton",hud,"HudSettings",new Vector2(0,1));
             var counter=SourceArt("SlimeCounter",hud,"HudCounter",new Vector2(1,1));
             var counts=Label("Counts",counter,"-- / --",new Vector2(131,-1),new Vector2(118,43),29,Ink);
-            var bag=ArtButton("BagButton",hud,"HudBag",new Vector2(-410,135),new Vector2(124,121));
-            Anchor(bag.transform,new Vector2(1,0));
-            Click(bag,pages.OpenBag);
-            var catalog=SourceButton("CatalogButton",hud,"HudCatalog",new Vector2(1,0.5f));
-            Click(catalog,pages.OpenCatalog);
             var remove=SourceButton("RemoveButton",hud,"HudRemove",new Vector2(1,0.5f));
             Click(remove,pages.ToggleRemoval); Set(pages,"removeButton",remove); SetBool(pages,"useIllustratedSprites",true);
             var hint=Label("FlowHint",hud,"",new Vector2(-80,52),new Vector2(460,28),14,Cream,false);
@@ -148,11 +159,9 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
 
         private static void BuildPages(Transform root,ReferenceUiView view)
         {
-            var pages=new GameObject[6];
+            var pages=new GameObject[4];
             for(var i=0;i<pages.Length;i++) pages[i]=Modal(((ReferenceUiView.Page)(i+1))+"Panel",root,45);
-            BuildBag(pages[0].transform,view);
-            BuildCatalog(pages[1].transform,view);
-            var settings=Rect("SettingsCard",pages[2].transform); Stretch(settings);
+            var settings=Rect("SettingsCard",pages[0].transform); Stretch(settings);
             SourceArt("SettingsBoard",settings,"SettingsBoard");
             var actions=new UnityAction[]{view.OpenVolume,view.OpenSaves,view.OpenResolution};
             var words=new[]{"音量","存档","分辨率"};
@@ -162,7 +171,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             Click(Button("SettingsBackButton",settings,"继续游戏",new Vector2(-148,-278),new Vector2(232,52),Cream,Ink,34),view.Close);
             Click(Button("SettingsReturnToMenuButton",settings,"返回主菜单",new Vector2(148,-278),new Vector2(232,52),Cream,Ink,32),view.ReturnToMainMenu);
 
-            var volume=SubCard(pages[3].transform,"音量",view);
+            var volume=SubCard(pages[1].transform,"音量",view);
             Label("VolumeDescription",volume,"主音量",new Vector2(0,100),new Vector2(330,40),29,Ink);
             var sliderRect=Panel("VolumeSlider",volume,Vector2.one*0.5f,new Vector2(0,10),new Vector2(330,26),Cocoa);
             var slider=sliderRect.gameObject.AddComponent<Slider>(); slider.minValue=0; slider.maxValue=1; slider.value=1;
@@ -174,7 +183,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             slider.navigation=new Navigation { mode=Navigation.Mode.None }; UnityEventTools.AddPersistentListener(slider.onValueChanged,view.SetVolume);
             Set(view,"volumeSlider",slider); Set(view,"volumeText",Label("VolumeValue",volume,"100 %",new Vector2(0,-63),new Vector2(330,46),37,Ink));
 
-            var saves=SubCard(pages[4].transform,"存档",view);
+            var saves=SubCard(pages[2].transform,"存档",view);
             for(var i=0;i<3;i++)
             {
                 var slot=Panel("SaveSlot"+(i+1),saves,Vector2.one*0.5f,new Vector2(0,105-i*95),new Vector2(390,72),Cream);
@@ -182,7 +191,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             }
             Label("SaveStatus",saves,"当前版本尚未接入存档",new Vector2(0,-135),new Vector2(400,32),14,Ink,false);
 
-            var resolution=SubCard(pages[5].transform,"分辨率",view);
+            var resolution=SubCard(pages[3].transform,"分辨率",view);
             var sizes=new[]{"1280 × 720","1600 × 900","1920 × 1080"};
             for(var i=0;i<3;i++)
             {
@@ -203,62 +212,6 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             return card;
         }
 
-        private static void BuildBag(Transform parent,ReferenceUiView view)
-        {
-            var bag=Panel("BagCard",parent,Vector2.one*0.5f,new Vector2(-6,28),new Vector2(556,566),Cocoa,StorybookSurface.SurfaceKind.CutCorner);
-            var inset=Panel("SlotInset",bag,Vector2.one*0.5f,new Vector2(0,-22),new Vector2(438,450),new Color(0.66f,0.62f,0.43f));
-            for(var row=0;row<3;row++) for(var col=0;col<3;col++)
-                Panel("BagSlot_"+row+"_"+col,inset,Vector2.one*0.5f,new Vector2((col-1)*138,(1-row)*137),new Vector2(125,126),Cream);
-            Doodle(bag,new Vector2(-32,262),new Vector2(106,104),Mint,-6);
-            var title=Panel("BagTitle",bag,Vector2.one*0.5f,new Vector2(166,267),new Vector2(280,72),Cream,StorybookSurface.SurfaceKind.Ribbon);
-            title.localRotation=Quaternion.Euler(0,0,-4); Label("Title",title,"背包",Vector2.zero,new Vector2(250,62),52,Ink);
-            var previous=Button("BagPrevious",bag,"←",new Vector2(-296,0),new Vector2(84,56),Moss,Cream,43); previous.interactable=false;
-            var next=Button("BagNext",bag,"→",new Vector2(266,0),new Vector2(80,56),Moss,Cream,43); next.interactable=false;
-            Label("BagPagination",bag,"1 / 1",new Vector2(0,-258),new Vector2(120,42),34,Cream);
-            Label("BagEmpty",parent,"背包内容待接入",new Vector2(0,-278),new Vector2(330,26),13,Ink,false);
-            var back=Button("BagBackButton",parent,"返回",new Vector2(-110,63),new Vector2(156,68),Cocoa,Cream,48); Anchor(back.transform,new Vector2(1,0)); Click(back,view.Close);
-        }
-
-        private static void BuildCatalog(Transform parent,ReferenceUiView view)
-        {
-            var board=Illustration("CatalogBoard",parent,"CatalogBoard",Vector2.zero,new Vector2(1270,720));
-            var catalog=board.gameObject.AddComponent<TapTapCatalogView>();
-            var positions=new[]{new Vector2(-367,128),new Vector2(-106,129),new Vector2(150,123),new Vector2(-291,-118),new Vector2(77,-120),new Vector2(419,0)};
-            var sizes=new[]{new Vector2(224,217),new Vector2(224,222),new Vector2(252,243),new Vector2(394,244),new Vector2(334,234),new Vector2(270,414)};
-            for(var i=0;i<6;i++) Illustration("CatalogFrame"+(i+1),board,"CatalogFrame"+(i+1),positions[i],sizes[i]);
-            var content=new GameObject[3];
-            var captions=new[]{"待收录","食物","熔炉","障碍","待收录","史莱姆"};
-            var icons=new[]{null,Art("Food"),Art("Furnace"),Art("Obstacle"),null,Art("Slime")};
-            for(var page=0;page<content.Length;page++)
-            {
-                var group=Rect("CatalogContent"+(page+1),board); Stretch(group); content[page]=group.gameObject;
-                for(var i=0;i<6;i++)
-                {
-                    if(page==0 && icons[i]!=null)
-                    {
-                        var icon=Rect("Illustration"+i,group); icon.anchoredPosition=positions[i]+new Vector2(0,12);
-                        icon.sizeDelta=new Vector2(sizes[i].x*0.60f,Mathf.Min(135,sizes[i].y*0.60f));
-                        var image=icon.gameObject.AddComponent<Image>(); image.sprite=icons[i]; image.preserveAspect=true; image.raycastTarget=false;
-                    }
-                    Label("Caption"+i,group,page==0?captions[i]:"待收录",positions[i]+new Vector2(0,-sizes[i].y/2+(i==2?29:16)),new Vector2(154,31),25,Ink);
-                }
-                group.gameObject.SetActive(page==0);
-            }
-            var pagination=Illustration("CatalogPagination",board,"CatalogPage1",new Vector2(0,-288),new Vector2(248,68)).GetComponent<Image>();
-            var left=HitButton("CatalogPrevious",pagination.transform,new Vector2(-83,0),new Vector2(68,60));
-            var right=HitButton("CatalogNext",pagination.transform,new Vector2(83,0),new Vector2(68,60));
-            Click(left,catalog.Previous); Click(right,catalog.Next);
-            Click(ArtButton("CatalogBackButton",board,"CatalogBack",new Vector2(511,-294),new Vector2(240,107)),view.Close);
-            Set(catalog,"pagination",pagination); Set(catalog,"previous",left); Set(catalog,"next",right);
-            var so=new SerializedObject(catalog); var groups=so.FindProperty("contentPages"); groups.arraySize=3;
-            var sprites=so.FindProperty("paginationSprites"); sprites.arraySize=3;
-            for(var i=0;i<3;i++)
-            {
-                groups.GetArrayElementAtIndex(i).objectReferenceValue=content[i];
-                sprites.GetArrayElementAtIndex(i).objectReferenceValue=TapTapUiArt.Sprite("CatalogPage"+(i+1));
-            }
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
         private static void Photo(Transform parent,string caption,Vector2 position,Vector2 size,float angle,Sprite sprite)
         {
             var frame=Panel("Photo_"+caption,parent,Vector2.one*0.5f,position,size,Cream);
@@ -370,12 +323,6 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                     pages.Open(page);
                     foreach(var size in new[]{new Vector2Int(1280,720),new Vector2Int(1024,768),new Vector2Int(1920,1080),new Vector2Int(1920,820)})
                         Capture(camera,owner,size,CaptureFolder+"/"+page+"-"+size.x+"x"+size.y+".png");
-                    if(page==ReferenceUiView.Page.Catalog)
-                    {
-                        var catalog=hud.GetComponentInChildren<TapTapCatalogView>(true);
-                        catalog.Next(); Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/CatalogPage2.png");
-                        catalog.Next(); Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/CatalogPage3.png");
-                    }
                 }
                 pages.CloseSilently(); hud.gameObject.SetActive(false); menu.SetActive(true);
                 var main=menu.GetComponent<ReferenceMainMenuView>(); main.Back();
@@ -448,6 +395,13 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var selected=Panel("Selected",button.transform,Vector2.one*0.5f,new Vector2(-94,0),new Vector2(6,56),Gold);
             selected.GetComponent<Image>().raycastTarget=false; selected.gameObject.SetActive(false);
             return button;
+        }
+        private static Text RemainingBadge(Button button)
+        {
+            var badge=Panel("RemainingBadge",button.transform,new Vector2(1,0),
+                new Vector2(-52,17),new Vector2(104,34),Cocoa);
+            badge.GetComponent<Image>().raycastTarget=false;
+            return Label("Remaining",badge,"剩余 --",Vector2.zero,new Vector2(98,30),18,Cream,false);
         }
         private static Button HitButton(string name,Transform parent,Vector2 position,Vector2 size)
         {
