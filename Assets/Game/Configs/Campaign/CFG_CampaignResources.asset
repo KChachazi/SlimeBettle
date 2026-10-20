@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   initialSlimes: 8
   maximumSlimes: 20
-  initialFood: 10
-  maximumFood: 30
+  initialFood: 60
+  maximumFood: 60
   initialFurnaces: 3
   maximumFurnaces: 10
   initialObstacles: 5
