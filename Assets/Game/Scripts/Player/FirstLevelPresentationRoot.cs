@@ -31,6 +31,7 @@ namespace SlimeBattle.Player
         private PlacementInputAdapter inputAdapter;
         private PlacementGridView gridView;
         private PlacementSelectionView selectionView;
+        private GameplayFeedbackView gameplayFeedback;
         private bool isInitialized;
         private bool isBound;
         private float nextRefresh;
@@ -113,6 +114,12 @@ namespace SlimeBattle.Player
             gridView.enabled = true;
             selectionView.Initialize(Placement);
             selectionView.enabled = true;
+            if (gameplayFeedback == null)
+                gameplayFeedback = GetComponent<GameplayFeedbackView>() ?? gameObject.AddComponent<GameplayFeedbackView>();
+            Font feedbackFont = null;
+            foreach (var label in selectionView.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+                if (label.font != null) { feedbackFont = label.font; break; }
+            gameplayFeedback.Initialize(context, cameraSystem.GetComponent<UnityEngine.Camera>(), Placement, feedbackFont);
             inputAdapter.Initialize(input, cameraSystem, Placement);
             inputAdapter.enabled = true;
             ApplyMapBounds();
@@ -181,6 +188,7 @@ namespace SlimeBattle.Player
             if (inputAdapter != null) { inputAdapter.enabled = false; }
             if (gridView != null) { gridView.enabled = false; }
             if (selectionView != null) { selectionView.enabled = false; }
+            gameplayFeedback?.Unbind();
             Placement?.Dispose();
             isBound = false;
         }

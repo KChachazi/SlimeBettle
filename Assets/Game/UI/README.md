@@ -1,5 +1,13 @@
 # TapTap 聚光灯 UI
 
+## 2026-10-21 范围与状态反馈
+
+- 食物和熔炉显示半透明作用范围：食物为绿色、熔炉为橙色，冷却中的源变淡；放置预览使用虚线，不能放置时显示红色。半径直接读取机关快照或选中机关配置，并使用史莱姆的真实 PixelsPerUnit 换算，与游戏的吸引判定一致。
+- 饥饿、暴躁和害怕以头顶气泡显示；同一只史莱姆同时具备多个状态时合并显示。气泡跟随对应史莱姆和镜头，邻近气泡自动错开，并保留指向该史莱姆的连线。
+- `GameplayFeedbackView` 仅读取公开快照，不改变状态、伤害、吸引规则或库存。覆盖层不挂 GraphicRaycaster，所有图形关闭 raycast；位于游戏 HUD 下层。重开、卸载和解除状态时清理旧提示。
+- 该功能随 `FirstLevelPresentationRoot` 接入正式第一关与 Castle，复用已有中文字体，无需重新生成地图或 HUD 预制体。
+- `GameplayFeedbackScenePlayModeTests` 从 Bootstrap 进入正式第一关，验证真实半径、缩放、非阻塞输入、移除、三个状态及并存、解除、重开。`../Tests/PlayerPresentation/GameplayFeedbackReview.png` 为测试通过实际 StatusManager 添加三种状态后的运行截图，测试冻结模拟便于对照；正常游戏仍由原有玩法触发状态。
+
 ## 2026-10-20 素材接入
 
 使用工作区 `taptap聚光灯ui/taptap聚光灯ui/` 提供的原图更新界面，取代下文 10 月 16 日的程序绘制版本。
