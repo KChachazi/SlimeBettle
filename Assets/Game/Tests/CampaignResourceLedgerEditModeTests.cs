@@ -102,8 +102,8 @@ namespace SlimeBattle.Tests
             Assert.IsTrue(asset.TryValidate(out var error), error);
             Assert.AreEqual(8, asset.InitialSlimes);
             Assert.AreEqual(20, asset.MaximumSlimes);
-            Assert.AreEqual(10, asset.InitialFood);
-            Assert.AreEqual(30, asset.MaximumFood);
+            Assert.AreEqual(60, asset.InitialFood);
+            Assert.AreEqual(60, asset.MaximumFood);
             Assert.AreEqual(3, asset.InitialFurnaces);
             Assert.AreEqual(10, asset.MaximumFurnaces);
             Assert.AreEqual(5, asset.InitialObstacles);
@@ -125,6 +125,31 @@ namespace SlimeBattle.Tests
             Assert.AreEqual(15, third.FoodReward);
             Assert.AreEqual(5, third.FurnaceReward);
             Assert.AreEqual(5, third.ObstacleReward);
+        }
+
+        [Test]
+        public void BootstrapConfigsAreValidBeforeLoadingLevels()
+        {
+            var previous = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Additive);
+            try
+            {
+                LevelManager manager = null;
+                foreach (var root in scene.GetRootGameObjects())
+                    if (manager == null) manager = root.GetComponentInChildren<LevelManager>(true);
+                Assert.IsNotNull(manager);
+                var references = new SerializedObject(manager).FindProperty("levelConfigs");
+                var configs = new List<ConfigAsset>();
+                for (var i = 0; i < references.arraySize; i++)
+                    configs.Add((ConfigAsset)references.GetArrayElementAtIndex(i).objectReferenceValue);
+                var report = new ConfigRegistry(configs).ValidateAll();
+                Assert.IsTrue(report.IsValid, string.Join("; ", report.Errors));
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (previous.IsValid()) SceneManager.SetActiveScene(previous);
+            }
         }
 
         [Test]

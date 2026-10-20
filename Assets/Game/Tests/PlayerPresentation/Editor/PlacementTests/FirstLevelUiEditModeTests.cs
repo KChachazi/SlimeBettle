@@ -129,20 +129,16 @@ namespace SlimeBattle.Tests.PlayerPresentation
         }
 
         [Test]
-        public void CatalogPaginationClampsAndOnlyShowsTheCurrentContent()
+        public void HudContainsSettingsWithoutBagOrCatalogPages()
         {
             var hud=InstantiateHud();
-            var catalog=hud.GetComponentInChildren<TapTapCatalogView>(true);
-            Assert.IsNotNull(catalog);
-            var previous=hud.GetComponentsInChildren<Button>(true).Single(b=>b.name=="CatalogPrevious");
-            var next=hud.GetComponentsInChildren<Button>(true).Single(b=>b.name=="CatalogNext");
-            catalog.Previous(); Assert.That(catalog.PageIndex,Is.Zero); Assert.That(previous.interactable,Is.False);
-            catalog.Next(); Assert.That(catalog.PageIndex,Is.EqualTo(1));
-            Assert.That(Find(catalog,"CatalogContent1").activeSelf,Is.False);
-            Assert.That(Find(catalog,"CatalogContent2").activeSelf,Is.True);
-            catalog.Next(); catalog.Next(); Assert.That(catalog.PageIndex,Is.EqualTo(2));
-            Assert.That(next.interactable,Is.False);
-            catalog.Previous(); Assert.That(catalog.PageIndex,Is.EqualTo(1)); Assert.That(next.interactable,Is.True);
+            var names=hud.GetComponentsInChildren<Transform>(true).Select(t=>t.name).ToArray();
+            foreach(var removed in new[]{"BagButton","BagPanel","CatalogButton","CatalogPanel"})
+                Assert.That(names,Does.Not.Contain(removed));
+            Assert.That(names,Does.Contain("SettingsPanel"));
+            var pages=new SerializedObject(hud.GetComponent<ReferenceUiView>()).FindProperty("pages");
+            Assert.That(pages.arraySize,Is.EqualTo(4));
+            for(var i=0;i<pages.arraySize;i++) Assert.IsNotNull(pages.GetArrayElementAtIndex(i).objectReferenceValue);
         }
 
         [Test]

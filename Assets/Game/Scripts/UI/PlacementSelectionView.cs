@@ -12,6 +12,8 @@ namespace SlimeBattle.UI
         [SerializeField] private GameObject panel;
         [SerializeField] private Text hint;
         [SerializeField] private Text budget;
+        [SerializeField] private Text foodRemainingText;
+        [SerializeField] private Text obstacleRemainingText;
         [SerializeField] private Button food;
         [SerializeField] private Button furnace;
         [SerializeField] private Button obstacle;
@@ -78,6 +80,8 @@ namespace SlimeBattle.UI
                         " 障碍 " + capacity.ObstacleRemaining
                     : " | Food " + capacity.FoodRemaining + " Furnace " +
                         capacity.FurnaceRemaining + "  Obstacles " + capacity.ObstacleRemaining;
+            RenderRemaining(foodRemainingText, capacity.HasInventory, capacity.FoodRemaining);
+            RenderRemaining(obstacleRemainingText, capacity.HasInventory, capacity.ObstacleRemaining);
             food.interactable = !capacity.HasInventory || capacity.FoodRemaining > 0;
             furnace.interactable = !capacity.HasInventory || capacity.FurnaceRemaining > 0;
             obstacle.interactable = !capacity.HasInventory || capacity.ObstacleRemaining > 0;
@@ -107,6 +111,13 @@ namespace SlimeBattle.UI
             button.targetGraphic.color = placement.SelectedItem == item
                 ? (useChineseLabels ? new Color(1f, 0.80f, 0.35f) : new Color(0.15f, 0.65f, 0.45f))
                 : (useChineseLabels ? new Color(0.98f, 0.945f, 0.82f) : new Color(0.14f, 0.24f, 0.32f));
+        }
+
+        private void RenderRemaining(Text label, bool hasInventory, int remaining)
+        {
+            if (label != null)
+                label.text = (useChineseLabels ? "剩余 " : "Left ") +
+                    (hasInventory ? remaining.ToString() : "--");
         }
     }
 }

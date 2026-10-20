@@ -39,8 +39,8 @@ namespace SlimeBattle.Data
 
         [SerializeField, Min(1)] private int initialSlimes = 8;
         [SerializeField, Min(1)] private int maximumSlimes = 20;
-        [SerializeField, Min(0)] private int initialFood = 10;
-        [SerializeField, Min(0)] private int maximumFood = 30;
+        [SerializeField, Min(0)] private int initialFood = 60;
+        [SerializeField, Min(0)] private int maximumFood = 60;
         [SerializeField, Min(0)] private int initialFurnaces = 3;
         [SerializeField, Min(0)] private int maximumFurnaces = 10;
         [SerializeField, Min(0)] private int initialObstacles = 5;

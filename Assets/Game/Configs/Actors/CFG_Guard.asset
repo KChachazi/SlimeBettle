@@ -20,7 +20,7 @@ MonoBehaviour:
   attackRange: 1.5
   detectionRange: 2
   attackWindup: 0.5
-  initialCount: 10
+  initialCount: 1
   escortDistance: 1.2
   leashDistance: 8
   spawnOffsets:
