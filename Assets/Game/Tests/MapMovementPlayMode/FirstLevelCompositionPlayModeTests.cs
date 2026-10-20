@@ -184,7 +184,7 @@ namespace SlimeBattle.Tests.MapMovement
         }
 
         [UnityTest]
-        public IEnumerator FormalFirstLevelEnemiesReceiveWanderAndMove()
+        public IEnumerator FormalFirstLevelEnemiesDoNotPatrol()
         {
             var previous = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.LoadSceneInPlayMode(
@@ -198,26 +198,18 @@ namespace SlimeBattle.Tests.MapMovement
             Assert.IsNotNull(manager);
             try
             {
-                EnemyActor enemy = null;
                 for (var frame = 0; frame < 120; frame++)
                 {
-                    if (manager.GetLevelState() == LevelState.Running)
-                    {
-                        foreach (var candidate in Object.FindObjectsOfType<EnemyActor>())
-                            if (candidate.LastDecisionReason.Contains("游走"))
-                            {
-                                enemy = candidate;
-                                break;
-                            }
-                    }
-                    if (enemy != null) break;
+                    if (manager.GetLevelState() == LevelState.Running) break;
                     yield return null;
                 }
-
-                Assert.IsNotNull(enemy, "Formal first-level enemies must receive a bounded wander intent.");
-                Assert.IsTrue(manager.GetCurrentContext().MovementSystem.TryGetMovementState(
-                    enemy.ActorId, out var movement));
-                Assert.IsTrue(movement.IsMoving, "A wander intent must submit a movement request.");
+                Assert.AreEqual(LevelState.Running, manager.GetLevelState());
+                for (var frame = 0; frame < 30; frame++) yield return null;
+                var enemies = Object.FindObjectsOfType<EnemyActor>();
+                Assert.That(enemies, Is.Not.Empty);
+                foreach (var enemy in enemies)
+                    Assert.That(enemy.LastDecisionReason, Does.Not.Contain("游走"),
+                        "Enemies without a detected hostile must remain at their spawn points.");
             }
             finally
             {

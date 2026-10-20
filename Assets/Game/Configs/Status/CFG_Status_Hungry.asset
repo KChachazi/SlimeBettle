@@ -41,7 +41,7 @@ MonoBehaviour:
   hungerRageChance: 0.2
   humanBloodRageChance: 0
   humanBloodSmellRadiusPixels: 0
-  companionDeathRageChance: 0.25
+  companionDeathRageChance: 0.1
   companionDeathFearChance: 0.25
   rageHumanAttackDelaySeconds: 0
   fleeHealthThreshold: 0.5
