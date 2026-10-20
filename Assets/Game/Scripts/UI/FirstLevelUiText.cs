@@ -23,7 +23,7 @@ namespace SlimeBattle.UI
             switch (message)
             {
                 case "Guide at least 6 slimes into the goal cave.": return "引导至少 6 只史莱姆进入终点洞穴";
-                case "Escort the weapon to the goal.": return "护送箱子到达终点";
+                case "Escort the weapon to the goal.": return "胜利条件：护送箱子到达终点";
                 case "Placement module is not connected.": return "放置模块未接入";
                 case "Level complete": return "关卡已完成";
                 case "Level failed": return "本次引导结束";

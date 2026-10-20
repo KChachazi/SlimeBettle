@@ -70,7 +70,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 var root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
                 var camera = root.GetComponentInChildren<Camera>();
                 var labels = root.GetComponentsInChildren<Text>(true);
-                Assert.That(labels.Single(t => t.name == "Objective").text, Is.EqualTo("护送箱子到达终点"));
+                Assert.That(labels.Single(t => t.name == "Objective").text, Is.EqualTo("胜利条件：护送箱子到达终点"));
                 Assert.That(labels.Single(t => t.name == "Hint").text, Is.EqualTo(FirstLevelUiText.ControlsHint));
                 foreach (var removed in new[] { "LegacyWeapon", "Budget", "Goal", "WaitingWindow", "RouteHint" })
                     Assert.That(root.GetComponentsInChildren<Transform>(true).Any(t => t.name == removed), Is.False, removed);
@@ -90,6 +90,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
                     Assert.That(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(out var weapon), Is.True);
                     root.GetComponentInChildren<CameraSystem>().ResetOpeningView(weapon.Position);
                     Capture(camera, root.gameObject, System.IO.Path.Combine(args[captureIndex + 1], level + ".png"));
+                    foreach (var size in new[] { new Vector2Int(1024, 768), new Vector2Int(1920, 1080), new Vector2Int(1920, 820) })
+                        Capture(camera, root.gameObject, System.IO.Path.Combine(args[captureIndex + 1], level + "-" + size.x + "x" + size.y + ".png"), size.x, size.y);
                     foreach (var name in new[] { "FoodButton", "FurnaceButton", "ObstacleButton", "RemoveButton" })
                     {
                         var tooltip = root.GetComponentsInChildren<UiHoverTooltip>(true).Single(t => t.name == name);
@@ -458,16 +460,16 @@ namespace SlimeBattle.Tests.PlayerPresentation
             yield return null; yield return null;
         }
 
-        private static void Capture(Camera camera, GameObject owner, string path)
+        private static void Capture(Camera camera, GameObject owner, string path, int width = 1280, int height = 720)
         {
             var canvases = owner.GetComponentsInChildren<Canvas>(true).Where(canvas => canvas.isRootCanvas).ToArray();
             var modes = canvases.Select(canvas => canvas.renderMode).ToArray();
             var cameras = canvases.Select(canvas => canvas.worldCamera).ToArray();
             var distances = canvases.Select(canvas => canvas.planeDistance).ToArray();
-            var target = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
+            var target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
             var previous = RenderTexture.active;
             var previousTarget = camera.targetTexture;
-            var texture = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            var texture = new Texture2D(width, height, TextureFormat.RGB24, false);
             try
             {
                 camera.targetTexture = target;
@@ -477,7 +479,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 foreach (var tooltip in owner.GetComponentsInChildren<UiHoverTooltip>(true).Where(t => t.IsVisible))
                     tooltip.OnPointerEnter(new PointerEventData(EventSystem.current));
                 camera.Render(); RenderTexture.active = target;
-                texture.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0); texture.Apply();
+                texture.ReadPixels(new Rect(0, 0, width, height), 0, 0); texture.Apply();
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)));
                 System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
             }

@@ -74,11 +74,11 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             Set(view,"foodRemainingText",RemainingBadge(food));
             Set(view,"furnaceRemainingText",RemainingBadge(furnace));
             Set(view,"obstacleRemainingText",RemainingBadge(obstacle));
-            var cancel=Button("CancelButton",panel,"取消放置",new Vector2(-410,34),new Vector2(154,40),Cream,Ink,26);
+            var cancel=Button("CancelButton",panel,"取消放置",new Vector2(-410,100),new Vector2(154,40),Cream,Ink,26);
             Anchor(cancel.transform,new Vector2(1,0));
-            var hintCard=Panel("PlacementHint",panel,new Vector2(0.5f,0),new Vector2(20,91),new Vector2(620,46),new Color(Cocoa.r,Cocoa.g,Cocoa.b,0.94f));
+            var hintCard=Panel("PlacementHint",panel,new Vector2(0.5f,0),new Vector2(0,48),new Vector2(580,46),new Color(Cocoa.r,Cocoa.g,Cocoa.b,0.94f));
             hintCard.GetComponent<Image>().raycastTarget=false;
-            var hint=Label("Hint",hintCard,FirstLevelUiText.ControlsHint,Vector2.zero,new Vector2(596,40),18,Cream,false);
+            var hint=Label("Hint",hintCard,FirstLevelUiText.ControlsHint,Vector2.zero,new Vector2(556,40),18,Cream,false);
             Set(view,"panel",panel.gameObject); Set(view,"hint",hint);
             Set(view,"food",food); Set(view,"furnace",furnace); Set(view,"obstacle",obstacle); Set(view,"cancel",cancel);
             Set(view,"foodSelected",food.transform.Find("Selected").gameObject);
@@ -112,7 +112,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
 
             var mission=Panel("MissionCard",hud,new Vector2(0,0),new Vector2(178,55),new Vector2(310,70),new Color(0.98f,0.945f,0.82f,0.96f));
             mission.GetComponent<Image>().raycastTarget=false;
-            var objective=Label("Objective",mission,"护送箱子到达终点",Vector2.zero,new Vector2(286,48),24,Ink,false);
+            var objective=Label("Objective",mission,"胜利条件：护送箱子到达终点",Vector2.zero,new Vector2(294,48),22,Ink,false);
 
             var pausePanel=Modal("PausePanel",root,40);
             var card=Illustration("Card",pausePanel.transform,"CatalogFrame4",Vector2.zero,new Vector2(748,462));
@@ -418,7 +418,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
         private static Text RemainingBadge(Button button)
         {
             var badge=Panel("RemainingBadge",button.transform,new Vector2(1,0),
-                new Vector2(-52,17),new Vector2(104,34),Cocoa);
+                new Vector2(-92,17),new Vector2(104,34),Cocoa);
             badge.GetComponent<Image>().raycastTarget=false;
             return Label("Remaining",badge,"剩余 --",Vector2.zero,new Vector2(98,30),18,Cream,false);
         }
