@@ -160,6 +160,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
             Assert.IsNotNull(root?.Placement);
             var context = manager.GetCurrentContext();
+            Assert.IsNotNull(context.GuardManager);
+            Assert.That(context.GuardManager.GetAliveSnapshots().Count, Is.EqualTo(10),
+                "The production HUD must preserve the main branch's ten-guard formation.");
             Assert.That(root.Placement.GetBudgetSnapshot().HasInventory, Is.True);
             Assert.That(root.Placement.GetBudgetSnapshot().FoodRemaining, Is.EqualTo(60));
             Assert.That(root.Placement.GetBudgetSnapshot().ObstacleRemaining, Is.EqualTo(5));
