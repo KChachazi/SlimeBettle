@@ -24,7 +24,7 @@ namespace SlimeBattle.Tests
                 map = new MapManager(scene, null);
                 Assert.That(map.GetPlacementAnchors().Count, Is.EqualTo(6));
                 Assert.That(map.TryGetMapBounds(out var bounds), Is.True);
-                var definition = AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset");
+                var definition = AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset");
                 var grid = owner.GetComponent<PlacementGridAuthoring>(); grid.Grid.cellSize = new Vector3(1f, 1f, 0f);
                 placement = new PlacementSystem(grid, () => bounds, () => LevelState.Running,
                     backend, PlacementConfirmationMode.Single, map.GetPlacementAnchors, definition.DesignPixelsPerUnityUnit);

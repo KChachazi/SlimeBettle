@@ -33,11 +33,11 @@ namespace SlimeBattle.Tests
                 var parent = new GameObject("Slime parent").transform;
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(parent.gameObject, scene);
                 var slimeConfig = AssetDatabase.LoadAssetAtPath<SlimeConfig>(
-                    "Assets/Game/Configs/Level_test/CFG_Slime_MVP.asset");
+                    "Assets/Game/Configs/Actors/CFG_Slime_MVP.asset");
                 var slimePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                     "Assets/Game/Prefabs/Actors/PF_Slime_Green.prefab").GetComponent<SlimeActor>();
                 var obstacle = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Obstacle.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Obstacle.asset");
                 var registry = new ConfigRegistry(new ConfigAsset[] { slimeConfig, obstacle });
                 map = new MapManager(scene, null);
                 status = new StatusManager(registry, null, _ => null);
@@ -101,11 +101,11 @@ namespace SlimeBattle.Tests
                 var parent = new GameObject("Slime parent").transform;
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(parent.gameObject, scene);
                 var slimeConfig = AssetDatabase.LoadAssetAtPath<SlimeConfig>(
-                    "Assets/Game/Configs/Level_test/CFG_Slime_MVP.asset");
+                    "Assets/Game/Configs/Actors/CFG_Slime_MVP.asset");
                 var slimePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                     "Assets/Game/Prefabs/Actors/PF_Slime_Green.prefab").GetComponent<SlimeActor>();
                 var obstacle = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Obstacle.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Obstacle.asset");
                 var registry = new ConfigRegistry(new ConfigAsset[] { slimeConfig, obstacle });
                 map = new MapManager(scene, null);
                 status = new StatusManager(registry, null, _ => null);
@@ -164,13 +164,13 @@ namespace SlimeBattle.Tests
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(
                     mechanismParent.gameObject, scene);
                 var slimeConfig = AssetDatabase.LoadAssetAtPath<SlimeConfig>(
-                    "Assets/Game/Configs/Level_test/CFG_Slime_MVP.asset");
+                    "Assets/Game/Configs/Actors/CFG_Slime_MVP.asset");
                 var slimePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                     "Assets/Game/Prefabs/Actors/PF_Slime_Green.prefab").GetComponent<SlimeActor>();
                 var obstacle = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Obstacle.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Obstacle.asset");
                 var furnace = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Furnace.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Furnace.asset");
                 var registry = new ConfigRegistry(new ConfigAsset[] { slimeConfig, obstacle, furnace });
                 map = new MapManager(scene, null);
                 status = new StatusManager(registry, null, _ => null);

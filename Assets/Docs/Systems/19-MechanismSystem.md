@@ -59,7 +59,7 @@ PlacementCooldown
 
 `MechanismConfig` 保存类型、是否允许玩家放置、吸引范围、占位半径、使用次数和冷却；障碍另保存首关总库存、耐久和碰撞半径。使用次数配置为 `0` 表示不限次数；食物必须配置有限使用次数。暖区吸引半径保存在 `MapAreaAuthoring`，默认设计值为 500px。机关配置资产需纳入当前关卡的 `ConfigRegistry`，场景/预制体的 `MechanismAuthoring` 保存其 `ConfigId`。
 
-首关离线数据位于 `Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset` 和 `Assets/Game/Configs/FirstLevelMechanisms/`。`FirstLevelHazardConfig` 保存 T1-T5 与补给点的静态触发参数；它只定义数据，不创建陷阱对象、不检测接触、不结算效果。地图点的 `ConfigId` 与这些资产的 ID 对应，场景组合时仍须把需要的 ConfigAsset 加入 `LevelConfig`/`ConfigRegistry`。当前首关的食物吸引半径为 400px；熔炉没有首关半径数据，沿用项目已有 500px 配置；障碍数据为总库存 10、耐久 3、放置冷却 1 秒、碰撞半径 55px。
+首关离线数据位于 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset`、`Assets/Game/Configs/Mechanisms/PlayerPlaceable/` 和 `Assets/Game/Configs/Mechanisms/Hazards/`。`FirstLevelHazardConfig` 保存 T1-T5 与补给点的静态触发参数；它只定义数据，不创建陷阱对象、不检测接触、不结算效果。地图点的 `ConfigId` 与这些资产的 ID 对应，场景组合时仍须把需要的 ConfigAsset 加入 `LevelConfig`/`ConfigRegistry`。当前首关的食物吸引半径为 400px；熔炉没有首关半径数据，沿用项目已有 500px 配置；障碍数据为总库存 10、耐久 3、放置冷却 1 秒、碰撞半径 55px。
 
 T4 的 0.5 倍减速、3 秒时长只在 `CFG_Trap_T4` 中作为待运行时消费的效果数据。首关沼泽地图区域当前移动倍率为 1，避免陷阱运行时接入后同一减速同时由 MapManager 地形倍率和 StatusManager 状态倍率重复施加。该区域几何仍是无底图阶段的圆形代理，不能视作最终沼泽轮廓。
 

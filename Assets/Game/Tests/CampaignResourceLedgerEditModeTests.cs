@@ -97,7 +97,7 @@ namespace SlimeBattle.Tests
         public void CampaignAssetContainsConfirmedStartsCapsAndLevelRewards()
         {
             var asset = AssetDatabase.LoadAssetAtPath<CampaignResourceConfig>(
-                "Assets/Game/Configs/CFG_CampaignResources.asset");
+                "Assets/Game/Configs/Campaign/CFG_CampaignResources.asset");
             Assert.IsNotNull(asset);
             Assert.IsTrue(asset.TryValidate(out var error), error);
             Assert.AreEqual(8, asset.InitialSlimes);
@@ -152,6 +152,47 @@ namespace SlimeBattle.Tests
                 for (var i = 0; i < 8; i++)
                     Assert.Less(Vector2.Distance(points[i].Position,
                         route.Waypoints[0].Position), 1.2f);
+            }
+            finally
+            {
+                map?.Dispose();
+                if (scene.IsValid()) EditorSceneManager.ClosePreviewScene(scene);
+                if (previous.IsValid()) SceneManager.SetActiveScene(previous);
+            }
+        }
+
+        [Test]
+        public void CastleMapProvidesTwentyOrderedSpawnPointsNearWeaponStart()
+        {
+            var previous = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.NewPreviewScene();
+            MapManager map = null;
+            try
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/Game/Prefabs/Maps/PF_CastleMapArt.prefab");
+                Assert.IsNotNull(prefab);
+                PrefabUtility.InstantiatePrefab(prefab, scene);
+                map = new MapManager(scene, null);
+                var points = new List<MapPointSnapshot>(
+                    map.GetMapPoints(MapPointKind.SlimeSpawn));
+                points.Sort((left, right) => string.CompareOrdinal(
+                    left.PointId.Value, right.PointId.Value));
+                var weapons = map.GetMapPoints(MapPointKind.Weapon);
+
+                Assert.AreEqual(20, points.Count);
+                Assert.AreEqual(0, map.GetMapPoints(MapPointKind.Spawn).Count);
+                Assert.AreEqual(1, weapons.Count);
+                var previousDistance = 0f;
+                for (var i = 0; i < points.Count; i++)
+                {
+                    Assert.AreEqual("castle_slime_spawn_" + (i + 1).ToString("D2"),
+                        points[i].PointId.Value);
+                    var distance = Vector2.Distance(points[i].Position,
+                        weapons[0].Position);
+                    Assert.GreaterOrEqual(distance, previousDistance);
+                    previousDistance = distance;
+                }
             }
             finally
             {

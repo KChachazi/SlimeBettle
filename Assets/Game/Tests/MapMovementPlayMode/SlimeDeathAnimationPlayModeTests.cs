@@ -24,7 +24,7 @@ namespace SlimeBattle.Tests.MapMovement
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/Game/Prefabs/Actors/PF_Slime_Green.prefab");
             config = AssetDatabase.LoadAssetAtPath<SlimeConfig>(
-                "Assets/Game/Configs/Level_test/CFG_Slime_MVP.asset");
+                "Assets/Game/Configs/Actors/CFG_Slime_MVP.asset");
 #else
             Assert.Ignore("This visual integration test loads the project prefab through the Editor.");
             yield break;
