@@ -16,10 +16,10 @@ MonoBehaviour:
   kind: 3
   playerPlaceable: 1
   attractionRadiusPixels: 0
-  placementRadiusWorldUnits: 0.55
+  placementRadiusWorldUnits: 1.65
   activationLimit: 0
   activationCooldownSeconds: 0
   placementCooldownSeconds: 1
   durability: 3
-  collisionRadiusPixels: 55
+  collisionRadiusPixels: 165
   placementPrefab: {fileID: 4227075374389960665, guid: 9a5777bd3bb16a94392c1bedbd4800e8, type: 3}
