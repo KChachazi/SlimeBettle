@@ -9,10 +9,12 @@ namespace SlimeBattle.UI
     public sealed class PlacementSelectionView : MonoBehaviour
     {
         private PlacementSystem placement;
+        private UiHoverTooltip[] tooltips;
         [SerializeField] private GameObject panel;
         [SerializeField] private Text hint;
         [SerializeField] private Text budget;
         [SerializeField] private Text foodRemainingText;
+        [SerializeField] private Text furnaceRemainingText;
         [SerializeField] private Text obstacleRemainingText;
         [SerializeField] private Button food;
         [SerializeField] private Button furnace;
@@ -30,12 +32,13 @@ namespace SlimeBattle.UI
         {
             Unbind();
             this.placement = placement ?? throw new ArgumentNullException(nameof(placement));
-            if (panel == null || hint == null || budget == null || food == null ||
+            if (panel == null || hint == null || food == null ||
                 furnace == null || obstacle == null || cancel == null)
                 throw new InvalidOperationException("Placement selection prefab references are incomplete.");
             var fallbackFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             foreach (var label in GetComponentsInChildren<Text>(true))
                 if (label.font == null) label.font = fallbackFont;
+            tooltips = GetComponentsInChildren<UiHoverTooltip>(true);
             if (isActiveAndEnabled) { Bind(); }
         }
 
@@ -69,18 +72,20 @@ namespace SlimeBattle.UI
         private void Render()
         {
             panel.SetActive(isActiveAndEnabled && placement.IsRunning);
+            if (tooltips != null) foreach (var tooltip in tooltips) tooltip.SetAvailable(placement.IsRunning);
             hint.text = useChineseLabels ? FirstLevelUiText.PlacementHint(placement) : placement.Hint;
             var capacity = placement.GetBudgetSnapshot();
-            budget.text = capacity.HasData
+            if (budget != null) budget.text = capacity.HasData
                 ? (useChineseLabels ? "场上 " : "Placed ") + capacity.ActiveCount + "/" + capacity.MaximumActiveCount
                 : (useChineseLabels ? "放置配额未接入" : "Placed: unavailable");
-            if (capacity.HasInventory)
+            if (budget != null && capacity.HasInventory)
                 budget.text += useChineseLabels
                     ? " | 食物 " + capacity.FoodRemaining + " 熔炉 " + capacity.FurnaceRemaining +
                         " 障碍 " + capacity.ObstacleRemaining
                     : " | Food " + capacity.FoodRemaining + " Furnace " +
                         capacity.FurnaceRemaining + "  Obstacles " + capacity.ObstacleRemaining;
             RenderRemaining(foodRemainingText, capacity.HasInventory, capacity.FoodRemaining);
+            RenderRemaining(furnaceRemainingText, capacity.HasInventory, capacity.FurnaceRemaining);
             RenderRemaining(obstacleRemainingText, capacity.HasInventory, capacity.ObstacleRemaining);
             food.interactable = !capacity.HasInventory || capacity.FoodRemaining > 0;
             furnace.interactable = !capacity.HasInventory || capacity.FurnaceRemaining > 0;

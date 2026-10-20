@@ -40,20 +40,23 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var hud=InstantiateHud();
             hud.Render(new UiState(default,LevelState.Running,"测试",0,weaponText:"weapon destroyed"),true,false,false,false);
             Assert.That(Label(hud,"Counts").text,Is.EqualTo("0 / --"));
-            Assert.That(Label(hud,"Goal").text,Does.Contain("未接入"));
-            Assert.That(Label(hud,"WaitingWindow").text,Does.Contain("未接入"));
+            foreach(var removed in new[]{"LegacyWeapon","Goal","WaitingWindow","RouteHint"})
+                Assert.That(hud.GetComponentsInChildren<Transform>(true).Any(t=>t.name==removed),Is.False,removed);
             Assert.That(Find(hud,"ResultPanel").activeSelf,Is.False);
             Assert.That(new UiState(default,LevelState.Running,"old constructor").SlimeCount,Is.EqualTo(-1));
         }
         [Test]
-        public void GoalWindowAndRouteDisplayAreReadOnlyAndResultFollowsPhase()
+        public void MissionOnlyShowsVictoryConditionAndResultFollowsPhase()
         {
             var hud=InstantiateHud();
             hud.Render(new UiState(default,LevelState.Failed,"objective",12,slimeLimit:20,
                 goalText:"终点 2 / 6",waitingText:"剩余 18 秒",routeHint:"L1 类型不匹配",resultText:"公开结果原因"),true,false,true,false);
-            Assert.That(Label(hud,"Goal").text,Is.EqualTo("终点 2 / 6"));
-            Assert.That(Label(hud,"WaitingWindow").text,Is.EqualTo("剩余 18 秒"));
-            Assert.That(Label(hud,"RouteHint").text,Is.EqualTo("L1 类型不匹配"));
+            var mission=Find(hud,"MissionCard");
+            Assert.That(mission.GetComponentsInChildren<Text>(),Has.Length.EqualTo(1));
+            hud.Render(new UiState(default,LevelState.Failed,"Escort the weapon to the goal.",12,
+                goalText:"终点 2 / 6",waitingText:"剩余 18 秒"),true,false,true,false);
+            Assert.That(Label(hud,"Objective").text,Is.EqualTo("护送箱子到达终点"));
+            Assert.That(Label(hud,"Objective").fontSize,Is.GreaterThanOrEqualTo(22));
             Assert.That(Label(hud,"Result").text,Does.StartWith("再试一次吧"));
             Assert.That(Label(hud,"ResultCounts").text,Does.Contain("终点 2 / 6"));
             hud.Render(new UiState(default,LevelState.Succeeded,"objective"),true,false,true,true);
@@ -80,7 +83,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(prefab.GetComponentsInChildren<PlacementInputAdapter>(true).Length,Is.EqualTo(1));
             Assert.That(prefab.GetComponentsInChildren<PlacementGridView>(true).Length,Is.EqualTo(1));
             var hud=new SerializedObject(prefab.GetComponentInChildren<BattleHudView>(true));
-            foreach(var field in new[]{"hudPanel","pausePanel","resultPanel","objectiveText","countsText","goalText","waitingText","routeHintText","resultText","pauseButton","resumeButton","pauseRestartButton","resultRestartButton"})
+            foreach(var field in new[]{"hudPanel","pausePanel","resultPanel","objectiveText","countsText","resultText","pauseButton","resumeButton","pauseRestartButton","resultRestartButton"})
                 Assert.IsNotNull(hud.FindProperty(field).objectReferenceValue,field);
         }
 
@@ -180,6 +183,31 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 "Transparent export margins must not create a full-screen clickable button.");
             Assert.That(rect.sizeDelta.x,Is.LessThan(340));
             Assert.That(rect.sizeDelta.y,Is.LessThan(180));
+        }
+
+        [TestCase("PF_FirstLevelPlacementSelection.prefab",3)]
+        [TestCase("PF_FirstLevelHUD.prefab",1)]
+        public void TooltipsAreBoundHiddenAndNeverBlockPointerInput(string file,int count)
+        {
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(Folder+file);
+            var tooltips=prefab.GetComponentsInChildren<UiHoverTooltip>(true);
+            Assert.That(tooltips,Has.Length.EqualTo(count));
+            foreach(var tooltip in tooltips)
+            {
+                var data=new SerializedObject(tooltip);
+                var card=(RectTransform)data.FindProperty("tooltip").objectReferenceValue;
+                var body=(Text)data.FindProperty("body").objectReferenceValue;
+                Assert.IsNotNull(card); Assert.IsNotNull(body);
+                Assert.That(card.gameObject.activeSelf,Is.False);
+                Assert.That(body.fontSize,Is.GreaterThanOrEqualTo(17));
+                Assert.That(card.GetComponentsInChildren<Graphic>(true).All(g=>!g.raycastTarget),Is.True);
+                Assert.That(card.GetComponent<CanvasGroup>().blocksRaycasts,Is.False);
+            }
+            if(file.Contains("PlacementSelection"))
+            {
+                Assert.That(prefab.GetComponentsInChildren<Transform>(true).Any(t=>t.name=="Budget"),Is.False);
+                Assert.That(Label(prefab.transform,"Hint").text,Is.EqualTo(FirstLevelUiText.ControlsHint));
+            }
         }
     }
 }

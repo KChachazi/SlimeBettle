@@ -68,15 +68,18 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var food=IllustratedTool(toolbar,"FoodButton","HudFood");
             var furnace=IllustratedTool(toolbar,"FurnaceButton","HudFurnace");
             var obstacle=IllustratedTool(toolbar,"ObstacleButton","HudObstacle");
+            AddTooltip(food,panel,"食物","吸引附近的史莱姆进食，\n吃完后消失。");
+            AddTooltip(furnace,panel,"熔炉","持续吸引附近的史莱姆，\n用来引导它们的行进路线。");
+            AddTooltip(obstacle,panel,"障碍","阻挡角色通行，\n让史莱姆和敌人绕路。");
             Set(view,"foodRemainingText",RemainingBadge(food));
+            Set(view,"furnaceRemainingText",RemainingBadge(furnace));
             Set(view,"obstacleRemainingText",RemainingBadge(obstacle));
             var cancel=Button("CancelButton",panel,"取消放置",new Vector2(-410,34),new Vector2(154,40),Cream,Ink,26);
             Anchor(cancel.transform,new Vector2(1,0));
-            var budget=Label("Budget",panel,"放置配额未接入",new Vector2(-430,-127),new Vector2(280,34),13,Ink,false);
-            Anchor(budget.transform,new Vector2(1,1));
-            var hintCard=Panel("PlacementHint",panel,new Vector2(0.5f,0),new Vector2(-70,91),new Vector2(450,44),new Color(Cocoa.r,Cocoa.g,Cocoa.b,0.94f));
-            var hint=Label("Hint",hintCard,"选择机关，再点击地图放置",Vector2.zero,new Vector2(426,38),15,Cream,false);
-            Set(view,"panel",panel.gameObject); Set(view,"hint",hint); Set(view,"budget",budget);
+            var hintCard=Panel("PlacementHint",panel,new Vector2(0.5f,0),new Vector2(20,91),new Vector2(620,46),new Color(Cocoa.r,Cocoa.g,Cocoa.b,0.94f));
+            hintCard.GetComponent<Image>().raycastTarget=false;
+            var hint=Label("Hint",hintCard,FirstLevelUiText.ControlsHint,Vector2.zero,new Vector2(596,40),18,Cream,false);
+            Set(view,"panel",panel.gameObject); Set(view,"hint",hint);
             Set(view,"food",food); Set(view,"furnace",furnace); Set(view,"obstacle",obstacle); Set(view,"cancel",cancel);
             Set(view,"foodSelected",food.transform.Find("Selected").gameObject);
             Set(view,"furnaceSelected",furnace.transform.Find("Selected").gameObject);
@@ -100,20 +103,16 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var counter=SourceArt("SlimeCounter",hud,"HudCounter",new Vector2(1,1));
             var counts=Label("Counts",counter,"-- / --",new Vector2(131,-1),new Vector2(118,43),29,Ink);
             var remove=SourceButton("RemoveButton",hud,"HudRemove",new Vector2(1,0.5f));
+            AddTooltip(remove,hud,"拆除机关","点击后选择要拆除的机关。\n拆除不会返还数量。");
             Click(remove,pages.ToggleRemoval); Set(pages,"removeButton",remove); SetBool(pages,"useIllustratedSprites",true);
             var hint=Label("FlowHint",hud,"",new Vector2(-80,52),new Vector2(460,28),14,Cream,false);
             Anchor(hint.transform,new Vector2(0.5f,0));
             var feedback=Label("FeatureFeedback",hud,"",new Vector2(-80,24),new Vector2(460,28),14,Cream,false);
             Anchor(feedback.transform,new Vector2(0.5f,0)); Set(pages,"feedbackText",feedback);
 
-            // Compact optional facts preserve integration and never occupy the map's center.
-            var mission=Panel("MissionCard",hud,new Vector2(0,0),new Vector2(178,83),new Vector2(310,130),new Color(0.98f,0.945f,0.82f,0.96f));
-            var objective=Label("Objective",mission,"",new Vector2(0,45),new Vector2(286,31),14,Ink,false);
-            var goal=Label("Goal",mission,"",new Vector2(0,15),new Vector2(286,25),17,Ink,false);
-            var waiting=Label("WaitingWindow",mission,"",new Vector2(0,-14),new Vector2(286,22),13,Ink,false);
-            var route=Label("RouteHint",mission,"",new Vector2(0,-41),new Vector2(286,22),12,Ink,false);
-            var weapon=Label("LegacyWeapon",hud,"",new Vector2(0,-110),new Vector2(620,28),14,Ink,false);
-            Anchor(weapon.transform,new Vector2(0.5f,1)); weapon.gameObject.SetActive(false);
+            var mission=Panel("MissionCard",hud,new Vector2(0,0),new Vector2(178,55),new Vector2(310,70),new Color(0.98f,0.945f,0.82f,0.96f));
+            mission.GetComponent<Image>().raycastTarget=false;
+            var objective=Label("Objective",mission,"护送箱子到达终点",Vector2.zero,new Vector2(286,48),24,Ink,false);
 
             var pausePanel=Modal("PausePanel",root,40);
             var card=Illustration("Card",pausePanel.transform,"CatalogFrame4",Vector2.zero,new Vector2(748,462));
@@ -148,8 +147,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             bindings.ApplyModifiedPropertiesWithoutUndo();
             WrapModalContent(pausePanel); WrapModalContent(resultPanel);
             Set(view,"hudPanel",hud.gameObject); Set(view,"pausePanel",pausePanel); Set(view,"resultPanel",resultPanel); Set(view,"referencePages",pages);
-            Set(view,"objectiveText",objective); Set(view,"countsText",counts); Set(view,"weaponText",weapon); Set(view,"hintText",hint);
-            Set(view,"goalText",goal); Set(view,"waitingText",waiting); Set(view,"routeHintText",route); Set(view,"resultCountsText",resultCounts);
+            Set(view,"objectiveText",objective); Set(view,"countsText",counts); Set(view,"hintText",hint);
+            Set(view,"resultCountsText",resultCounts);
             Set(view,"resultText",result); Set(view,"resultDetailText",detail); Set(view,"pauseButton",pause); Set(view,"resumeButton",resume);
             Set(view,"pauseRestartButton",restart); Set(view,"resultRestartButton",resultRestart); SetBool(view,"useChineseLabels",true);
             SetBool(view,"countsValueOnly",true);
@@ -395,6 +394,26 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var selected=Panel("Selected",button.transform,Vector2.one*0.5f,new Vector2(-94,0),new Vector2(6,56),Gold);
             selected.GetComponent<Image>().raycastTarget=false; selected.gameObject.SetActive(false);
             return button;
+        }
+        private static void AddTooltip(Button button,Transform parent,string title,string description)
+        {
+            var card=Panel(button.name+"Tooltip",parent,Vector2.one*0.5f,Vector2.zero,
+                new Vector2(280,124),Cream,StorybookSurface.SurfaceKind.Paper);
+            card.pivot=new Vector2(0,0.5f);
+            card.GetComponent<Image>().raycastTarget=false;
+            var canvas=card.gameObject.AddComponent<Canvas>(); canvas.overrideSorting=true; canvas.sortingOrder=30;
+            var group=card.gameObject.AddComponent<CanvasGroup>(); group.blocksRaycasts=false; group.interactable=false;
+            var heading=Label("TooltipTitle",card,title,Vector2.zero,Vector2.zero,22,Ink,false);
+            heading.alignment=TextAnchor.MiddleLeft; heading.resizeTextForBestFit=false;
+            heading.rectTransform.anchorMin=new Vector2(0,1); heading.rectTransform.anchorMax=Vector2.one;
+            heading.rectTransform.pivot=new Vector2(0.5f,1); heading.rectTransform.anchoredPosition=new Vector2(0,-12);
+            heading.rectTransform.sizeDelta=new Vector2(-32,34);
+            var text=Label("TooltipBody",card,description,Vector2.zero,Vector2.zero,17,Ink,false);
+            text.resizeTextForBestFit=false; text.alignment=TextAnchor.UpperLeft; text.lineSpacing=1.15f;
+            Stretch(text.rectTransform); text.rectTransform.offsetMin=new Vector2(16,14); text.rectTransform.offsetMax=new Vector2(-16,-58);
+            var tooltip=button.gameObject.AddComponent<UiHoverTooltip>();
+            Set(tooltip,"tooltip",card); Set(tooltip,"body",text);
+            card.gameObject.SetActive(false);
         }
         private static Text RemainingBadge(Button button)
         {
