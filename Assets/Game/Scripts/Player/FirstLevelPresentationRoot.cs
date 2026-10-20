@@ -32,6 +32,7 @@ namespace SlimeBattle.Player
         private CastleFoodCartInteractionAdapter foodCartAdapter;
         private PlacementGridView gridView;
         private PlacementSelectionView selectionView;
+        private GameplayFeedbackView gameplayFeedback;
         private bool isInitialized;
         private bool isBound;
         private float nextRefresh;
@@ -114,6 +115,12 @@ namespace SlimeBattle.Player
             gridView.enabled = true;
             selectionView.Initialize(Placement);
             selectionView.enabled = true;
+            if (gameplayFeedback == null)
+                gameplayFeedback = GetComponent<GameplayFeedbackView>() ?? gameObject.AddComponent<GameplayFeedbackView>();
+            Font feedbackFont = null;
+            foreach (var label in selectionView.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+                if (label.font != null) { feedbackFont = label.font; break; }
+            gameplayFeedback.Initialize(context, cameraSystem.GetComponent<UnityEngine.Camera>(), Placement, feedbackFont);
             foodCartAdapter = GetComponent<CastleFoodCartInteractionAdapter>();
             if (foodCartAdapter != null)
             {
@@ -190,6 +197,7 @@ namespace SlimeBattle.Player
             if (foodCartAdapter != null) { foodCartAdapter.enabled = false; }
             if (gridView != null) { gridView.enabled = false; }
             if (selectionView != null) { selectionView.enabled = false; }
+            gameplayFeedback?.Unbind();
             Placement?.Dispose();
             isBound = false;
         }

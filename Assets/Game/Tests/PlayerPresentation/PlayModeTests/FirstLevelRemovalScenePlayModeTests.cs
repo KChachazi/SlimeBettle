@@ -31,6 +31,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            foreach (var existing in Object.FindObjectsOfType<GameRoot>()) Object.Destroy(existing.gameObject);
+            yield return null;
             loadFailure = string.Empty;
             var settings = UnityEngine.InputSystem.InputSystem.settings;
             previousInputBehavior = settings.editorInputBehaviorInPlayMode;
@@ -160,6 +162,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
             Assert.IsNotNull(root?.Placement);
             var context = manager.GetCurrentContext();
+            Assert.IsNotNull(context.GuardManager);
+            Assert.That(context.GuardManager.GetAliveSnapshots().Count, Is.EqualTo(10),
+                "The production HUD must preserve the main branch's ten-guard formation.");
             Assert.That(root.Placement.GetBudgetSnapshot().HasInventory, Is.True);
             Assert.That(root.Placement.GetBudgetSnapshot().FoodRemaining, Is.EqualTo(60));
             Assert.That(root.Placement.GetBudgetSnapshot().ObstacleRemaining, Is.EqualTo(5));
@@ -187,6 +192,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 var kind = item == PlacementItemId.Food ? MechanismKind.Food :
                     item == PlacementItemId.Furnace ? MechanismKind.Furnace : MechanismKind.Obstacle;
                 Assert.That(context.MechanismSystem.TryGetPlayerConfigId(kind, out var configId), Is.True);
+                var select = root.GetComponentsInChildren<Button>(true).Single(button => button.name == item + "Button");
+                yield return Click(RectTransformUtility.WorldToScreenPoint(null, select.transform.position));
+                Assert.That(root.GetComponent<PlacementGridView>().VisiblePlaceableCellCount, Is.GreaterThan(0));
                 var position = Vector3.zero;
                 var foundPosition = false;
                 for (var y = minimum.y; y <= maximum.y && !foundPosition; y++)
@@ -197,13 +205,11 @@ namespace SlimeBattle.Tests.PlayerPresentation
                         if (viewport.z <= 0f || viewport.x < 0.28f || viewport.x > 0.68f ||
                             viewport.y < 0.25f || viewport.y > 0.70f) continue;
                         if (!context.MechanismSystem.CanPlace(configId, candidate, out _)) continue;
+                        if (!root.Placement.IsCellPlaceable(grid.WorldToCell(candidate))) continue;
                         position = candidate; foundPosition = true;
                     }
                 Assert.That(foundPosition, Is.True, "The default opening camera must show a legal cell away from HUD controls, without test camera movement.");
                 Assert.That(camera.GetState().Position, Is.EqualTo(initialCameraPosition));
-                var select = root.GetComponentsInChildren<Button>(true).Single(button => button.name == item + "Button");
-                yield return Click(RectTransformUtility.WorldToScreenPoint(null, select.transform.position));
-                Assert.That(root.GetComponent<PlacementGridView>().VisiblePlaceableCellCount, Is.GreaterThan(0));
                 var screenPosition = camera.WorldToScreen(position);
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = screenPosition });
                 yield return null; yield return null;
