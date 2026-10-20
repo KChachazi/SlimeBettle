@@ -17,6 +17,12 @@ namespace SlimeBattle.Player.Placement
         PlacementBudgetSnapshot GetBudgetSnapshot();
     }
 
+    /// <summary>Optional read-only preview data for the selected mechanism.</summary>
+    public interface IPlacementPreviewInfoProvider
+    {
+        bool TryGetAttractionRadiusWorldUnits(PlacementItemId item, out float radius);
+    }
+
     public interface IAnchorReplacementBackend
     {
         bool SupportsAnchorReplacement { get; }
