@@ -175,6 +175,8 @@ namespace SlimeBattle.Tests.MapMovement
             Assert.IsTrue(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(
                 out var weapon));
             Assert.AreEqual("route_escort", weapon.RouteId.Value);
+            Assert.Greater(weapon.CarrierCount, 0,
+                "The initial Slime must board before the escort weapon can move.");
             var weaponStart = weapon.Position;
             for (var frame = 0; frame < 60; frame++) yield return null;
             Assert.IsTrue(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(

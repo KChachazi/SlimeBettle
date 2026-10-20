@@ -10,7 +10,8 @@ namespace SlimeBattle.Guards
     {
         public GuardSnapshot(ActorSnapshot actor, ConfigId configId, StateId actionState,
             Vector2 standPosition = default(Vector2),
-            Vector2 escortOffset = default(Vector2))
+            Vector2 escortOffset = default(Vector2),
+            ActorId retaliationTargetId = default(ActorId))
         {
             ActorId = actor.ActorId;
             FactionId = actor.FactionId;
@@ -23,6 +24,7 @@ namespace SlimeBattle.Guards
             ActionState = actionState;
             StandPosition = standPosition;
             EscortOffset = escortOffset;
+            RetaliationTargetId = retaliationTargetId;
         }
 
         public ActorId ActorId { get; }
@@ -36,5 +38,6 @@ namespace SlimeBattle.Guards
         public StateId ActionState { get; }
         public Vector2 StandPosition { get; }
         public Vector2 EscortOffset { get; }
+        public ActorId RetaliationTargetId { get; }
     }
 }

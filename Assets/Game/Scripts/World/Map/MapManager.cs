@@ -67,6 +67,8 @@ namespace SlimeBattle.World
         }
 
         private readonly HashSet<Collider2D> movementBlockers = new HashSet<Collider2D>();
+        private readonly HashSet<Collider2D> registeredMovementBlockers =
+            new HashSet<Collider2D>();
         private readonly Dictionary<MapAreaId, AreaBinding> areas =
             new Dictionary<MapAreaId, AreaBinding>();
         private readonly Dictionary<MapPointId, MapPointSnapshot> points =
@@ -98,7 +100,7 @@ namespace SlimeBattle.World
         {
             return IsBound && collider != null && collider.enabled &&
                 collider.gameObject.activeInHierarchy && movementBlockers.Contains(collider) &&
-                IsSolidStaticCollider(collider);
+                IsMovementBlockerCollider(collider);
         }
 
         public bool TryGetMapBounds(out MapBounds bounds)
@@ -162,17 +164,17 @@ namespace SlimeBattle.World
                 }
             }
 
-            if (!query.IgnoreRoadArea && hasRoadAreas)
+            var insideRoadArea = false;
+            if (hasRoadAreas)
             {
-                var onRoad = false;
                 foreach (var binding in areas.Values)
                 {
                     if (binding.Snapshot.Kind != MapAreaKind.Road ||
                         !binding.Contains(worldPosition, query.RoadTolerance)) continue;
-                    onRoad = true;
+                    insideRoadArea = true;
                     break;
                 }
-                if (!onRoad) return false;
+                if (!query.IgnoreRoadArea && !insideRoadArea) return false;
             }
 
             if (!query.CheckStaticBlockers) return true;
@@ -184,6 +186,11 @@ namespace SlimeBattle.World
                 {
                     continue;
                 }
+
+                // Authored road areas define the playable corridor. Decorative map
+                // collision shapes cannot close a corridor; placed mechanisms still can.
+                if (insideRoadArea && !registeredMovementBlockers.Contains(collider))
+                    continue;
 
                 if (collider.OverlapPoint(worldPosition)) return false;
                 var closestPoint = collider.ClosestPoint(worldPosition);
@@ -273,14 +280,17 @@ namespace SlimeBattle.World
 
         public bool RegisterMovementBlocker(Collider2D collider)
         {
-            if (!IsBound || !IsSolidStaticCollider(collider)) return false;
+            if (!IsBound || !IsMovementBlockerCollider(collider)) return false;
             movementBlockers.Add(collider);
+            registeredMovementBlockers.Add(collider);
             return true;
         }
 
         public bool UnregisterMovementBlocker(Collider2D collider)
         {
-            return IsBound && collider != null && movementBlockers.Remove(collider);
+            if (!IsBound || collider == null) return false;
+            registeredMovementBlockers.Remove(collider);
+            return movementBlockers.Remove(collider);
         }
 
         internal void NotifyActorPositionChanged(ActorId actorId, Vector2 position)
@@ -324,6 +334,7 @@ namespace SlimeBattle.World
         {
             if (disposed) return;
             movementBlockers.Clear();
+            registeredMovementBlockers.Clear();
             areas.Clear();
             points.Clear();
             routes.Clear();
@@ -443,7 +454,7 @@ namespace SlimeBattle.World
 
                 foreach (var collider in root.GetComponentsInChildren<Collider2D>(true))
                 {
-                    if (IsSolidStaticCollider(collider)) movementBlockers.Add(collider);
+                    if (IsMovementBlockerCollider(collider)) movementBlockers.Add(collider);
                 }
             }
 
@@ -639,9 +650,11 @@ namespace SlimeBattle.World
             return false;
         }
 
-        private bool IsSolidStaticCollider(Collider2D collider)
+        private bool IsMovementBlockerCollider(Collider2D collider)
         {
-            if (collider == null || collider.isTrigger) return false;
+            if (collider == null ||
+                (collider.isTrigger && collider.GetComponent<MapObstacleAuthoring>() == null))
+                return false;
             if (collider.gameObject.scene.handle != scene.handle) return false;
             var body = collider.attachedRigidbody;
             return body == null || body.bodyType == RigidbodyType2D.Static;

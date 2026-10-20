@@ -16,7 +16,7 @@ namespace SlimeBattle.World.Movement
 
         private sealed class ActiveMovement
         {
-            private readonly IReadOnlyList<Vector2> waypoints;
+            private IReadOnlyList<Vector2> waypoints;
             private int waypointIndex;
 
             public ActiveMovement(MovementRequestId requestId, Vector2 destination,
@@ -32,6 +32,11 @@ namespace SlimeBattle.World.Movement
             public Vector2 CurrentWaypoint => waypoints == null || waypoints.Count == 0
                 ? Destination : waypoints[waypointIndex];
             public Vector2 DesiredDirection { get; set; }
+            public void ReplaceWaypoints(IReadOnlyList<Vector2> value)
+            {
+                waypoints = value;
+                waypointIndex = 0;
+            }
             public bool AdvanceWaypoint()
             {
                 if (waypoints == null || waypointIndex + 1 >= waypoints.Count) return false;
@@ -78,6 +83,8 @@ namespace SlimeBattle.World.Movement
             new Dictionary<ActorId, ActorBinding>();
         private readonly Dictionary<MovementRequestId, ActorBinding> activeRequests =
             new Dictionary<MovementRequestId, ActorBinding>();
+        private readonly Dictionary<ActorId, Collider2D> actorColliders =
+            new Dictionary<ActorId, Collider2D>();
         private bool disposed;
         private bool paused;
 
@@ -122,7 +129,12 @@ namespace SlimeBattle.World.Movement
             var binding = new ActorBinding(actorId, body, collisionRelay,
                 moveSpeedPixelsPerSecond / pixelsPerUnit, positionUpdated, movementCompleted,
                 requireRoadArea, useAStar);
+            var actorCollider = body.GetComponent<Collider2D>();
+            foreach (var otherCollider in actorColliders.Values)
+                if (otherCollider != null)
+                    Physics2D.IgnoreCollision(actorCollider, otherCollider, true);
             actors.Add(actorId, binding);
+            actorColliders.Add(actorId, actorCollider);
             collisionRelay.Bind(this, actorId);
             mapManager.NotifyActorPositionChanged(actorId, body.position);
             return true;
@@ -276,10 +288,18 @@ namespace SlimeBattle.World.Movement
                     new Vector2(collider.bounds.extents.x, collider.bounds.extents.y);
                 var bodyRadius = Mathf.Max(extents.x, extents.y);
                 var occupancy = new OccupancyQuery(bodyRadius,
-                    requireWithinBounds: true, checkStaticBlockers: false,
+                    requireWithinBounds: true, checkStaticBlockers: true,
                     roadTolerance: 0.2f, ignoreRoadArea: !binding.RequireRoadArea);
                 if (!mapManager.CanOccupy(candidatePosition, occupancy))
                 {
+                    if (TryReplan(binding, active))
+                    {
+                        body.velocity = Vector2.zero;
+                        binding.State = new MovementState(binding.ActorId,
+                            MovementResult.InProgress, active.RequestId, position,
+                            active.Destination, Vector2.zero);
+                        continue;
+                    }
                     Complete(binding, active, MovementResult.Blocked,
                         default(ContactInfo));
                     continue;
@@ -328,9 +348,15 @@ namespace SlimeBattle.World.Movement
             if (binding.CollisionRelay != null) binding.CollisionRelay.Unbind(this);
             if (binding.Body != null)
             {
+                if (actorColliders.TryGetValue(actorId, out var actorCollider) &&
+                    actorCollider != null)
+                    foreach (var otherCollider in actorColliders.Values)
+                        if (otherCollider != null && otherCollider != actorCollider)
+                            Physics2D.IgnoreCollision(actorCollider, otherCollider, false);
                 binding.Body.velocity = Vector2.zero;
                 binding.Body.simulated = false;
             }
+            actorColliders.Remove(actorId);
             mapManager.NotifyActorRemoved(actorId);
             actors.Remove(actorId);
         }
@@ -362,8 +388,35 @@ namespace SlimeBattle.World.Movement
                 return;
             }
 
+            if (TryReplan(binding, active))
+            {
+                binding.Body.velocity = Vector2.zero;
+                binding.State = new MovementState(binding.ActorId,
+                    MovementResult.InProgress, active.RequestId, binding.Body.position,
+                    active.Destination, Vector2.zero);
+                return;
+            }
+
             Complete(binding, active, MovementResult.Blocked,
                 new ContactInfo(obstacle, point, normal));
+        }
+
+        private bool TryReplan(ActorBinding binding, ActiveMovement active)
+        {
+            if (!binding.UseAStar || binding.Body == null ||
+                !mapManager.TryGetMapBounds(out var bounds)) return false;
+            var collider = binding.Body.GetComponent<Collider2D>();
+            var extents = collider == null ? Vector2.zero :
+                new Vector2(collider.bounds.extents.x, collider.bounds.extents.y);
+            var occupancy = new OccupancyQuery(Mathf.Max(extents.x, extents.y),
+                requireWithinBounds: true, checkStaticBlockers: true,
+                roadTolerance: 0.2f, ignoreRoadArea: !binding.RequireRoadArea);
+            if (!AStarGridPathfinder.TryFindPath(binding.Body.position,
+                active.Destination, bounds,
+                position => mapManager.CanOccupy(position, occupancy), out var waypoints) ||
+                waypoints == null || waypoints.Count == 0) return false;
+            active.ReplaceWaypoints(waypoints);
+            return true;
         }
 
         private void Complete(ActorBinding binding, ActiveMovement active,

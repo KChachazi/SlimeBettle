@@ -14,7 +14,7 @@
 
 `MAP_FirstLevel.asset` is built from the supplied files under `Desktop/数据`:
 
-- Twelve polygon areas define walkable road. The source rectangles are treated as road regardless of their labels; their road kind is `Unclassified` because the source does not authoritatively distinguish main and branch road.
+- Fifteen polygon areas define walkable road. The source rectangles are treated as road regardless of their labels; their road kind is `Unclassified` because the source does not authoritatively distinguish main and branch road.
 - Two polygon areas are swamps. Each has a `0.5` movement multiplier.
 - Three enemy spawn points are loaded. `FirstLevelCompositionRoot` currently creates ordinary enemies at all three points using the available `EnemyConfig`.
 - One trap map point and its source interaction radius are recorded. It is a map marker; it does not create a live trap or apply an effect.
@@ -26,15 +26,16 @@ The current background is `IMG_FirstLevel_AnningTown.png`, a 5760 × 5760 image 
 ## Runtime behavior
 
 - `MapLayoutAuthoring` draws road polygons, swamp polygons, the route, spawn points, and the trap point as Scene View Gizmos for debugging.
-- `MapRoot` has no physical `Collider2D` for the map. Its `Map Art` child is only a `SpriteRenderer`; `MapManager.CanOccupy` uses the road polygons from `MAP_FirstLevel.asset` and any registered static colliders to decide whether movement and placement are allowed.
-- `MapManager.CanOccupy` checks map bounds, road-area membership, and registered static blockers by default. Movement requests can opt out of the Road-area requirement while retaining map-bound checks.
-- `MovementSystem` checks the next physics-step position before setting the dynamic `Rigidbody2D` velocity. Slimes opt into 0.5-unit A* grid paths that avoid registered static blockers and non-Road areas; diagonal corner cutting is disallowed and clear segments are simplified. Guards may move off Road to hold their weapon-relative formation; map bounds still apply, and physical collision with a registered static blocker stops a request. Other actors remain subject to Road areas. A 0.2-unit road tolerance bridges small source measurement seams.
+- `MapRoot` has no physical `Collider2D` for the map. `StoneDetails` and `WallOcclusion` use trigger colliders marked with `MapObstacleAuthoring`, so their large art outlines are evaluated by `MapManager` without physical collision resolution.
+- `MapManager.CanOccupy` checks map bounds, road-area membership, and movement blockers. Authored roads override map-art blockers, while runtime-registered mechanisms remain solid inside roads. Movement requests can opt out of the Road-area requirement while retaining map-bound checks and map-art blockers.
+- `MovementSystem` checks the next physics-step position before setting the dynamic `Rigidbody2D` velocity. Slimes opt into 0.5-unit A* grid paths that follow authored roads and avoid runtime-placed blockers; diagonal corner cutting is disallowed and clear segments are simplified. Guards may move off Road to hold their weapon-relative formation and use A* around map-art and runtime blockers. If a configured guard post is blocked at spawn, it moves to the nearest passable grid point and follows with that corrected weapon offset. A 0.2-unit road tolerance bridges small source measurement seams.
 - The escort weapon follows `route_escort`. Free Slimes respond to active guidance sources; without one, they choose random destinations within 1.5 Unity units of their current position. Enemies spawn at the three authored points and their random-walk destinations are filtered through map occupancy.
-- Placement preview and final mechanism placement both validate against walkable road and static blockers.
+- Placement preview and final mechanism placement both validate against walkable roads and runtime-placed blockers.
 
 ## Current limits and verification
 
 - The trap point is not connected to trigger/effect runtime. No status effect is configured for swamp entry; swamp currently changes movement speed only.
 - The road outlines are the authored polygons from the supplied data and have not been auto-derived from image pixels.
-- Manual Unity PlayMode inspection from Bootstrap reached `FirstLevel`: one Slime and three enemies were present, the Slime was moving along the route, and runtime placement preview returned `Free` on a road point and `InvalidArea` off road. The three enemy spawn points passed `CanOccupy`.
-- Unity Test Runner was not run.
+- Previous manual Unity PlayMode inspection from Bootstrap reached `FirstLevel`; that observation predates the current collision-policy change and has not been repeated.
+- Current targeted Unity EditMode verification passed 7/7: guard priority and moving-post follow tests pass; all 15 authored road centers return a valid food-placement preview; placed blockers remain solid inside roads; actors allowed off Road can move across it despite map-art blockers; the Escort weapon advances along its authored route; and all five guard offsets can follow the full route around blockers.
+- A PlayMode test attempt did not produce a pass: the existing Bootstrap test could not find `MainMenuLevelEntry`. Runtime visual verification after this collision-policy change remains outstanding.

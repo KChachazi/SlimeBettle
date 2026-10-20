@@ -13,6 +13,7 @@ using SlimeBattle.Slimes;
 using SlimeBattle.Status;
 using SlimeBattle.World;
 using SlimeBattle.World.Movement;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace SlimeBattle.Core
@@ -138,12 +139,39 @@ namespace SlimeBattle.Core
                             guardPrefab, movementSystem: MovementSystem);
                     if (hasEscortWeapon)
                     {
+                        var guardCollider = guardPrefab.GetComponent<Collider2D>();
+                        var guardScale = guardPrefab.transform.lossyScale;
+                        var guardRadius = guardCollider is CircleCollider2D circleCollider
+                            ? circleCollider.radius * UnityEngine.Mathf.Max(
+                                UnityEngine.Mathf.Abs(guardScale.x),
+                                UnityEngine.Mathf.Abs(guardScale.y))
+                            : guardCollider == null ? 0f
+                                : UnityEngine.Mathf.Max(guardCollider.bounds.extents.x,
+                                    guardCollider.bounds.extents.y);
+                        var guardOccupancy = new OccupancyQuery(guardRadius,
+                            requireWithinBounds: true, checkStaticBlockers: true,
+                            roadTolerance: 0.2f, ignoreRoadArea: true);
                         foreach (var offset in guardConfig.SpawnOffsets)
+                        {
+                            var spawnPosition = weapon.Position + offset;
+                            var escortOffset = offset;
+                            if (!MapManager.CanOccupy(spawnPosition, guardOccupancy))
+                            {
+                                if (!MapManager.TryGetMapBounds(out var bounds) ||
+                                    !AStarGridPathfinder.TryFindNearestPassablePoint(
+                                        spawnPosition, bounds,
+                                        position => MapManager.CanOccupy(position, guardOccupancy),
+                                        out spawnPosition))
+                                    throw new InvalidOperationException(
+                                        "Guard formation spawn is blocked and has no nearby walkable position.");
+                                escortOffset = spawnPosition - weapon.Position;
+                            }
                             if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
-                                guardConfig.ConfigId, weapon.Position + offset,
-                                escortOffset: offset)).IsValid)
+                                guardConfig.ConfigId, spawnPosition,
+                                escortOffset: escortOffset)).IsValid)
                                 throw new InvalidOperationException(
                                     "Guard spawn failed: " + GuardManager.LastFailureReason);
+                        }
                     }
                     else
                         foreach (var point in guardPoints)
