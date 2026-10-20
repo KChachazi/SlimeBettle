@@ -12,7 +12,7 @@ using UnityEngine.UI;
 
 namespace SlimeBattle.Tests.PlayerPresentation.Editor
 {
-    /// <summary>Reference composition with the project's full-color forest and editable uGUI controls.</summary>
+    /// <summary>TapTap illustrations with prefab-owned uGUI controls and existing gameplay bindings.</summary>
     public static class ReferenceUiPrefabBuilder
     {
         public const string MenuPath="Assets/Game/UI/Prefabs/PF_ReferenceMainMenu.prefab";
@@ -40,8 +40,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 backdrop=new Material(Shader.Find("SlimeBattle/UI/ReferenceBackdrop"));
                 backdrop.SetFloat("_Blur",2.5f); AssetDatabase.CreateAsset(backdrop,path);
             }
-            backdrop.SetFloat("_Blur",2.5f);
-            EditorUtility.SetDirty(backdrop);
+            if(!Mathf.Approximately(backdrop.GetFloat("_Blur"),2.5f))
+            { backdrop.SetFloat("_Blur",2.5f); EditorUtility.SetDirty(backdrop); }
         }
 
         public static PlacementSelectionView BuildSelection()
@@ -50,23 +50,23 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var root=CanvasRoot("PF_FirstLevelPlacementSelection",21);
             var view=root.gameObject.AddComponent<PlacementSelectionView>();
             var panel=Rect("PlacementPanel",Safe(root)); Stretch(panel);
-            var toolbar=Rect("Toolbar",panel); toolbar.anchorMin=toolbar.anchorMax=new Vector2(1,0.5f);
-            toolbar.anchoredPosition=new Vector2(-61,0); toolbar.sizeDelta=new Vector2(122,720);
-            var food=Tool(toolbar,"FoodButton","食物",194);
-            var furnace=Tool(toolbar,"FurnaceButton","熔炉",83);
-            var obstacle=Tool(toolbar,"ObstacleButton","障碍",-29);
-            var cancel=Button("CancelButton",panel,"取消放置",new Vector2(-148,47),new Vector2(174,44),Gold,Ink,26);
+            var toolbar=Rect("Toolbar",panel); Stretch(toolbar);
+            var food=IllustratedTool(toolbar,"FoodButton","HudFood");
+            var furnace=IllustratedTool(toolbar,"FurnaceButton","HudFurnace");
+            var obstacle=IllustratedTool(toolbar,"ObstacleButton","HudObstacle");
+            var cancel=Button("CancelButton",panel,"取消放置",new Vector2(-410,34),new Vector2(154,40),Cream,Ink,26);
             Anchor(cancel.transform,new Vector2(1,0));
-            var budget=Label("Budget",panel,"放置配额未接入",new Vector2(-283,-74),new Vector2(224,26),13,Ink,false);
+            var budget=Label("Budget",panel,"放置配额未接入",new Vector2(-430,-127),new Vector2(280,34),13,Ink,false);
             Anchor(budget.transform,new Vector2(1,1));
-            var hintCard=Panel("PlacementHint",panel,new Vector2(0.5f,0),new Vector2(0,35),new Vector2(450,40),new Color(Cocoa.r,Cocoa.g,Cocoa.b,0.94f));
-            var hint=Label("Hint",hintCard,"选择机关，再点击地图放置",Vector2.zero,new Vector2(426,30),15,Cream,false);
+            var hintCard=Panel("PlacementHint",panel,new Vector2(0.5f,0),new Vector2(-70,91),new Vector2(450,44),new Color(Cocoa.r,Cocoa.g,Cocoa.b,0.94f));
+            var hint=Label("Hint",hintCard,"选择机关，再点击地图放置",Vector2.zero,new Vector2(426,38),15,Cream,false);
             Set(view,"panel",panel.gameObject); Set(view,"hint",hint); Set(view,"budget",budget);
             Set(view,"food",food); Set(view,"furnace",furnace); Set(view,"obstacle",obstacle); Set(view,"cancel",cancel);
             Set(view,"foodSelected",food.transform.Find("Selected").gameObject);
             Set(view,"furnaceSelected",furnace.transform.Find("Selected").gameObject);
             Set(view,"obstacleSelected",obstacle.transform.Find("Selected").gameObject);
             SetBool(view,"useChineseLabels",true); SetBool(view,"useReferenceLayout",true);
+            SetBool(view,"useIllustratedSprites",true);
             return view;
         }
 
@@ -77,22 +77,22 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var view=root.gameObject.AddComponent<BattleHudView>();
             var pages=root.gameObject.AddComponent<ReferenceUiView>();
             var hud=Rect("HUD",Safe(root)); Stretch(hud);
-            var strip=Panel("ToolbarBacking",hud,new Vector2(1,0.5f),new Vector2(-33,0),new Vector2(70,760),Cocoa);
-            strip.localRotation=Quaternion.Euler(0,0,3); strip.GetComponent<Image>().raycastTarget=false;
-            var pause=Button("PauseButton",hud,"设置",new Vector2(65,-62),new Vector2(94,70),Cocoa,Cream,48);
-            Anchor(pause.transform,new Vector2(0,1));
-            var counter=Panel("SlimeCounter",hud,new Vector2(1,1),new Vector2(-283,-33),new Vector2(224,48),Cocoa);
-            var counts=Label("Counts",counter,"史莱姆数量 -- / --",Vector2.zero,new Vector2(214,42),30,Cream);
-            var bag=Button("BagButton",hud,"背包",new Vector2(-215,72),new Vector2(132,124),Moss,Ink,55);
-            Anchor(bag.transform,new Vector2(1,0)); bag.transform.localRotation=Quaternion.Euler(0,0,-1);
+            var strip=SourceArt("ToolbarBacking",hud,"HudBoard",new Vector2(1,0.5f));
+            // The wooden rail blocks map clicks, while its individual controls belong to separate canvases.
+            strip.GetComponent<Image>().raycastTarget=true;
+            var pause=SourceButton("PauseButton",hud,"HudSettings",new Vector2(0,1));
+            var counter=SourceArt("SlimeCounter",hud,"HudCounter",new Vector2(1,1));
+            var counts=Label("Counts",counter,"-- / --",new Vector2(131,-1),new Vector2(118,43),29,Ink);
+            var bag=ArtButton("BagButton",hud,"HudBag",new Vector2(-410,135),new Vector2(124,121));
+            Anchor(bag.transform,new Vector2(1,0));
             Click(bag,pages.OpenBag);
-            var catalog=Button("CatalogButton",hud,"图鉴",new Vector2(-65,91),new Vector2(142,62),Cream,Ink,44,StorybookSurface.SurfaceKind.Notched);
-            Anchor(catalog.transform,new Vector2(1,0)); Click(catalog,pages.OpenCatalog);
-            var remove=Button("RemoveButton",hud,"拆除",new Vector2(-65,203),new Vector2(96,82),Cocoa,Cream,38);
-            Anchor(remove.transform,new Vector2(1,0)); Click(remove,pages.ToggleRemoval); Set(pages,"removeButton",remove);
-            var hint=Label("FlowHint",hud,"",new Vector2(0,82),new Vector2(520,28),14,Cream,false);
+            var catalog=SourceButton("CatalogButton",hud,"HudCatalog",new Vector2(1,0.5f));
+            Click(catalog,pages.OpenCatalog);
+            var remove=SourceButton("RemoveButton",hud,"HudRemove",new Vector2(1,0.5f));
+            Click(remove,pages.ToggleRemoval); Set(pages,"removeButton",remove); SetBool(pages,"useIllustratedSprites",true);
+            var hint=Label("FlowHint",hud,"",new Vector2(-80,52),new Vector2(460,28),14,Cream,false);
             Anchor(hint.transform,new Vector2(0.5f,0));
-            var feedback=Label("FeatureFeedback",hud,"",new Vector2(0,111),new Vector2(520,28),14,Cream,false);
+            var feedback=Label("FeatureFeedback",hud,"",new Vector2(-80,24),new Vector2(460,28),14,Cream,false);
             Anchor(feedback.transform,new Vector2(0.5f,0)); Set(pages,"feedbackText",feedback);
 
             // Compact optional facts preserve integration and never occupy the map's center.
@@ -105,40 +105,43 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             Anchor(weapon.transform,new Vector2(0.5f,1)); weapon.gameObject.SetActive(false);
 
             var pausePanel=Modal("PausePanel",root,40);
-            var card=Panel("Card",pausePanel.transform,Vector2.one*0.5f,new Vector2(0,26),new Vector2(556,568),Moss);
-            var title=Panel("TitleRibbon",card,Vector2.one*0.5f,new Vector2(-160,251),new Vector2(350,74),Cream);
-            title.localRotation=Quaternion.Euler(0,0,9);
-            Label("Heading",title,"游戏暂停",Vector2.zero,new Vector2(328,64),53,Ink);
-            for(var i=0;i<3;i++) Doodle(card,new Vector2(-286,147-i*70),new Vector2(72,65),Cream,i*12-8);
-            Doodle(card,new Vector2(263,-244),new Vector2(150,145),Mint,-8,true);
-            var resume=Button("ResumeButton",card,"开始游戏",new Vector2(0,54),new Vector2(388,66),Cocoa,Cream,53);
-            var quit=Button("QuitButton",card,"退出",new Vector2(0,-74),new Vector2(388,70),Cocoa,Cream,52);
-            Click(quit,pages.Quit);
-            // Keep the existing restart command available without displacing the reference's two primary actions.
-            var restart=Button("RestartButton",card,"重新开始",new Vector2(0,-185),new Vector2(168,38),Moss,Cream,26);
+            var card=Illustration("Card",pausePanel.transform,"CatalogFrame4",Vector2.zero,new Vector2(748,462));
+            Label("Heading",card,"游戏暂停",new Vector2(0,144),new Vector2(420,66),53,Ink);
+            var resume=Button("ResumeButton",card,"继续游戏",new Vector2(0,48),new Vector2(320,59),Cream,Ink,43);
+            var returnToMenu=Button("PauseReturnToMenuButton",card,"返回主菜单",new Vector2(0,-35),new Vector2(320,59),Cream,Ink,38);
+            Click(returnToMenu,pages.ReturnToMainMenu);
+            var restart=Button("RestartButton",card,"重新开始",new Vector2(0,-116),new Vector2(224,42),Cream,Ink,28);
 
             var resultPanel=Modal("ResultPanel",root,40);
-            var resultCard=Panel("Card",resultPanel.transform,Vector2.one*0.5f,Vector2.zero,new Vector2(566,486),Board);
-            Doodle(resultCard,new Vector2(-250,192),new Vector2(105,100),Mint,-12,true);
-            var result=Label("Result",resultCard,"",new Vector2(0,163),new Vector2(490,70),52,Cream);
-            var detailViewport=Rect("ResultReasonViewport",resultCard); detailViewport.anchoredPosition=new Vector2(0,44); detailViewport.sizeDelta=new Vector2(494,108);
+            var resultCard=Illustration("Card",resultPanel.transform,"CatalogFrame4",Vector2.zero,new Vector2(890,550));
+            var result=Label("Result",resultCard,"",new Vector2(0,176),new Vector2(510,70),52,Ink);
+            var detailViewport=Rect("ResultReasonViewport",resultCard); detailViewport.anchoredPosition=new Vector2(0,62); detailViewport.sizeDelta=new Vector2(550,108);
             detailViewport.gameObject.AddComponent<RectMask2D>(); detailViewport.gameObject.AddComponent<Image>().color=Color.clear;
-            var detail=Label("ResultDetail",detailViewport,"",Vector2.zero,new Vector2(476,108),17,Cream,false);
+            var detail=Label("ResultDetail",detailViewport,"",Vector2.zero,new Vector2(532,108),17,Ink,false);
             detail.resizeTextForBestFit=false; detail.rectTransform.anchorMin=new Vector2(0,1); detail.rectTransform.anchorMax=new Vector2(1,1);
             detail.rectTransform.pivot=new Vector2(0.5f,1); detail.rectTransform.sizeDelta=new Vector2(-18,108); detail.alignment=TextAnchor.UpperCenter;
             detail.gameObject.AddComponent<ContentSizeFitter>().verticalFit=ContentSizeFitter.FitMode.PreferredSize;
             var scroll=detailViewport.gameObject.AddComponent<ScrollRect>(); scroll.viewport=detailViewport; scroll.content=detail.rectTransform;
             scroll.horizontal=false; scroll.vertical=true; scroll.movementType=ScrollRect.MovementType.Clamped; scroll.scrollSensitivity=24;
-            var resultCounts=Label("ResultCounts",resultCard,"",new Vector2(0,-65),new Vector2(500,72),17,Cream,false);
-            var resultRestart=Button("RestartButton",resultCard,"再来一次",new Vector2(0,-167),new Vector2(300,58),Gold,Ink,38);
+            var resultCounts=Label("ResultCounts",resultCard,"",new Vector2(0,-45),new Vector2(550,72),17,Ink,false);
+            var resultRestart=Button("RestartButton",resultCard,"再来一次",new Vector2(-143,-133),new Vector2(248,54),Cream,Ink,36);
+            var resultReturn=Button("ResultReturnToMenuButton",resultCard,"返回主菜单",new Vector2(143,-133),new Vector2(248,54),Cream,Ink,34);
+            Click(resultReturn,pages.ReturnToMainMenu);
 
             BuildPages(root,pages);
+            var bindings=new SerializedObject(pages);
+            var returns=bindings.FindProperty("returnToMenuButtons"); returns.arraySize=3;
+            returns.GetArrayElementAtIndex(0).objectReferenceValue=returnToMenu;
+            returns.GetArrayElementAtIndex(1).objectReferenceValue=resultReturn;
+            returns.GetArrayElementAtIndex(2).objectReferenceValue=root.GetComponentsInChildren<Button>(true).Single(b=>b.name=="SettingsReturnToMenuButton");
+            bindings.ApplyModifiedPropertiesWithoutUndo();
             WrapModalContent(pausePanel); WrapModalContent(resultPanel);
             Set(view,"hudPanel",hud.gameObject); Set(view,"pausePanel",pausePanel); Set(view,"resultPanel",resultPanel); Set(view,"referencePages",pages);
             Set(view,"objectiveText",objective); Set(view,"countsText",counts); Set(view,"weaponText",weapon); Set(view,"hintText",hint);
             Set(view,"goalText",goal); Set(view,"waitingText",waiting); Set(view,"routeHintText",route); Set(view,"resultCountsText",resultCounts);
             Set(view,"resultText",result); Set(view,"resultDetailText",detail); Set(view,"pauseButton",pause); Set(view,"resumeButton",resume);
             Set(view,"pauseRestartButton",restart); Set(view,"resultRestartButton",resultRestart); SetBool(view,"useChineseLabels",true);
+            SetBool(view,"countsValueOnly",true);
             pausePanel.SetActive(false); resultPanel.SetActive(false);
             return view;
         }
@@ -149,21 +152,18 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             for(var i=0;i<pages.Length;i++) pages[i]=Modal(((ReferenceUiView.Page)(i+1))+"Panel",root,45);
             BuildBag(pages[0].transform,view);
             BuildCatalog(pages[1].transform,view);
-            var settings=Panel("SettingsCard",pages[2].transform,Vector2.one*0.5f,new Vector2(0,28),new Vector2(398,568),Board);
-            var heading=Panel("SettingsTitle",settings,Vector2.one*0.5f,new Vector2(0,264),new Vector2(226,68),Cream);
-            Label("Title",heading,"设置",Vector2.zero,new Vector2(208,60),54,Ink);
+            var settings=Rect("SettingsCard",pages[2].transform); Stretch(settings);
+            SourceArt("SettingsBoard",settings,"SettingsBoard");
             var actions=new UnityAction[]{view.OpenVolume,view.OpenSaves,view.OpenResolution};
             var words=new[]{"音量","存档","分辨率"};
+            var art=new[]{"SettingsVolume","SettingsSaves","SettingsResolution"};
             for(var i=0;i<3;i++)
-            {
-                var y=131-i*127;
-                Doodle(settings,new Vector2(i%2==0?-185:175,y),new Vector2(126,122),i==1?Mint:Cream,i*9-4);
-                Click(Button(words[i]+"Button",settings,words[i],new Vector2(3,y),new Vector2(254,64),Cocoa,Cream,49),actions[i]);
-            }
-            Click(Button("SettingsBackButton",settings,"退出",new Vector2(175,-260),new Vector2(106,68),Cream,Ink,43),view.Close);
+                Click(SourceButton(words[i]+"Button",settings,art[i]),actions[i]);
+            Click(Button("SettingsBackButton",settings,"继续游戏",new Vector2(-148,-278),new Vector2(232,52),Cream,Ink,34),view.Close);
+            Click(Button("SettingsReturnToMenuButton",settings,"返回主菜单",new Vector2(148,-278),new Vector2(232,52),Cream,Ink,32),view.ReturnToMainMenu);
 
             var volume=SubCard(pages[3].transform,"音量",view);
-            Label("VolumeDescription",volume,"主音量",new Vector2(0,100),new Vector2(330,40),29,Cream);
+            Label("VolumeDescription",volume,"主音量",new Vector2(0,100),new Vector2(330,40),29,Ink);
             var sliderRect=Panel("VolumeSlider",volume,Vector2.one*0.5f,new Vector2(0,10),new Vector2(330,26),Cocoa);
             var slider=sliderRect.gameObject.AddComponent<Slider>(); slider.minValue=0; slider.maxValue=1; slider.value=1;
             var fillArea=Rect("FillArea",sliderRect); Stretch(fillArea); fillArea.offsetMin=new Vector2(10,5); fillArea.offsetMax=new Vector2(-10,-5);
@@ -172,7 +172,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var handle=Panel("Handle",handleArea,Vector2.one*0.5f,Vector2.zero,new Vector2(24,44),Cream);
             slider.fillRect=fill; slider.handleRect=handle; slider.targetGraphic=handle.GetComponent<Image>();
             slider.navigation=new Navigation { mode=Navigation.Mode.None }; UnityEventTools.AddPersistentListener(slider.onValueChanged,view.SetVolume);
-            Set(view,"volumeSlider",slider); Set(view,"volumeText",Label("VolumeValue",volume,"100 %",new Vector2(0,-63),new Vector2(330,46),37,Cream));
+            Set(view,"volumeSlider",slider); Set(view,"volumeText",Label("VolumeValue",volume,"100 %",new Vector2(0,-63),new Vector2(330,46),37,Ink));
 
             var saves=SubCard(pages[4].transform,"存档",view);
             for(var i=0;i<3;i++)
@@ -180,7 +180,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var slot=Panel("SaveSlot"+(i+1),saves,Vector2.one*0.5f,new Vector2(0,105-i*95),new Vector2(390,72),Cream);
                 Label("SlotLabel",slot,"空存档",Vector2.zero,new Vector2(350,56),32,Ink);
             }
-            Label("SaveStatus",saves,"当前版本尚未接入存档",new Vector2(0,-177),new Vector2(400,32),14,Cream,false);
+            Label("SaveStatus",saves,"当前版本尚未接入存档",new Vector2(0,-135),new Vector2(400,32),14,Ink,false);
 
             var resolution=SubCard(pages[5].transform,"分辨率",view);
             var sizes=new[]{"1280 × 720","1600 × 900","1920 × 1080"};
@@ -189,7 +189,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var button=Button("Resolution"+i,resolution,sizes[i],new Vector2(0,105-i*85),new Vector2(340,58),Cream,Ink,32);
                 UnityEventTools.AddIntPersistentListener(button.onClick,view.SetResolution,i);
             }
-            Set(view,"resolutionText",Label("ResolutionValue",resolution,"1280 × 720",new Vector2(0,-162),new Vector2(430,32),15,Cream,false));
+            Set(view,"resolutionText",Label("ResolutionValue",resolution,"1280 × 720",new Vector2(0,-128),new Vector2(430,32),15,Ink,false));
             var so=new SerializedObject(view); var array=so.FindProperty("pages"); array.arraySize=pages.Length;
             for(var i=0;i<pages.Length;i++) { array.GetArrayElementAtIndex(i).objectReferenceValue=pages[i]; WrapModalContent(pages[i]); pages[i].SetActive(false); }
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -197,10 +197,9 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
 
         private static RectTransform SubCard(Transform parent,string title,ReferenceUiView view)
         {
-            var card=Panel(title+"Card",parent,Vector2.one*0.5f,Vector2.zero,new Vector2(530,500),Board);
-            var heading=Panel("TitleRibbon",card,Vector2.one*0.5f,new Vector2(0,230),new Vector2(260,72),Cream,StorybookSurface.SurfaceKind.Ribbon);
-            Label("Title",heading,title,Vector2.zero,new Vector2(230,62),48,Ink);
-            Click(Button("BackButton",card,"返回",new Vector2(0,-220),new Vector2(164,58),Cream,Ink,38),view.BackToSettings);
+            var card=Illustration(title+"Card",parent,"CatalogFrame5",Vector2.zero,new Vector2(738,517));
+            Label("Title",card,title,new Vector2(0,185),new Vector2(300,66),48,Ink);
+            Click(Button("BackButton",card,"返回",new Vector2(0,-180),new Vector2(164,52),Cream,Ink,38),view.BackToSettings);
             return card;
         }
 
@@ -222,19 +221,43 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
 
         private static void BuildCatalog(Transform parent,ReferenceUiView view)
         {
-            var board=Panel("CatalogBoard",parent,Vector2.one*0.5f,Vector2.zero,new Vector2(1280,646),Board);
-            var title=Panel("CatalogTitle",board,new Vector2(0,1),new Vector2(115,-25),new Vector2(232,80),Cream);
-            Label("Title",title,"图鉴",Vector2.zero,new Vector2(210,74),54,Ink);
-            Photo(board,"守卫",new Vector2(-432,112),new Vector2(216,206),-6,null);
-            Photo(board,"1",new Vector2(-155,131),new Vector2(216,206),4,Art("Food"));
-            Photo(board,"3",new Vector2(154,115),new Vector2(220,206),-13,Art("Furnace"));
-            Photo(board,"2",new Vector2(-341,-145),new Vector2(374,240),3,Art("Obstacle"));
-            Photo(board,"4",new Vector2(70,-138),new Vector2(290,218),0,null);
-            Photo(board,"5",new Vector2(447,-6),new Vector2(254,520),-2,Art("Slime"));
-            var left=Button("CatalogPrevious",board,"←",new Vector2(-16,-292),new Vector2(48,42),Board,Cream,38); left.interactable=false;
-            Label("CatalogPagination",board,"1 / 1",new Vector2(74,-292),new Vector2(100,40),34,Cream);
-            var right=Button("CatalogNext",board,"→",new Vector2(164,-292),new Vector2(48,42),Board,Cream,38); right.interactable=false;
-            var back=Button("CatalogBackButton",parent,"退出",new Vector2(-77,35),new Vector2(156,64),Cream,Ink,48); Anchor(back.transform,new Vector2(1,0)); Click(back,view.Close);
+            var board=Illustration("CatalogBoard",parent,"CatalogBoard",Vector2.zero,new Vector2(1270,720));
+            var catalog=board.gameObject.AddComponent<TapTapCatalogView>();
+            var positions=new[]{new Vector2(-367,128),new Vector2(-106,129),new Vector2(150,123),new Vector2(-291,-118),new Vector2(77,-120),new Vector2(419,0)};
+            var sizes=new[]{new Vector2(224,217),new Vector2(224,222),new Vector2(252,243),new Vector2(394,244),new Vector2(334,234),new Vector2(270,414)};
+            for(var i=0;i<6;i++) Illustration("CatalogFrame"+(i+1),board,"CatalogFrame"+(i+1),positions[i],sizes[i]);
+            var content=new GameObject[3];
+            var captions=new[]{"待收录","食物","熔炉","障碍","待收录","史莱姆"};
+            var icons=new[]{null,Art("Food"),Art("Furnace"),Art("Obstacle"),null,Art("Slime")};
+            for(var page=0;page<content.Length;page++)
+            {
+                var group=Rect("CatalogContent"+(page+1),board); Stretch(group); content[page]=group.gameObject;
+                for(var i=0;i<6;i++)
+                {
+                    if(page==0 && icons[i]!=null)
+                    {
+                        var icon=Rect("Illustration"+i,group); icon.anchoredPosition=positions[i]+new Vector2(0,12);
+                        icon.sizeDelta=new Vector2(sizes[i].x*0.60f,Mathf.Min(135,sizes[i].y*0.60f));
+                        var image=icon.gameObject.AddComponent<Image>(); image.sprite=icons[i]; image.preserveAspect=true; image.raycastTarget=false;
+                    }
+                    Label("Caption"+i,group,page==0?captions[i]:"待收录",positions[i]+new Vector2(0,-sizes[i].y/2+(i==2?29:16)),new Vector2(154,31),25,Ink);
+                }
+                group.gameObject.SetActive(page==0);
+            }
+            var pagination=Illustration("CatalogPagination",board,"CatalogPage1",new Vector2(0,-288),new Vector2(248,68)).GetComponent<Image>();
+            var left=HitButton("CatalogPrevious",pagination.transform,new Vector2(-83,0),new Vector2(68,60));
+            var right=HitButton("CatalogNext",pagination.transform,new Vector2(83,0),new Vector2(68,60));
+            Click(left,catalog.Previous); Click(right,catalog.Next);
+            Click(ArtButton("CatalogBackButton",board,"CatalogBack",new Vector2(511,-294),new Vector2(240,107)),view.Close);
+            Set(catalog,"pagination",pagination); Set(catalog,"previous",left); Set(catalog,"next",right);
+            var so=new SerializedObject(catalog); var groups=so.FindProperty("contentPages"); groups.arraySize=3;
+            var sprites=so.FindProperty("paginationSprites"); sprites.arraySize=3;
+            for(var i=0;i<3;i++)
+            {
+                groups.GetArrayElementAtIndex(i).objectReferenceValue=content[i];
+                sprites.GetArrayElementAtIndex(i).objectReferenceValue=TapTapUiArt.Sprite("CatalogPage"+(i+1));
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
         private static void Photo(Transform parent,string caption,Vector2 position,Vector2 size,float angle,Sprite sprite)
         {
@@ -258,50 +281,49 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var root=CanvasRoot("PF_ReferenceMainMenu",10);
             var menu=root.gameObject.AddComponent<ReferenceMainMenuView>(); var entry=root.gameObject.AddComponent<MainMenuLevelEntry>();
             var home=Rect("Home",Safe(root)); Stretch(home);
-            var background=Panel("CoverBackground",home,Vector2.one*0.5f,Vector2.zero,new Vector2(1600,1000),new Color(0.94f,0.95f,0.84f));
+            var background=Illustration("CoverBackground",root,"HomeBackground",Vector2.zero,new Vector2(1280,720));
             Stretch(background);
-            background.GetComponent<Image>().raycastTarget=false;
-            var doodles=new[]{new Vector3(-316,300,148),new Vector3(-522,103,154),new Vector3(48,216,146),new Vector3(65,-6,160),new Vector3(-394,-237,158),new Vector3(56,-235,148),new Vector3(500,126,148),new Vector3(-104,363,100)};
-            var angles=new[]{-9,12,-18,8,14,-8,20,-10};
-            for(var i=0;i<doodles.Length;i++) Doodle(home,(Vector2)doodles[i],new Vector2(doodles[i].z,doodles[i].z),i%3==0?Mint:i%3==1?new Color(1f,0.89f,0.62f):Cream,angles[i],i==3);
-            var plants=new[]{new Vector3(-435,300,112),new Vector3(-566,-270,150),new Vector3(-244,-247,102),new Vector3(253,-279,120),new Vector3(372,302,170),new Vector3(555,328,170),new Vector3(129,177,102),new Vector3(530,15,110),new Vector3(-583,12,90)};
-            for(var i=0;i<plants.Length;i++) Doodle(home,(Vector2)plants[i],new Vector2(plants[i].z,plants[i].z),i%2==0?Moss:new Color(0.51f,0.65f,0.40f),i*19,true,false);
-            var title=Panel("CoverTitle",home,Vector2.one*0.5f,new Vector2(-212,42),new Vector2(378,380),Board);
-            Label("EnglishTitle",title,"Slime\nParade",new Vector2(3,65),new Vector2(360,250),105,Cream);
-            Label("ChineseTitle",title,"巡游史莱姆",new Vector2(0,-100),new Vector2(370,90),57,Gold);
-            var actions=Panel("MainActions",home,Vector2.one*0.5f,new Vector2(372,-136),new Vector2(218,276),Board);
-            Click(Button("NewGameButton",actions,"新游戏",new Vector2(0,86),new Vector2(164,54),Mint,Ink,41),menu.OpenLevels);
-            var continueButton=Button("ContinueButton",actions,"· 继续",new Vector2(0,0),new Vector2(164,54),Mint,Ink,41); continueButton.interactable=false;
-            Click(Button("MenuQuitButton",actions,"退出",new Vector2(0,-82),new Vector2(164,54),Mint,Ink,43),menu.Quit);
-            Label("NoSaveHint",actions,"暂无存档",new Vector2(0,-38),new Vector2(160,24),11,Cream,false);
+            background.GetComponent<Image>().preserveAspect=false;
+            var fitter=background.gameObject.AddComponent<AspectRatioFitter>(); fitter.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent; fitter.aspectRatio=16f/9f;
+            background.SetAsFirstSibling();
+            SourceArt("CoverTitle",home,"HomeTitle");
+            var newGame=SourceButton("NewGameButton",home,"HomeNew"); SetHover(newGame,"HomeNewHover"); Click(newGame,menu.OpenLevels);
+            var continueButton=SourceButton("ContinueButton",home,"HomeContinue"); SetHover(continueButton,"HomeContinueHover"); continueButton.interactable=false;
+            var quit=SourceButton("MenuQuitButton",home,"HomeQuit"); SetHover(quit,"HomeQuitHover"); Click(quit,menu.Quit);
+            Label("NoSaveHint",continueButton.transform,"暂无存档",new Vector2(0,-49),new Vector2(160,24),12,Ink,false);
 
             var levels=Modal("LevelSelection",root,20);
             var cards=new RectTransform[3];
-            var cardColors=new[]{new Color(0.71f,0.79f,0.55f),new Color(0.84f,0.75f,0.55f),new Color(0.69f,0.79f,0.77f)};
             for(var i=0;i<3;i++)
             {
-                var card=Panel("LevelCard"+(i+1),levels.transform,Vector2.one*0.5f,new Vector2(-415+i*420,-28),new Vector2(300,300),Cocoa);
+                var card=Illustration("LevelCard"+(i+1),levels.transform,"Chapter"+(i+1),new Vector2(-414+i*414,-3),new Vector2(362,350));
                 cards[i]=card;
                 var click=card.gameObject.AddComponent<Button>(); click.targetGraphic=card.GetComponent<Image>(); click.navigation=new Navigation { mode=Navigation.Mode.None };
+                card.GetComponent<Image>().raycastTarget=true;
+                // Selection owns card scale; do not attach hover motion to the same transform.
                 UnityEventTools.AddIntPersistentListener(click.onClick,menu.SelectLevel,i);
-                var inset=Panel("LevelPreview",card,Vector2.one*0.5f,Vector2.zero,new Vector2(262,262),cardColors[i]); inset.GetComponent<Image>().raycastTarget=false;
-                if(i==0)
-                {
-                    var preview=Rect("ForestPreview",inset); Stretch(preview); preview.gameObject.AddComponent<RectMask2D>();
-                    var illustration=preview.gameObject.AddComponent<Image>(); illustration.sprite=AssetDatabase.LoadAssetAtPath<Sprite>(FirstLevelUiPrefabBuilder.ForestPath); illustration.raycastTarget=false;
-                }
-                else { Doodle(inset,Vector2.zero,new Vector2(116,112),Cream,i*12); Label("ComingSoon",inset,"尚未开放",new Vector2(0,-65),new Vector2(210,35),22,Ink); }
-                var tag=Panel("LevelLabel",card,Vector2.one*0.5f,new Vector2(0,-115),new Vector2(174,61),Cream);
-                tag.localRotation=Quaternion.Euler(0,0,i==0?3:-2); Label("Label",tag,i==0?"关卡 1":(i+1).ToString(),Vector2.zero,new Vector2(158,56),44,Ink);
+                if(i==2) Label("ComingSoon",card,"尚未开放",new Vector2(0,0),new Vector2(230,46),30,Ink);
             }
-            var back=Button("LevelBackButton",levels.transform,"返回",new Vector2(106,-59),new Vector2(212,82),Cream,Ink,55); Anchor(back.transform,new Vector2(0,1)); Click(back,menu.Back);
-            var select=Button("SelectLevelButton",levels.transform,"选择",new Vector2(0,-297),new Vector2(250,65),Cream,Ink,50); Click(select,menu.StartSelectedLevel);
-            var hint=Label("SelectionHint",levels.transform,"",new Vector2(0,-235),new Vector2(400,34),21,Ink);
+            var back=ArtButton("LevelBackButton",levels.transform,"ChapterBack",new Vector2(123,-71),new Vector2(212,109)); Anchor(back.transform,new Vector2(0,1)); Click(back,menu.Back);
+            var select=ArtButton("SelectLevelButton",levels.transform,"ChapterSelect",new Vector2(0,-260),new Vector2(305,111)); Click(select,menu.StartSelectedLevel);
+            var hint=Label("SelectionHint",levels.transform,"",new Vector2(0,-189),new Vector2(400,34),21,Ink);
             Set(menu,"home",home.gameObject); Set(menu,"levels",levels); Set(menu,"selectButton",select.gameObject); Set(menu,"selectionHint",hint); Set(menu,"entry",entry);
+            SetBool(menu,"useIllustratedCards",true);
             var so=new SerializedObject(menu); var array=so.FindProperty("cards"); array.arraySize=cards.Length;
             for(var i=0;i<cards.Length;i++) array.GetArrayElementAtIndex(i).objectReferenceValue=cards[i]; so.ApplyModifiedPropertiesWithoutUndo();
             WrapModalContent(levels); levels.SetActive(false); select.gameObject.SetActive(false);
-            PrefabUtility.SaveAsPrefabAsset(root.gameObject,MenuPath); Object.DestroyImmediate(root.gameObject);
+            SaveUiPrefab(root.gameObject,MenuPath); Object.DestroyImmediate(root.gameObject);
+        }
+
+        public static void SaveUiPrefab(GameObject root,string path)
+        {
+            var prefab=PrefabUtility.SaveAsPrefabAsset(root,path);
+            // A live overlay canvas can be driven to scale zero when the batch editor has no
+            // Game view. Normalize the persistent asset, where canvas layout cannot override it.
+            var transform=new SerializedObject(prefab.transform);
+            transform.FindProperty("m_LocalScale").vector3Value=Vector3.one;
+            transform.ApplyModifiedPropertiesWithoutUndo();
+            PrefabUtility.SavePrefabAsset(prefab);
         }
 
         [MenuItem("SlimeBattle/UI/Apply Reference Main Menu")]
@@ -320,7 +342,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                     foreach(var canvas in go.GetComponentsInChildren<Canvas>(true)) if(canvas.name=="MenuCanvas") canvas.gameObject.SetActive(false);
                     if(go.name=="PF_ReferenceMainMenu") Object.DestroyImmediate(go);
                 }
-                PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(MenuPath),scene);
+                var menu=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(MenuPath),scene);
+                menu.transform.localScale=Vector3.one;
                 EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
             }
             finally { if(!wasLoaded) EditorSceneManager.CloseScene(scene,true); }
@@ -345,14 +368,25 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 {
                     if(page==ReferenceUiView.Page.None) continue;
                     pages.Open(page);
-                    foreach(var size in new[]{new Vector2Int(1280,720),new Vector2Int(1024,768),new Vector2Int(1920,820)})
+                    foreach(var size in new[]{new Vector2Int(1280,720),new Vector2Int(1024,768),new Vector2Int(1920,1080),new Vector2Int(1920,820)})
                         Capture(camera,owner,size,CaptureFolder+"/"+page+"-"+size.x+"x"+size.y+".png");
+                    if(page==ReferenceUiView.Page.Catalog)
+                    {
+                        var catalog=hud.GetComponentInChildren<TapTapCatalogView>(true);
+                        catalog.Next(); Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/CatalogPage2.png");
+                        catalog.Next(); Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/CatalogPage3.png");
+                    }
                 }
                 pages.CloseSilently(); hud.gameObject.SetActive(false); menu.SetActive(true);
                 var main=menu.GetComponent<ReferenceMainMenuView>(); main.Back();
                 Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/MainMenu.png");
                 main.OpenLevels(); Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/Levels.png");
                 main.SelectLevel(1); Capture(camera,owner,new Vector2Int(1280,720),CaptureFolder+"/LevelSelected.png");
+                foreach(var size in new[]{new Vector2Int(1024,768),new Vector2Int(1920,1080),new Vector2Int(1920,820)})
+                {
+                    main.Back(); Capture(camera,owner,size,CaptureFolder+"/MainMenu-"+size.x+"x"+size.y+".png");
+                    main.OpenLevels(); main.SelectLevel(0); Capture(camera,owner,size,CaptureFolder+"/Levels-"+size.x+"x"+size.y+".png");
+                }
             }
             finally { UnityEngine.Object.DestroyImmediate(owner); EditorSceneManager.ClosePreviewScene(preview); }
         }
@@ -377,6 +411,59 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             selected.GetComponent<Image>().raycastTarget=false; selected.gameObject.SetActive(false);
             return b;
         }
+        private static RectTransform Illustration(string name,Transform parent,string key,Vector2 position,Vector2 size)
+        {
+            var rect=Rect(name,parent); rect.anchoredPosition=position; rect.sizeDelta=size;
+            var image=rect.gameObject.AddComponent<Image>(); image.sprite=TapTapUiArt.Sprite(key);
+            image.preserveAspect=true; image.raycastTarget=false;
+            return rect;
+        }
+        private static RectTransform SourceArt(string name,Transform parent,string key,Vector2? anchor=null)
+        {
+            var entry=TapTapUiArt.Find(key); var point=anchor ?? Vector2.one*0.5f;
+            const float scale=2f/3f;
+            var position=new Vector2((entry.x+entry.w*0.5f-1920*point.x)*scale,
+                (1080*(1-point.y)-entry.y-entry.h*0.5f)*scale);
+            var rect=Illustration(name,parent,key,position,new Vector2(entry.w,entry.h)*scale);
+            rect.anchorMin=rect.anchorMax=point;
+            return rect;
+        }
+        private static Button ArtButton(string name,Transform parent,string key,Vector2 position,Vector2 size)
+            => AddArtButton(Illustration(name,parent,key,position,size));
+        private static Button SourceButton(string name,Transform parent,string key,Vector2? anchor=null)
+            => AddArtButton(SourceArt(name,parent,key,anchor));
+        private static Button AddArtButton(RectTransform rect)
+        {
+            var image=rect.GetComponent<Image>(); image.raycastTarget=true;
+            var button=rect.gameObject.AddComponent<Button>(); button.targetGraphic=image;
+            button.navigation=new Navigation { mode=Navigation.Mode.None };
+            var colors=button.colors; colors.highlightedColor=new Color(1f,0.97f,0.85f);
+            colors.pressedColor=new Color(0.90f,0.80f,0.65f); colors.disabledColor=new Color(0.65f,0.65f,0.65f,0.55f); button.colors=colors;
+            rect.gameObject.AddComponent<StorybookButtonMotion>();
+            return button;
+        }
+        private static Button IllustratedTool(Transform parent,string name,string key)
+        {
+            var button=SourceButton(name,parent,key,new Vector2(1,0.5f));
+            var selected=Panel("Selected",button.transform,Vector2.one*0.5f,new Vector2(-94,0),new Vector2(6,56),Gold);
+            selected.GetComponent<Image>().raycastTarget=false; selected.gameObject.SetActive(false);
+            return button;
+        }
+        private static Button HitButton(string name,Transform parent,Vector2 position,Vector2 size)
+        {
+            var rect=Rect(name,parent); rect.anchoredPosition=position; rect.sizeDelta=size;
+            var image=rect.gameObject.AddComponent<Image>(); image.color=Color.clear;
+            var button=rect.gameObject.AddComponent<Button>(); button.targetGraphic=image;
+            button.navigation=new Navigation { mode=Navigation.Mode.None };
+            return button;
+        }
+        private static void SetHover(Button button,string key)
+        {
+            button.transition=Selectable.Transition.SpriteSwap;
+            var state=button.spriteState; state.highlightedSprite=state.pressedSprite=state.selectedSprite=TapTapUiArt.Sprite(key);
+            button.spriteState=state;
+            if(button.name=="ContinueButton") button.GetComponent<Image>().color=new Color(1,1,1,0.5f);
+        }
         private static Sprite Art(string name) => AssetDatabase.LoadAllAssetsAtPath(FirstLevelUiPrefabBuilder.AtlasPath).OfType<Sprite>().FirstOrDefault(s=>s.name==name);
         private static RectTransform CanvasRoot(string name,int order)
         {
@@ -396,7 +483,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             var rect=Rect(name,parent); Stretch(rect);
             var canvas=rect.gameObject.AddComponent<Canvas>(); canvas.overrideSorting=true; canvas.sortingOrder=order;
             rect.gameObject.AddComponent<GraphicRaycaster>();
-            var image=rect.gameObject.AddComponent<Image>(); image.sprite=AssetDatabase.LoadAssetAtPath<Sprite>(FirstLevelUiPrefabBuilder.ForestPath); image.material=backdrop;
+            var image=rect.gameObject.AddComponent<Image>(); image.sprite=TapTapUiArt.Sprite("HomeBackground"); image.material=backdrop;
             var veil=Panel("BackdropWash",rect,Vector2.one*0.5f,Vector2.zero,Vector2.zero,new Color(0.96f,0.94f,0.83f,0.20f)); Stretch(veil); veil.GetComponent<Image>().raycastTarget=false;
             var content=Rect("ModalSafeArea",rect); Stretch(content); content.gameObject.AddComponent<UiSafeArea>();
             return rect.gameObject;

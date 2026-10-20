@@ -168,7 +168,8 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 if (data.Command.Kind != PlayerCommandKind.PrimaryAction) { return; }
                 primaryCount++;
                 lastScreenPosition = data.Command.ScreenPosition;
-                edgeWasReadable = input.ReadSnapshot().PointerPressed && input.ReadSnapshot().PointerPressed;
+                edgeWasReadable = (input.ReadSnapshot().PointerPressed || input.ReadSnapshot().PointerReleased) &&
+                    (input.ReadSnapshot().PointerPressed || input.ReadSnapshot().PointerReleased);
             });
             var pressedToken = input.Subscribe<PointerPressedEvent>(_ => pressedCount++);
             var movedToken = input.Subscribe<PointerMovedEvent>(_ => movedCount++);
@@ -196,22 +197,22 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 worldPixel = camera.WorldToScreen(position);
                 DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel }.WithButton(MouseButton.Left));
                 yield return Frames(3);
-                Check(primaryCount == 1 && pressedCount == 1 && edgeWasReadable,
-                    "One mouse press produces one primary action and a non-consuming snapshot edge");
+                Check(primaryCount == 0 && pressedCount == 1,
+                    "A mouse press waits for release so a map drag cannot become a primary action");
                 Check(input.ReadSnapshot().PointerHeld && input.ReadSnapshot().PointerHeld,
                     "Repeated snapshot reads preserve the held pointer fact");
-                Check(Vector2.Distance(lastScreenPosition, worldPixel) < 0.01f && MarkerAt(marker, position),
-                    "The mouse screen position projects to the test marker on the gameplay plane");
                 yield return Frames(4);
-                Check(primaryCount == 1, "Holding the pointer never repeats the primary action");
-                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel + Vector2.right * 20f }.WithButton(MouseButton.Left));
+                Check(primaryCount == 0, "Holding the pointer never commits a primary action");
+                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel + Vector2.right * 2f }.WithButton(MouseButton.Left));
                 yield return Frames(3);
-                Check(movedCount > 0 && primaryCount == 1 && MarkerAt(marker, position),
-                    "Pointer movement is reported separately without repeating the click marker action");
+                Check(movedCount > 0 && primaryCount == 0,
+                    "Small pointer movement is reported without committing a click or map drag");
                 DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel });
                 yield return Frames(6);
-                Check(releasedCount == 1 && probe.position == Vector3.zero && MarkerAt(marker, position),
-                    "Release is reported once and never starts automatic probe movement");
+                Check(releasedCount == 1 && primaryCount == 1 && edgeWasReadable &&
+                    Vector2.Distance(lastScreenPosition, worldPixel) < 0.01f &&
+                    probe.position == Vector3.zero && MarkerAt(marker, position),
+                    "Click release commits once, projects the marker and preserves the snapshot edge");
 
                 position = new Vector3(-4f, -2f, 0f);
                 yield return Click(mouse, camera.WorldToScreen(position));
@@ -240,11 +241,11 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 Check(primaryCount == 3 && MarkerAt(marker, position), "A UI-origin touch gesture cannot become a map action");
 
                 var cameraBefore = camera.GetState();
-                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel }.WithButton(MouseButton.Middle));
+                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel }.WithButton(MouseButton.Left));
                 yield return Frames(3);
-                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel + new Vector2(80f, 0f) }.WithButton(MouseButton.Middle));
+                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel + new Vector2(80f, 0f) }.WithButton(MouseButton.Left));
                 yield return Frames(3);
-                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel });
+                DeviceInputSystem.QueueStateEvent(mouse, new MouseState { position = worldPixel + new Vector2(80f, 0f) });
                 yield return Frames(3);
                 Check(Vector3.Distance(camera.GetState().Position, cameraBefore.Position) > 0.01f &&
                     probe.position == Vector3.zero && MarkerAt(marker, position), "Camera drag changes presentation without changing world objects");

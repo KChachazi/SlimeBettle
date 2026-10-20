@@ -3,7 +3,7 @@ using SlimeBattle.Core;
 namespace SlimeBattle.UI
 {
     public enum UiPanelId { Hud, Pause, Result }
-    public enum UiCommand { Pause, Resume, Restart }
+    public enum UiCommand { Pause, Resume, Restart, ReturnToMainMenu }
 
     /// <summary>Display data, never authoritative gameplay state. -1 means a count is unavailable.</summary>
     public readonly struct UiState

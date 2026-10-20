@@ -703,7 +703,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minimumSize: 2
   maximumSize: 12
-  zoomSensitivity: 0.01
+  zoomSensitivity: 0.03
   worldPlaneZ: 0
 --- !u!1 &269154790
 GameObject:

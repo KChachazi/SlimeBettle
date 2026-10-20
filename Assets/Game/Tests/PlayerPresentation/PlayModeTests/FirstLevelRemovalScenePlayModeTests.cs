@@ -8,6 +8,7 @@ using SlimeBattle.Mechanisms;
 using SlimeBattle.Player.Placement;
 using SlimeBattle.World;
 using SlimeBattle.Presentation.Camera;
+using SlimeBattle.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -42,15 +43,113 @@ namespace SlimeBattle.Tests.PlayerPresentation
         }
 
         [UnityTest, Timeout(60000)]
-        public IEnumerator ProductionSceneRemovalReleasesCellAndResetsOnRestart()
+        public IEnumerator ProductionMapSupportsGentleNativeWheelZoomAndLeftButtonDrag()
         {
             yield return SceneManager.LoadSceneAsync("Bootstrap");
-            for (var frame = 0; frame < 300 && SceneManager.GetActiveScene().name != "MainMenu"; frame++) yield return null;
+            var deadline = Time.realtimeSinceStartup + 20f;
+            while (SceneManager.GetActiveScene().name != "MainMenu" && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("MainMenu"));
             gameRoot = Object.FindObjectOfType<GameRoot>();
             Assert.IsNotNull(gameRoot);
             var manager = gameRoot.GetLevelManager();
+            Assert.That(manager.StartNewCampaign(), Is.True);
             gameRoot.RequestEnterLevel(new LevelId("FirstLevel"));
-            for (var frame = 0; frame < 600 && manager.GetLevelState() != LevelState.Running; frame++) yield return null;
+            deadline = Time.realtimeSinceStartup + 30f;
+            while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
+            yield return null; yield return null;
+
+            var cameraSystem = Object.FindObjectOfType<CameraSystem>();
+            var camera = cameraSystem.GetComponent<Camera>();
+            var pointer = camera.pixelRect.center;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = pointer });
+            yield return null; yield return null;
+            var initialSize = camera.orthographicSize;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer, scroll = Vector2.up * 120f });
+            yield return null; yield return null;
+            Assert.That(camera.orthographicSize / initialSize, Is.InRange(0.965f, 0.975f),
+                "A native Windows notch (120) must change the view by about 3%, without jumping to a limit.");
+
+            for (var i = 0; i < 20; i++)
+            {
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = pointer, scroll = Vector2.down * 960f });
+                yield return null; yield return null;
+            }
+            Assert.That(manager.GetCurrentContext().MapManager.TryGetMapBounds(out var bounds), Is.True);
+            foreach (var corner in new[] { bounds.Min, bounds.Max })
+            {
+                var viewport = camera.WorldToViewportPoint(corner);
+                Assert.That(viewport.x, Is.InRange(0.001f, 0.999f));
+                Assert.That(viewport.y, Is.InRange(0.001f, 0.999f));
+            }
+            for (var i = 0; i < 24; i++)
+            {
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = pointer, scroll = Vector2.up * 960f });
+                yield return null; yield return null;
+            }
+            Assert.That(camera.orthographicSize, Is.EqualTo(2f).Within(0.001f));
+            var input = cameraSystem.GetComponentInParent<SlimeBattle.Player.Input.InputSystem>();
+            var primaryActions = 0;
+            var token = input.Subscribe<SlimeBattle.Player.Input.PlayerCommandSubmittedEvent>(data =>
+            {
+                if (data.Command.Kind == SlimeBattle.Player.Input.PlayerCommandKind.PrimaryAction) primaryActions++;
+            });
+            var beforeDrag = camera.transform.position;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            Assert.That(primaryActions, Is.Zero, "A mouse press must wait to distinguish a click from a drag.");
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(60f, 30f) }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            Assert.That(Vector3.Distance(beforeDrag, camera.transform.position), Is.GreaterThan(0.01f));
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(60f, 30f) });
+            yield return null; yield return null;
+            Assert.That(primaryActions, Is.Zero, "Releasing a map drag must not place or remove an object.");
+            var afterDrag = camera.transform.position;
+            yield return Click(pointer);
+            Assert.That(primaryActions, Is.EqualTo(1), "A normal left click still submits exactly once.");
+            Assert.That(camera.transform.position, Is.EqualTo(afterDrag), "Clicking without dragging must not pan.");
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(2f, 1f) }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(2f, 1f) });
+            yield return null; yield return null;
+            Assert.That(primaryActions, Is.EqualTo(2), "Small hand jitter must still count as a click.");
+            Assert.That(camera.transform.position, Is.EqualTo(afterDrag));
+            input.Unsubscribe(token);
+        }
+
+        [UnityTest, Timeout(60000)]
+        public IEnumerator ProductionSceneRemovalReleasesCellAndResetsOnRestart()
+        {
+            yield return SceneManager.LoadSceneAsync("Bootstrap");
+            var deadline = Time.realtimeSinceStartup + 20f;
+            while (SceneManager.GetActiveScene().name != "MainMenu" && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("MainMenu"));
+            gameRoot = Object.FindObjectOfType<GameRoot>();
+            Assert.IsNotNull(gameRoot);
+            var manager = gameRoot.GetLevelManager();
+            var menu = Object.FindObjectOfType<ReferenceMainMenuView>();
+            Assert.IsNotNull(menu, "Bootstrap must expose the illustrated production menu.");
+            var newGame = menu.GetComponentsInChildren<Button>(true).Single(button => button.name == "NewGameButton");
+            yield return Click(RectTransformUtility.WorldToScreenPoint(null, newGame.transform.position));
+            var firstChapter = menu.GetComponentsInChildren<Button>(true).Single(button => button.name == "LevelCard1");
+            Assert.That(firstChapter.gameObject.activeInHierarchy, Is.True, "New Game must open chapter selection through real pointer input.");
+            yield return Click(RectTransformUtility.WorldToScreenPoint(null, firstChapter.transform.position));
+            Assert.That(menu.SelectedLevel, Is.Zero);
+            var start = menu.GetComponentsInChildren<Button>(true).Single(button => button.name == "SelectLevelButton");
+            yield return Click(RectTransformUtility.WorldToScreenPoint(null, start.transform.position));
+            deadline = Time.realtimeSinceStartup + 30f;
+            while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
             Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("FirstLevel"));
             yield return null; yield return null;
@@ -97,17 +196,27 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 if (item == PlacementItemId.Food)
                 {
                     var placementCapture = System.Environment.GetEnvironmentVariable("SLIME_PLACEMENT_SCREENSHOT");
+                    var placementCaptureIndex = System.Array.IndexOf(args, "-placementScreenshot");
+                    if (placementCaptureIndex >= 0 && placementCaptureIndex + 1 < args.Length)
+                        placementCapture = args[placementCaptureIndex + 1];
                     if (!string.IsNullOrEmpty(placementCapture)) Capture(sceneCamera, root.gameObject, placementCapture);
                 }
                 yield return Click(screenPosition);
                 Assert.That(context.MechanismSystem.ActivePlacedMechanismCount, Is.EqualTo(1));
                 var placed = context.MechanismSystem.GetActiveSnapshots().Single(snapshot => snapshot.IsPlayerPlaced);
+                // Placement can snap to a nearby authored anchor; remove the actual object.
+                position = placed.Position;
+                screenPosition = camera.WorldToScreen(position);
                 Assert.That(remove.interactable, Is.True);
                 yield return Click(RectTransformUtility.WorldToScreenPoint(null, remove.transform.position));
                 Assert.That(root.Placement.IsRemoving, Is.True, "The production scene button must bind to its current placement session.");
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = screenPosition });
                 yield return null; yield return null;
-                Assert.That(root.Placement.GetCurrentPreview().RemovalTarget, Is.EqualTo(placed.MechanismId));
+                var removalPreview = root.Placement.GetCurrentPreview();
+                Assert.That(removalPreview.RemovalTarget, Is.EqualTo(placed.MechanismId),
+                    $"{item}: preview={removalPreview.Status}, cell={removalPreview.Cell}, placed={placed.Position}, " +
+                    $"pointer={root.GetComponent<SlimeBattle.Player.Input.InputSystem>().ReadSnapshot().PointerPosition}, " +
+                    $"blocked={root.GetComponent<SlimeBattle.Player.Input.InputSystem>().ReadSnapshot().PointerBlocked}, camera={camera.GetState().Position}");
                 if (item == PlacementItemId.Obstacle && !string.IsNullOrEmpty(capturePath))
                 {
                     Capture(camera.GetComponent<Camera>(), root.gameObject, capturePath);
@@ -144,7 +253,9 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(root.Placement.IsRemoving, Is.True);
             var oldPlacement = root.Placement;
             manager.RequestRestartCurrentLevel();
-            for (var frame = 0; frame < 600 && (manager.GetCurrentContext() == context || manager.GetLevelState() != LevelState.Running); frame++) yield return null;
+            deadline = Time.realtimeSinceStartup + 20f;
+            while ((manager.GetCurrentContext() == context || manager.GetLevelState() != LevelState.Running) &&
+                Time.realtimeSinceStartup < deadline) yield return null;
             yield return null; yield return null;
             root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
             Assert.That(manager.GetCurrentContext(), Is.Not.SameAs(context));
@@ -156,6 +267,79 @@ namespace SlimeBattle.Tests.PlayerPresentation
             remove = root.GetComponentsInChildren<Button>(true).Single(button => button.name == "RemoveButton");
             remove.onClick.Invoke();
             Assert.That(root.Placement.IsRemoving, Is.True, "Restart must bind removal to the new level context.");
+        }
+
+        [UnityTest, Timeout(120000)]
+        public IEnumerator ReturnToMenuCleansUpPausedAndFinishedLevelsAndAllowsReentry()
+        {
+            yield return SceneManager.LoadSceneAsync("Bootstrap");
+            var deadline = Time.realtimeSinceStartup + 20f;
+            while (SceneManager.GetActiveScene().name != "MainMenu" && Time.realtimeSinceStartup < deadline) yield return null;
+            gameRoot = Object.FindObjectOfType<GameRoot>();
+            Assert.IsNotNull(gameRoot);
+            var manager = gameRoot.GetLevelManager();
+            LevelContext previousContext = null;
+            foreach (var phase in new[] { LevelState.Paused, LevelState.Paused, LevelState.Succeeded, LevelState.Failed })
+            {
+                var menu = Object.FindObjectOfType<ReferenceMainMenuView>();
+                Assert.IsNotNull(menu);
+                yield return ClickButton(menu, "NewGameButton");
+                yield return ClickButton(menu, "LevelCard1");
+                yield return ClickButton(menu, "SelectLevelButton");
+                deadline = Time.realtimeSinceStartup + 30f;
+                while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
+                Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
+                yield return null; yield return null;
+                var context = manager.GetCurrentContext();
+                Assert.That(context, Is.Not.Null.And.Not.SameAs(previousContext));
+                var hud = Object.FindObjectOfType<BattleHudView>();
+                var pages = hud.GetComponent<ReferenceUiView>();
+                if (phase == LevelState.Paused)
+                {
+                    yield return ClickButton(hud, "PauseButton");
+                    Assert.That(pages.CurrentPage, Is.EqualTo(ReferenceUiView.Page.Settings));
+                    Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Paused));
+                    yield return ClickButton(hud, "SettingsBackButton");
+                    Assert.That(pages.IsOpen, Is.False);
+                    Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running), "Continue must resume the game.");
+                    // Exercise both the settings entry and the separate pause screen.
+                    if (previousContext == null) yield return ClickButton(hud, "PauseButton");
+                    else manager.RequestPause();
+                }
+                else
+                    Assert.That(manager.ReportResult(phase == LevelState.Succeeded ? LevelResult.Succeeded : LevelResult.Failed), Is.True);
+                yield return null; yield return null;
+                var returnName = phase != LevelState.Paused ? "ResultReturnToMenuButton" :
+                    previousContext == null ? "SettingsReturnToMenuButton" : "PauseReturnToMenuButton";
+                var requested = 0;
+                System.Action<ReturnToPreviousFlowRequestedEvent> onReturn = _ => requested++;
+                manager.ReturnToPreviousFlowRequested += onReturn;
+                yield return ClickButton(hud, returnName);
+                manager.RequestReturnToPreviousFlow(); // A second request during/after return must be ignored.
+                deadline = Time.realtimeSinceStartup + 20f;
+                while ((SceneManager.GetActiveScene().name != "MainMenu" || manager.GetLevelState() != LevelState.Unloaded) &&
+                    Time.realtimeSinceStartup < deadline) yield return null;
+                manager.ReturnToPreviousFlowRequested -= onReturn;
+                Assert.That(requested, Is.EqualTo(1));
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("MainMenu"));
+                Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Unloaded));
+                Assert.That(manager.GetCurrentLevelId().IsValid, Is.False);
+                Assert.That(manager.GetCurrentContext(), Is.Null);
+                Assert.That(context.GetLevelState(), Is.EqualTo(LevelState.Unloaded));
+                Assert.That(context.MechanismSystem, Is.Null, "Old mechanisms must be disposed before showing the menu.");
+                Assert.That(Object.FindObjectsOfType<GameRoot>(), Has.Length.EqualTo(1));
+                Assert.That(Object.FindObjectOfType<GameRoot>(), Is.SameAs(gameRoot));
+                Assert.That(Object.FindObjectsOfType<FirstLevelPresentationRoot>(), Is.Empty);
+                Assert.That(Object.FindObjectsOfType<BattleHudView>(), Is.Empty);
+                previousContext = context;
+            }
+        }
+
+        private IEnumerator ClickButton(Component owner, string name)
+        {
+            var button = owner.GetComponentsInChildren<Button>(true).Single(item => item.name == name);
+            Assert.That(button.gameObject.activeInHierarchy && button.interactable, Is.True, name);
+            yield return Click(RectTransformUtility.WorldToScreenPoint(null, button.transform.position));
         }
 
         private IEnumerator Click(Vector2 position)

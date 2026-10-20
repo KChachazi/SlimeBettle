@@ -9,11 +9,12 @@ namespace SlimeBattle.Presentation.Camera
     {
         [SerializeField] private float minimumSize = 2f;
         [SerializeField] private float maximumSize = 12f;
-        [SerializeField] private float zoomSensitivity = 0.01f;
+        [SerializeField] private float zoomSensitivity = 0.03f;
         [SerializeField] private float worldPlaneZ;
         private UnityEngine.Camera sceneCamera;
         private CameraBounds bounds;
         private bool hasBounds;
+        private float lastMaximumSize;
         private CameraState lastState;
 
         public event Action<CameraStateChangedEvent> CameraStateChanged;
@@ -34,7 +35,6 @@ namespace SlimeBattle.Presentation.Camera
                 position.z = worldPlaneZ - 10f;
                 transform.position = position;
             }
-            sceneCamera.orthographicSize = Mathf.Clamp(sceneCamera.orthographicSize, minimumSize, maximumSize);
             Constrain();
         }
 
@@ -77,7 +77,7 @@ namespace SlimeBattle.Presentation.Camera
                     position.y = command.PositionOrDelta.y;
                     break;
                 case CameraCommandKind.Zoom:
-                    sceneCamera.orthographicSize = Mathf.Clamp(sceneCamera.orthographicSize + command.ZoomDelta, minimumSize, maximumSize);
+                    sceneCamera.orthographicSize = Mathf.Clamp(sceneCamera.orthographicSize + command.ZoomDelta, minimumSize, GetMaximumSize());
                     break;
                 default: return;
             }
@@ -93,10 +93,26 @@ namespace SlimeBattle.Presentation.Camera
                 var worldDelta = ScreenToWorld(input.PointerPosition - input.CameraDrag) - ScreenToWorld(input.PointerPosition);
                 SubmitCommand(new CameraCommand(CameraCommandKind.Pan, worldDelta));
             }
-            if (input.Zoom != 0f)
+            if (input.Zoom != 0f && CameraBounds.IsFinite(input.Zoom))
             {
-                SubmitCommand(new CameraCommand(CameraCommandKind.Zoom, Vector2.zero, -input.Zoom * zoomSensitivity));
+                var pointerWorld = ScreenToWorld(input.PointerPosition);
+                // InputSystem supplies wheel notches, independently of the native range.
+                // Each notch changes the view by about 3%, including at close range.
+                var exponent = Mathf.Clamp(-input.Zoom * zoomSensitivity, -20f, 20f);
+                sceneCamera.orthographicSize = Mathf.Clamp(sceneCamera.orthographicSize * Mathf.Exp(exponent),
+                    minimumSize, GetMaximumSize());
+                transform.position += pointerWorld - ScreenToWorld(input.PointerPosition);
+                Constrain();
             }
+        }
+
+        private float GetMaximumSize()
+        {
+            if (!hasBounds) { return maximumSize; }
+            var mapSize = bounds.Maximum - bounds.Minimum;
+            var fitSize = Mathf.Max(mapSize.y, mapSize.x / Mathf.Max(0.01f, sceneCamera.aspect)) * 0.5f;
+            // Leave a little space around all four map edges at the widest zoom.
+            return Mathf.Max(maximumSize, fitSize * 1.05f);
         }
 
         // Re-clamp after aspect/viewport changes; this updates presentation only.
@@ -104,6 +120,15 @@ namespace SlimeBattle.Presentation.Camera
 
         private void Constrain()
         {
+            var limit = GetMaximumSize();
+            // Keep the overview fitted when the game window changes shape.
+            if (lastMaximumSize > 0f && !Mathf.Approximately(lastMaximumSize, limit) &&
+                Mathf.Approximately(sceneCamera.orthographicSize, lastMaximumSize))
+            {
+                sceneCamera.orthographicSize = limit;
+            }
+            sceneCamera.orthographicSize = Mathf.Clamp(sceneCamera.orthographicSize, minimumSize, limit);
+            lastMaximumSize = limit;
             if (hasBounds)
             {
                 var halfHeight = sceneCamera.orthographicSize;
