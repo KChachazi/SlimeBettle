@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: CFG_Guard
   m_EditorClassIdentifier: 
   configId: first_level_guard
-  attackPower: 100
-  maxHealth: 1000
-  moveSpeed: 300
-  attackInterval: 1
-  attackRange: 2.6
-  detectionRange: 3
-  attackWindup: 0.15
-  initialCount: 1
+  attackPower: 50
+  maxHealth: 1500
+  moveSpeed: 100
+  attackInterval: 1.5
+  attackRange: 1.5
+  detectionRange: 2
+  attackWindup: 0.5
+  initialCount: 10
   escortDistance: 1.2
   leashDistance: 8
   spawnOffsets:
