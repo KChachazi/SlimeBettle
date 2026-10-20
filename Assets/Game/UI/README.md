@@ -7,7 +7,8 @@
 - `GameplayFeedbackView` 仅读取公开快照，不改变状态、伤害、吸引规则或库存。覆盖层不挂 GraphicRaycaster，所有图形关闭 raycast；位于游戏 HUD 下层。重开、卸载和解除状态时清理旧提示。
 - 该功能随 `FirstLevelPresentationRoot` 接入正式第一关与 Castle，复用已有中文字体，无需重新生成地图或 HUD 预制体。
 - `GameplayFeedbackScenePlayModeTests` 从 Bootstrap 进入正式第一关，验证选择时真实半径、落地后隐藏、切换/取消/拆除、非阻塞输入、三个状态及并存、解除、气泡与地图缩放比例、重开。`../Tests/PlayerPresentation/GameplayFeedbackReview.png` 为测试通过实际 StatusManager 添加三种状态后拉远镜头的运行截图，测试冻结模拟便于对照；正常游戏仍由原有玩法触发状态。
-- Unity 2022.3.62f2c1 验证：现有 11 项及新增 3 项 Play Mode 分批通过；UI/Placement、库存与关卡配置 Edit Mode 为 76/77。唯一失败 `SceneBindsProductionContextMapActorsAndCaveRules` 预期 6 个放置锚点、实际 0 个，已在未修改的最新 master `78120e7` 单独复现，相同断言与消息；本轮保留其现有玩法与地图数据。
+- `../Tests/PlayerPresentation/GuideRangeSelectionReview.png` 展示选中食物时的实际圆环预览；落地后的状态截图不显示已放置机关的圆环。
+- Unity 2022.3.62f2c1 验证：合并 master `d6554d3`（含 PR #35 的餐车交互及敌人调整）后，相关 Play Mode 14/14 同次运行通过。此前 UI/Placement、库存与关卡配置 Edit Mode 为 76/77；唯一失败 `SceneBindsProductionContextMapActorsAndCaveRules` 预期 6 个放置锚点、实际 0 个，已在未修改的 master `78120e7` 单独复现，相同断言与消息。该 Edit Mode 结果为此前版本的记录。
 
 ## 2026-10-20 素材接入
 
