@@ -31,6 +31,40 @@ namespace SlimeBattle.Tests
         [TearDown]
         public void TearDown() { Object.DestroyImmediate(owner); }
 
+        [TestCase(16f / 9f, 11.52f)]
+        [TestCase(4f / 3f, 11.52f)]
+        [TestCase(9f / 16f, 20.48f)]
+        public void OpeningViewUsesFortyPercentOfFullMapFit(float aspect, float expectedSize)
+        {
+            camera.aspect = aspect;
+            cameraSystem.ResetOpeningView(new Vector2(2f, 50f));
+
+            Assert.That(camera.orthographicSize, Is.EqualTo(expectedSize).Within(0.001f));
+            Assert.That(camera.transform.position.z, Is.EqualTo(-10f));
+            Assert.That(camera.WorldToViewportPoint(new Vector2(2f, 50f)).x, Is.InRange(0f, 1f));
+            Assert.That(camera.WorldToViewportPoint(new Vector2(2f, 50f)).y, Is.InRange(0f, 1f));
+            if (aspect == 16f / 9f)
+            {
+                var visibleArea = 4f * camera.orthographicSize * camera.orthographicSize * aspect;
+                Assert.That(visibleArea / (57.6f * 57.6f), Is.InRange(0.25f, 0.30f),
+                    "The landscape opening should show roughly a quarter of the terrain.");
+            }
+        }
+
+        [Test]
+        public void RefreshingBoundsAndReinitializingPreservesPlayerZoom()
+        {
+            cameraSystem.ResetOpeningView(Vector2.one * 28.8f);
+            cameraSystem.SubmitCommand(new CameraCommand(CameraCommandKind.Zoom, Vector2.zero, 3f));
+            var size = camera.orthographicSize;
+            cameraSystem.SetBounds(mapBounds);
+            cameraSystem.Initialize();
+            Assert.That(camera.orthographicSize, Is.EqualTo(size));
+
+            cameraSystem.ResetOpeningView(Vector2.one * 28.8f);
+            Assert.That(camera.orthographicSize, Is.EqualTo(11.52f).Within(0.001f));
+        }
+
         [TestCase(16f / 9f)]
         [TestCase(4f / 3f)]
         [TestCase(9f / 16f)]
@@ -119,9 +153,10 @@ namespace SlimeBattle.Tests
             cameraSystem = owner.GetComponent<CameraSystem>();
             cameraSystem.Initialize();
             cameraSystem.SetBounds(mapBounds);
-            Assert.That(camera.orthographicSize, Is.EqualTo(6f), "Map bounds must preserve the opening close-up.");
+            cameraSystem.ResetOpeningView(Vector2.one * 28.8f);
+            Assert.That(camera.orthographicSize, Is.EqualTo(11.52f).Within(0.001f));
             Wheel(1f, camera.pixelRect.center);
-            Assert.That(camera.orthographicSize, Is.InRange(5.8f, 5.85f));
+            Assert.That(camera.orthographicSize / 11.52f, Is.InRange(0.965f, 0.975f));
             for (var i = 0; i < 200; i++) Wheel(-1f, camera.pixelRect.center);
             AssertWholeMapVisible();
         }

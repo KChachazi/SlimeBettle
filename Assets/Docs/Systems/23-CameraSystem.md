@@ -42,6 +42,7 @@ ScreenPosition WorldToScreen(WorldPosition worldPosition);
 CameraState GetState();
 void SubmitCommand(CameraCommand command);
 void SetBounds(CameraBounds bounds);
+void ResetOpeningView(Vector2 focus);
 ```
 
 ## 5. 对外事件
@@ -82,6 +83,7 @@ Vector2 WorldToScreen(Vector3 worldPosition);
 CameraState GetState();
 void SubmitCommand(CameraCommand command);
 void SetBounds(CameraBounds bounds);
+void ResetOpeningView(Vector2 focus);
 ```
 
 - CameraSystem 与 Camera 挂在同一对象上，由场景接入组件显式 Initialize。初始化为面向 XY 平面的正交相机；默认投影平面 Z=0，可在 Inspector 配置。已有合法相机 Z 保留；处在投影平面上或前方时移至平面后方 10 单位。
@@ -89,7 +91,9 @@ void SetBounds(CameraBounds bounds);
 - `CameraCommandKind.Pan`：PositionOrDelta 为世界 XY 位移；`Focus`：世界 XY 目标；`Zoom`：ZoomDelta 为正交尺寸增量（正数缩小画面）。不改变世界对象。非法命令种类或非有限值忽略。
 - `CameraBounds(Vector2 minimum, Vector2 maximum)` 为地图世界 XY 矩形。关卡适配层通过 MapManager.GetMapBounds 的公开结果构造它，再调用 SetBounds。未绑定时允许自由移动；零面积、反向、NaN 或 Infinity 边界抛 `ArgumentException`，保留原边界。
 - 边界按可见视口的半宽/半高约束相机中心；地图小于视口时对应轴居中，允许显示地图外背景；不为填满视口强行放大镜头。LateUpdate 在宽高比变化后重新限制位置。
-- 默认尺寸范围 2—12；仅测试绑定支持中键拖动、滚轮缩放。跟随、震动、平滑过渡、多指缩放和最终屏幕方向未纳入 P0。
+- 最小正交尺寸为 2；最大尺寸取配置值 12 与全图适配尺寸的 105% 中的较大值，滚轮可缩至完整地图。支持左键 / 中键拖动及每格约 3% 的指针锚定滚轮缩放。
+- `ResetOpeningView(focus)` 在绑定地图边界后调用，按当前视口宽高比计算完整地图适配尺寸，再乘 `openingViewScale`（Inspector 可调 30%—60%，默认 40%）。这里 100% 表示刚好完整显示地图，不包含最远缩放的 5% 留白。正式首关与城堡均为 57.6 × 57.6 地图，16:9 下初始正交尺寸从 6 调为 11.52，可见范围为 40.96 × 23.04，约占地图面积 28.4%，接近四分之一；4:3 下约 21.3%。
+- `FirstLevelPresentationRoot` 每个新关卡 Context 仅恢复一次初始缩放，保留护送武器 / 史莱姆 / 地图中心的开场聚焦顺序。重复初始化、刷新边界与暂停继续保留玩家镜头；重开恢复该关初始比例和聚焦。跟随、震动、平滑过渡和多指缩放未纳入本次修改。
 - `CameraStateChanged` / `CameraBoundsChanged` 是本组件的 C# 事件，携带只读快照；订阅方负责在禁用时移除，禁止跨场景保留旧相机。
 
 镜头不决定点击是移动、攻击还是放置，不追踪 Actor 或校验放置。它只提供当前相机下稳定的屏幕/世界坐标转换，保证网格预览和最终确认使用同一坐标语义。触屏单指拖动与双指缩放需先确认手势规则，作为后续 CameraGesture 工作。
