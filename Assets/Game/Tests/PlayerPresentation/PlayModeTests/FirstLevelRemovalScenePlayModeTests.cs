@@ -43,6 +43,92 @@ namespace SlimeBattle.Tests.PlayerPresentation
         }
 
         [UnityTest, Timeout(60000)]
+        public IEnumerator ProductionMapSupportsGentleNativeWheelZoomAndLeftButtonDrag()
+        {
+            yield return SceneManager.LoadSceneAsync("Bootstrap");
+            var deadline = Time.realtimeSinceStartup + 20f;
+            while (SceneManager.GetActiveScene().name != "MainMenu" && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("MainMenu"));
+            gameRoot = Object.FindObjectOfType<GameRoot>();
+            Assert.IsNotNull(gameRoot);
+            var manager = gameRoot.GetLevelManager();
+            Assert.That(manager.StartNewCampaign(), Is.True);
+            gameRoot.RequestEnterLevel(new LevelId("FirstLevel"));
+            deadline = Time.realtimeSinceStartup + 30f;
+            while (manager.GetLevelState() != LevelState.Running && Time.realtimeSinceStartup < deadline) yield return null;
+            Assert.That(manager.GetLevelState(), Is.EqualTo(LevelState.Running));
+            yield return null; yield return null;
+
+            var cameraSystem = Object.FindObjectOfType<CameraSystem>();
+            var camera = cameraSystem.GetComponent<Camera>();
+            var pointer = camera.pixelRect.center;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = pointer });
+            yield return null; yield return null;
+            var initialSize = camera.orthographicSize;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer, scroll = Vector2.up * 120f });
+            yield return null; yield return null;
+            Assert.That(camera.orthographicSize / initialSize, Is.InRange(0.965f, 0.975f),
+                "A native Windows notch (120) must change the view by about 3%, without jumping to a limit.");
+
+            for (var i = 0; i < 20; i++)
+            {
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = pointer, scroll = Vector2.down * 960f });
+                yield return null; yield return null;
+            }
+            Assert.That(manager.GetCurrentContext().MapManager.TryGetMapBounds(out var bounds), Is.True);
+            foreach (var corner in new[] { bounds.Min, bounds.Max })
+            {
+                var viewport = camera.WorldToViewportPoint(corner);
+                Assert.That(viewport.x, Is.InRange(0.001f, 0.999f));
+                Assert.That(viewport.y, Is.InRange(0.001f, 0.999f));
+            }
+            for (var i = 0; i < 24; i++)
+            {
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = pointer, scroll = Vector2.up * 960f });
+                yield return null; yield return null;
+            }
+            Assert.That(camera.orthographicSize, Is.EqualTo(2f).Within(0.001f));
+            var input = cameraSystem.GetComponentInParent<SlimeBattle.Player.Input.InputSystem>();
+            var primaryActions = 0;
+            var token = input.Subscribe<SlimeBattle.Player.Input.PlayerCommandSubmittedEvent>(data =>
+            {
+                if (data.Command.Kind == SlimeBattle.Player.Input.PlayerCommandKind.PrimaryAction) primaryActions++;
+            });
+            var beforeDrag = camera.transform.position;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            Assert.That(primaryActions, Is.Zero, "A mouse press must wait to distinguish a click from a drag.");
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(60f, 30f) }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            Assert.That(Vector3.Distance(beforeDrag, camera.transform.position), Is.GreaterThan(0.01f));
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(60f, 30f) });
+            yield return null; yield return null;
+            Assert.That(primaryActions, Is.Zero, "Releasing a map drag must not place or remove an object.");
+            var afterDrag = camera.transform.position;
+            yield return Click(pointer);
+            Assert.That(primaryActions, Is.EqualTo(1), "A normal left click still submits exactly once.");
+            Assert.That(camera.transform.position, Is.EqualTo(afterDrag), "Clicking without dragging must not pan.");
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(2f, 1f) }.WithButton(MouseButton.Left));
+            yield return null; yield return null;
+            UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                new MouseState { position = pointer + new Vector2(2f, 1f) });
+            yield return null; yield return null;
+            Assert.That(primaryActions, Is.EqualTo(2), "Small hand jitter must still count as a click.");
+            Assert.That(camera.transform.position, Is.EqualTo(afterDrag));
+            input.Unsubscribe(token);
+        }
+
+        [UnityTest, Timeout(60000)]
         public IEnumerator ProductionSceneRemovalReleasesCellAndResetsOnRestart()
         {
             yield return SceneManager.LoadSceneAsync("Bootstrap");
@@ -118,12 +204,19 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 yield return Click(screenPosition);
                 Assert.That(context.MechanismSystem.ActivePlacedMechanismCount, Is.EqualTo(1));
                 var placed = context.MechanismSystem.GetActiveSnapshots().Single(snapshot => snapshot.IsPlayerPlaced);
+                // Placement can snap to a nearby authored anchor; remove the actual object.
+                position = placed.Position;
+                screenPosition = camera.WorldToScreen(position);
                 Assert.That(remove.interactable, Is.True);
                 yield return Click(RectTransformUtility.WorldToScreenPoint(null, remove.transform.position));
                 Assert.That(root.Placement.IsRemoving, Is.True, "The production scene button must bind to its current placement session.");
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new MouseState { position = screenPosition });
                 yield return null; yield return null;
-                Assert.That(root.Placement.GetCurrentPreview().RemovalTarget, Is.EqualTo(placed.MechanismId));
+                var removalPreview = root.Placement.GetCurrentPreview();
+                Assert.That(removalPreview.RemovalTarget, Is.EqualTo(placed.MechanismId),
+                    $"{item}: preview={removalPreview.Status}, cell={removalPreview.Cell}, placed={placed.Position}, " +
+                    $"pointer={root.GetComponent<SlimeBattle.Player.Input.InputSystem>().ReadSnapshot().PointerPosition}, " +
+                    $"blocked={root.GetComponent<SlimeBattle.Player.Input.InputSystem>().ReadSnapshot().PointerBlocked}, camera={camera.GetState().Position}");
                 if (item == PlacementItemId.Obstacle && !string.IsNullOrEmpty(capturePath))
                 {
                     Capture(camera.GetComponent<Camera>(), root.gameObject, capturePath);

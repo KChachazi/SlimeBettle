@@ -13,7 +13,7 @@ namespace SlimeBattle.Player.Input
     {
         /// <summary>Reserved directional debug input; unused by current gameplay.</summary>
         Move,
-        /// <summary>A primary action occurred at ScreenPosition; consumers decide its meaning.</summary>
+        /// <summary>A mouse click (release without dragging) or touch press occurred at ScreenPosition.</summary>
         PrimaryAction,
         /// <summary>Reserved/debug request only; never applies combat effects.</summary>
         Attack

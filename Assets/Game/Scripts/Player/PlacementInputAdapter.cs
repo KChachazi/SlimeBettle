@@ -60,7 +60,10 @@ namespace SlimeBattle.Player.Placement
                 }
             }
         }
-        private void OnMoved(PointerMovedEvent data) { Preview(data.Position); }
+        private void OnMoved(PointerMovedEvent data)
+        {
+            if (input.ReadSnapshot().CameraDrag == Vector2.zero) { Preview(data.Position); }
+        }
 
         private void LateUpdate()
         {

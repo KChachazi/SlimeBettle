@@ -12,7 +12,7 @@
 
 ## 自动 Play Mode 检查
 
-退出 Play Mode 后选择 **SlimeBattle → Tests → Run P0 Play Mode Checks**。先执行编辑器检查，再进入真实 Play Mode，使用虚拟 Mouse、Touchscreen、Keyboard 检查鼠标/触屏一次点击一个 PrimaryAction、按下/移动/释放事件、重复快照读取、屏幕到世界坐标、UI 起始手势屏蔽、静止探针、镜头中键/滚轮、暂停恢复、模拟失焦回调、结果显示和连续五次重开。每次重开检查 HUD、CameraSystem、EventSystem 唯一及旧手势/标记清理；旧输入 token 不能取消新实例订阅。
+退出 Play Mode 后选择 **SlimeBattle → Tests → Run P0 Play Mode Checks**。先执行编辑器检查，再进入真实 Play Mode，使用虚拟 Mouse、Touchscreen、Keyboard 检查鼠标/触屏一次点击一个 PrimaryAction、按下/移动/释放事件、重复快照读取、屏幕到世界坐标、UI 起始手势屏蔽、静止探针、镜头左键拖动/滚轮、暂停恢复、模拟失焦回调、结果显示和连续五次重开。每次重开检查 HUD、CameraSystem、EventSystem 唯一及旧手势/标记清理；旧输入 token 不能取消新实例订阅。
 
 检查恢复原 Build Settings、移除虚拟设备并退出 Play Mode；默认报告为系统临时目录中的 SlimeBattleP0-validation.json。有图形设备时保存结算截图。命令行示例：
 
@@ -32,7 +32,7 @@
 | WASD / 方向键 | 默认无 Move；仅显式方向调试开关启用时绑定，夹具仍不移动探针 |
 | 空格 | 仅调试请求计数 / 闪色，不攻击、扣血或移动 |
 | 在 HUD 上按下后拖到网格释放 | 不产生地图操作，标记不更新 |
-| 网格上中键拖动、滚轮 | 镜头平移 / 缩放，标记与探针世界坐标不变 |
+| 网格上左键拖动、滚轮 | 拖动超过 6 像素后平移镜头，松开不触发放置或拆除；每格滚轮缩放约 3% |
 | 持续向边界拖动 / 改变 Game 视图宽高比 | 按视口约束镜头；小地图居中，无非法坐标 |
 | Esc / Pause | Core 进入 Paused；显示暂停面板，清除标记，不接受新地图操作 |
 | Esc / Resume | 回到 Running；旧标记不恢复，按住触点须先松开，再次点击才有效 |
