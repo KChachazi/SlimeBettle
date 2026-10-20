@@ -39,7 +39,7 @@ MonoBehaviour:
   hungerTriggerSeconds: 0
   rageRollIntervalSeconds: 0
   hungerRageChance: 0
-  humanBloodRageChance: 0.6
+  humanBloodRageChance: 0.06
   humanBloodSmellRadiusPixels: 300
   companionDeathRageChance: 0
   companionDeathFearChance: 0
