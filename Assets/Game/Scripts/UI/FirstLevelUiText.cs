@@ -24,7 +24,7 @@ namespace SlimeBattle.UI
                 case "Placement module is not connected.": return "放置模块未接入";
                 case "Level complete": return "关卡已完成";
                 case "Level failed": return "本次引导结束";
-                case "Choose Food, Furnace or Obstacle.": return "选择机关 · 中键拖图 / 滚轮缩放";
+                case "Choose Food, Furnace or Obstacle.": return "选择机关 · 左键拖图 / 滚轮缩放";
                 case "Click/tap a map cell to place it.": return "绿色道路格可放置 · 点击放下，Esc 取消";
                 case "Placement must stay on a walkable road area.": return "此处不是可放道路 · 请选择绿色格子";
                 case "Free cell. Click/tap to place.": return "此格可以放置 · 点击即放下";

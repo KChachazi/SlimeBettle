@@ -107,6 +107,18 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 Assert.That(fixture.Input.ReadSnapshot().PointerPosition, Is.EqualTo(mapPosition), "Gameplay input must use the test pointer.");
                 Assert.That(fixture.Placement.GetCurrentPreview().Status, Is.EqualTo(PlacementValidationStatus.Removable));
                 Assert.That(fixture.Backend.RemovalRequests, Is.Zero);
+                // A left-button drag over a removable object must never remove it.
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = mapPosition }.WithButton(MouseButton.Left));
+                yield return null; yield return null;
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = mapPosition + new Vector2(40f, 20f) }.WithButton(MouseButton.Left));
+                yield return null; yield return null;
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
+                    new MouseState { position = mapPosition + new Vector2(40f, 20f) });
+                yield return null; yield return null;
+                Assert.That(fixture.Backend.RemovalRequests, Is.Zero);
+                Assert.That(fixture.Backend.ReadPlacedObjects(), Has.Count.EqualTo(1));
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,
                     new MouseState { position = mapPosition }.WithButton(MouseButton.Left));
                 yield return null; yield return null;
