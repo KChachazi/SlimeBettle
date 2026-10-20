@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   configId: mvp_escort_weapon
   maxHealth: 100
-  transportSpeedWorldUnits: 1.5
+  transportSpeedWorldUnits: 0.5
   footprintRadiusWorldUnits: 0.4
   boardingRadiusWorldUnits: 1.2
