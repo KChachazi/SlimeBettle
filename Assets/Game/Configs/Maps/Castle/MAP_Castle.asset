@@ -115,9 +115,29 @@ MonoBehaviour:
     designPosition: {x: 3158, y: 668}
     configId:
     interactionRadiusPixels: 0
-  - pointId: castle_enemy_spawn
+  - pointId: castle_enemy_spawn_left_lower
     kind: 3
-    designPosition: {x: 2938, y: 3549}
+    designPosition: {x: 1196, y: 834}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_enemy_spawn_left_mid
+    kind: 3
+    designPosition: {x: 1447, y: 2437}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_enemy_spawn_mid_upper
+    kind: 3
+    designPosition: {x: 2903, y: 3332}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_enemy_spawn_mid_right
+    kind: 3
+    designPosition: {x: 3796, y: 2439}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_enemy_spawn_right_upper
+    kind: 3
+    designPosition: {x: 4840, y: 3320}
     configId: 
     interactionRadiusPixels: 0
   - pointId: castle_weapon_spawn

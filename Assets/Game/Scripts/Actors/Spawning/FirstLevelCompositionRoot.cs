@@ -86,6 +86,7 @@ namespace SlimeBattle.Actors.Spawning
         [SerializeField] private Sprite treasureChestSprite;
         [SerializeField] private Sprite swampSprite;
         [SerializeField] private Sprite eliteAltarSprite;
+        [SerializeField] private Sprite spikeTrapSprite;
         [SerializeField, Min(0f)] private float rollingRockDamage = 20f;
         [SerializeField, Min(0.01f)] private float rollingRockSpeed = 6f;
         [SerializeField, Min(0f)] private float rollingRockDelaySeconds = 1f;
@@ -230,10 +231,15 @@ namespace SlimeBattle.Actors.Spawning
 
             CreateMapDecoration(context, "swamp_art_01", swampSprite,
                 "Swamp", -95);
-            CreateMapDecoration(context, "stone_art_02", rollingRockSprite,
-                "Static Stone", -80);
             CreateMapDecoration(context, "elite_altar_art_01", eliteAltarSprite,
                 "Elite Altar", -80);
+
+            CreateMapDecoration(context, "trap_02", spikeTrapSprite,
+                "SpikeTrap_02", -80);
+            CreateMapDecoration(context, "trap_03", spikeTrapSprite,
+                "SpikeTrap_03", -80);
+            CreateMapDecoration(context, "trap_04", spikeTrapSprite,
+                "SpikeTrap_04", -80);
 
             if (context.MapManager.TryGetMapPoint(new MapPointId("treasure_chest_01"),
                 out var chestPoint) && treasureChestSprite != null)
@@ -270,7 +276,7 @@ namespace SlimeBattle.Actors.Spawning
             }
 
             var rockObject = CreateMapObject("RollingRock", rollingRockSprite,
-                rockPoint.Position, -80);
+                rockPoint.Position, 11);
             var rockBody = rockObject.AddComponent<Rigidbody2D>();
             rockBody.bodyType = RigidbodyType2D.Kinematic;
             var rockCollider = rockObject.AddComponent<BoxCollider2D>();

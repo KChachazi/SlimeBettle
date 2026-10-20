@@ -930,7 +930,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   buttonId: castle_button_1
-  trapsToDisable:
+  trapsToControl:
   - {fileID: 900000001}
 --- !u!1 &900000031
 GameObject:
@@ -1076,7 +1076,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   buttonId: castle_button_2
-  trapsToDisable:
+  trapsToControl:
   - {fileID: 900000011}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
