@@ -71,7 +71,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
             Set(player,"cameraSystem",cameraObject.GetComponent<CameraSystem>()); Set(player,"hudView",hud.GetComponent<BattleHudView>());
             SetBool(player,"createDefaultHud",false);
             Set(first,"cameraSystem",cameraObject.GetComponent<CameraSystem>()); Set(first,"grid",gridObject.GetComponent<PlacementGridAuthoring>());
-            Set(first,"anchorMapDefinition",AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset"));
+            Set(first,"anchorMapDefinition",AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset"));
             Set(first,"placementBackend",backend); Set(first,"statusSnapshotSource",status);
             Set(first,"selectionInstance",selection.GetComponent<PlacementSelectionView>());
             PrefabUtility.SaveAsPrefabAsset(root,PlayerPath);

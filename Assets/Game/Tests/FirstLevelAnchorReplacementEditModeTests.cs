@@ -28,11 +28,11 @@ namespace SlimeBattle.Tests
                 Assert.IsNotNull(mapPrefab);
                 PrefabUtility.InstantiatePrefab(mapPrefab, scene);
                 var food = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Food.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Food.asset");
                 var furnace = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Furnace.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Furnace.asset");
                 var obstacle = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
-                    "Assets/Game/Configs/FirstLevelMechanisms/CFG_Obstacle.asset");
+                    "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Obstacle.asset");
                 var registry = new ConfigRegistry(new ConfigAsset[] { food, furnace, obstacle });
                 map = new MapManager(scene, null);
                 status = new StatusManager(registry, null, _ => null);

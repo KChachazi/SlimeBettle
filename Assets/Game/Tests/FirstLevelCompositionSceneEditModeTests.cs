@@ -102,7 +102,7 @@ namespace SlimeBattle.Tests
         public void FormalFirstLevelUsesEscortObjectiveAndAuthoredWeaponRoute()
         {
             var config = AssetDatabase.LoadAssetAtPath<LevelConfig>(
-                "Assets/Game/Configs/FirstLevel/CFG_Level_FirstLevel.asset");
+                "Assets/Game/Configs/Levels/FirstLevel/CFG_Level_FirstLevel.asset");
             Assert.IsNotNull(config);
             Assert.That(config.ObjectiveKind, Is.EqualTo(LevelObjectiveKind.EscortWeapon));
             Assert.That(config.MaximumActivePlacedMechanisms, Is.EqualTo(20));

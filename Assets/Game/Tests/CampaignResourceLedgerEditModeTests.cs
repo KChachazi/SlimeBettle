@@ -97,7 +97,7 @@ namespace SlimeBattle.Tests
         public void CampaignAssetContainsConfirmedStartsCapsAndLevelRewards()
         {
             var asset = AssetDatabase.LoadAssetAtPath<CampaignResourceConfig>(
-                "Assets/Game/Configs/CFG_CampaignResources.asset");
+                "Assets/Game/Configs/Campaign/CFG_CampaignResources.asset");
             Assert.IsNotNull(asset);
             Assert.IsTrue(asset.TryValidate(out var error), error);
             Assert.AreEqual(8, asset.InitialSlimes);
@@ -158,6 +158,38 @@ namespace SlimeBattle.Tests
                 map?.Dispose();
                 if (scene.IsValid()) EditorSceneManager.ClosePreviewScene(scene);
                 if (previous.IsValid()) SceneManager.SetActiveScene(previous);
+            }
+        }
+
+        [Test]
+        public void CastleMapProvidesTwentyOrderedSpawnPointsNearWeaponStart()
+        {
+            var definition = AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>(
+                "Assets/Game/Configs/Maps/Castle/MAP_Castle.asset");
+            Assert.IsNotNull(definition);
+            Assert.IsTrue(definition.TryBuildSnapshot(out var layout, out var error), error);
+
+            var points = new List<MapPointSnapshot>();
+            var weapons = new List<MapPointSnapshot>();
+            foreach (var point in layout.Points)
+            {
+                if (point.Kind == MapPointKind.SlimeSpawn) points.Add(point);
+                else if (point.Kind == MapPointKind.Weapon) weapons.Add(point);
+            }
+            points.Sort((left, right) => string.CompareOrdinal(
+                left.PointId.Value, right.PointId.Value));
+
+            Assert.AreEqual(20, points.Count);
+            Assert.AreEqual(1, weapons.Count);
+            var previousDistance = 0f;
+            for (var i = 0; i < points.Count; i++)
+            {
+                Assert.AreEqual("castle_slime_spawn_" + (i + 1).ToString("D2"),
+                    points[i].PointId.Value);
+                var distance = Vector2.Distance(points[i].Position,
+                    weapons[0].Position);
+                Assert.GreaterOrEqual(distance, previousDistance);
+                previousDistance = distance;
             }
         }
     }

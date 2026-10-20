@@ -105,11 +105,21 @@ namespace SlimeBattle.Actors.Spawning
                 return;
             }
 
-            var spawnPoints = context.MapManager.GetMapPoints(MapPointKind.Spawn);
+            var spawnPoints = new List<MapPointSnapshot>(
+                context.MapManager.GetMapPoints(MapPointKind.SlimeSpawn));
+            spawnPoints.Sort((left, right) => string.CompareOrdinal(
+                left.PointId.Value, right.PointId.Value));
             var enemyPoints = context.MapManager.GetMapPoints(MapPointKind.EnemySpawn);
             if (spawnPoints.Count == 0 || enemyPoints.Count == 0)
             {
                 Debug.LogError("Castle map requires the supplied Slime and enemy spawn points.", this);
+                return;
+            }
+            var slimeCount = context.CampaignResources.SlimeCount;
+            if (slimeCount > spawnPoints.Count)
+            {
+                Debug.LogError($"Castle level requires {slimeCount} Slime spawn points; " +
+                    $"MAP_Castle provides {spawnPoints.Count}.", this);
                 return;
             }
             if (!context.SlimeManager.TrySetSpawnParent(entitiesRoot) ||
@@ -137,8 +147,9 @@ namespace SlimeBattle.Actors.Spawning
             context.BindActorPorts(new CastlePerception(targets, wander,
                 context.SlimeManager, context.MechanismSystem), null);
 
-            foreach (var point in spawnPoints)
+            for (var i = 0; i < slimeCount; i++)
             {
+                var point = spawnPoints[i];
                 if (!context.SlimeManager.SpawnSlime(new SlimeSpawnRequest(
                     slimeConfig.ConfigId, point.Position)).IsValid)
                     Debug.LogError("Castle Slime spawn failed: " +

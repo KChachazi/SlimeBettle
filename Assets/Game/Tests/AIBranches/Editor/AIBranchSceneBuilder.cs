@@ -25,13 +25,13 @@ namespace SlimeBattle.Tests.AIBranches
             EnsureFolder(ConfigFolder);
             EnsureFolder(SceneFolder);
             var slimeConfig = AssetDatabase.LoadAssetAtPath<SlimeConfig>(
-                "Assets/Game/Configs/Level_test/CFG_Slime_MVP.asset");
+                "Assets/Game/Configs/Actors/CFG_Slime_MVP.asset");
             var enemyConfig = AssetDatabase.LoadAssetAtPath<EnemyConfig>(
-                "Assets/Game/Configs/Level_test/CFG_Enemy_MVP.asset");
+                "Assets/Game/Configs/Actors/CFG_Enemy_MVP.asset");
             var objective = AssetDatabase.LoadAssetAtPath<ObjectiveConfig>(
-                "Assets/Game/Configs/Level_test/CFG_Objective_Test.asset");
+                "Assets/Game/Configs/Levels/LevelTest/CFG_Objective_Test.asset");
             var weapon = AssetDatabase.LoadAssetAtPath<WeaponConfig>(
-                "Assets/Game/Configs/Level_test/CFG_EscortWeapon_Test.asset");
+                "Assets/Game/Configs/Levels/LevelTest/CFG_EscortWeapon_Test.asset");
             var slimePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/Game/Prefabs/Actors/PF_Slime_Green.prefab")?.GetComponent<SlimeActor>();
             var enemyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(

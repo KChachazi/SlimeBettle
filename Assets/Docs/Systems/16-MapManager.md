@@ -199,7 +199,7 @@ MapManager 提供敌人点 / 终点洞穴 / 三条路线 / Anchor 点位
 - **离线坐标表：**如策划先提供节点坐标而没有底图，可用 `FirstLevelMapDefinition` 加 `MapLayoutAuthoring` 保存设计像素坐标、圆形范围、路线和 Anchor；比例保存在地图资产中。该数据源适合早期查询/规则联调，不能代替根据地图图片标注的真实轮廓和物理碰撞。
 - **机制：**路线表示策划预绘制几何，L/SL 关联点影响路线/陷阱规则；不在地图作者脚本里配置自动绕行、替换、陷阱结算或失败策略。
 
-第一关坐标数据已录入 `Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset`，独立绑定夹具为 `Assets/Game/Tests/FirstLevelMap/PF_FirstLevelMapData_TEST.prefab`。策划底图已作为视觉 Sprite 接入夹具；独立验证场景 `Assets/Game/Tests/FirstLevelMap/FirstLevelMap_TEST.unity` 已完成 PlayMode 显示检查和 MapManager 快照查询。正式可玩关卡、地形轮廓和静态墙体碰撞仍待集成。本夹具不含可运行机关实例。
+第一关坐标数据已录入 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset`，独立绑定夹具为 `Assets/Game/Tests/FirstLevelMap/PF_FirstLevelMapData_TEST.prefab`。策划底图已作为视觉 Sprite 接入夹具；独立验证场景 `Assets/Game/Tests/FirstLevelMap/FirstLevelMap_TEST.unity` 已完成 PlayMode 显示检查和 MapManager 快照查询。正式可玩关卡、地形轮廓和静态墙体碰撞仍待集成。本夹具不含可运行机关实例。
 
 ## 补充：地图 Authoring 的独立交付与组合场景（2026-10-14）
 
@@ -209,7 +209,7 @@ MapManager 提供敌人点 / 终点洞穴 / 三条路线 / Anchor 点位
 
 ## 首关地图接入补充（2026-10-19）
 
-首关离线定义现由 `Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset` 提供，并绑定到 FirstLevel 场景的 `MapLayoutAuthoring`。来源坐标表以 5670 为画布边长，按策划确认统一缩放到 5760 图像：坐标和长度先乘 `5760 / 5670 = 64 / 63`，再按 100 设计像素/Unity 单位换算；边界为 57.6 × 57.6 Unity 单位。
+首关离线定义现由 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset` 提供，并绑定到 FirstLevel 场景的 `MapLayoutAuthoring`。来源坐标表以 5670 为画布边长，按策划确认统一缩放到 5760 图像：坐标和长度先乘 `5760 / 5670 = 64 / 63`，再按 100 设计像素/Unity 单位换算；边界为 57.6 × 57.6 Unity 单位。
 
 当前配置包括 12 个可通行道路多边形、2 个沼泽多边形（地形移速倍率 0.5）、3 个普通敌人出生点、1 个陷阱地图点，以及 10 个顺序路点组成的 `route_escort`。道路 CSV 的矩形都作为可通行道路；由于来源未标注可靠的主/分支类型，使用 `MapRoadKind.Unclassified`。当前数据文件没有提供放置 Anchor、峡谷轮廓或独立终点区域边界，因此没有从名称或底图推测；路线末点以 goal waypoint 表示。
 

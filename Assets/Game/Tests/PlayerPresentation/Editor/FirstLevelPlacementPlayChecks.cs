@@ -340,7 +340,7 @@ namespace SlimeBattle.Tests.PlayerPresentation.Editor
                 var camera = cameraObject.GetComponent<CameraSystem>();
                 root.Initialize(manager, input, camera, grid, backend, PlacementConfirmationMode.Single,
                     selectionPrefab: Resources.Load<PlacementSelectionView>("UI/PF_PlacementSelection"),
-                    anchorMapDefinition: AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/FirstLevelMap/MAP_FirstLevel.asset"));
+                    anchorMapDefinition: AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>("Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset"));
                 var ui = owner.GetComponent<UISystem>();
                 var selection = owner.GetComponentInChildren<PlacementSelectionView>();
                 var view = owner.GetComponent<PlacementGridView>();

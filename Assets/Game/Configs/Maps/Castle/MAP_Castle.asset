@@ -15,10 +15,105 @@ MonoBehaviour:
   designPixelsPerUnityUnit: 100
   designSizePixels: {x: 5760, y: 5760}
   points:
-  - pointId: castle_slime_spawn
-    kind: 0
-    designPosition: {x: 2926, y: 244}
-    configId: 
+  - pointId: castle_slime_spawn_01
+    kind: 16
+    designPosition: {x: 2850, y: 300}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_02
+    kind: 16
+    designPosition: {x: 3004, y: 300}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_03
+    kind: 16
+    designPosition: {x: 2850, y: 392}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_04
+    kind: 16
+    designPosition: {x: 3004, y: 392}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_05
+    kind: 16
+    designPosition: {x: 2696, y: 300}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_06
+    kind: 16
+    designPosition: {x: 3158, y: 300}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_07
+    kind: 16
+    designPosition: {x: 2850, y: 484}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_08
+    kind: 16
+    designPosition: {x: 3004, y: 484}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_09
+    kind: 16
+    designPosition: {x: 2696, y: 392}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_10
+    kind: 16
+    designPosition: {x: 3158, y: 392}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_11
+    kind: 16
+    designPosition: {x: 2696, y: 484}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_12
+    kind: 16
+    designPosition: {x: 3158, y: 484}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_13
+    kind: 16
+    designPosition: {x: 2850, y: 576}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_14
+    kind: 16
+    designPosition: {x: 3004, y: 576}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_15
+    kind: 16
+    designPosition: {x: 2696, y: 576}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_16
+    kind: 16
+    designPosition: {x: 3158, y: 576}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_17
+    kind: 16
+    designPosition: {x: 2850, y: 668}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_18
+    kind: 16
+    designPosition: {x: 3004, y: 668}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_19
+    kind: 16
+    designPosition: {x: 2696, y: 668}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: castle_slime_spawn_20
+    kind: 16
+    designPosition: {x: 3158, y: 668}
+    configId:
     interactionRadiusPixels: 0
   - pointId: castle_enemy_spawn
     kind: 3
