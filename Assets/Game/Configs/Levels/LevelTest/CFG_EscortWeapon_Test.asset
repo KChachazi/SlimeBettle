@@ -16,4 +16,4 @@ MonoBehaviour:
   maxHealth: 100
   transportSpeedWorldUnits: 0.5
   footprintRadiusWorldUnits: 0.4
-  boardingRadiusWorldUnits: 1.2
+  boardingRadiusWorldUnits: 2
