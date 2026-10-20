@@ -41,9 +41,10 @@ namespace SlimeBattle.UI
             if(IsOpen && ((state!=LevelState.Paused && state!=LevelState.Running) ||
                 (state==LevelState.Running && phase==LevelState.Paused))) CloseSilently();
             phase=state;
+            RenderRemoval();
             RefreshReturnButtons();
         }
-        public void SetTransitionPending(bool pending) { transitionPending=pending; RefreshReturnButtons(); }
+        public void SetTransitionPending(bool pending) { transitionPending=pending; RenderRemoval(); RefreshReturnButtons(); }
         public void ReturnToMainMenu()
         {
             if (!transitionPending && CanReturnToMenu()) submit?.Invoke(UiCommand.ReturnToMainMenu);
@@ -93,6 +94,9 @@ namespace SlimeBattle.UI
         private void RenderRemoval()
         {
             if (removeButton == null) return;
+            var tooltip = removeButton.GetComponent<UiHoverTooltip>();
+            if (tooltip != null) tooltip.SetAvailable(isActiveAndEnabled && placement != null &&
+                placement.IsRunning && !IsOpen && !transitionPending);
             removeButton.interactable = placement != null && placement.IsRunning && placement.CanRemove && !IsOpen;
             if (removeButton.targetGraphic != null)
                 removeButton.targetGraphic.color = placement != null && placement.IsRemoving

@@ -40,20 +40,23 @@ namespace SlimeBattle.Tests.PlayerPresentation
             var hud=InstantiateHud();
             hud.Render(new UiState(default,LevelState.Running,"测试",0,weaponText:"weapon destroyed"),true,false,false,false);
             Assert.That(Label(hud,"Counts").text,Is.EqualTo("0 / --"));
-            Assert.That(Label(hud,"Goal").text,Does.Contain("未接入"));
-            Assert.That(Label(hud,"WaitingWindow").text,Does.Contain("未接入"));
+            foreach(var removed in new[]{"LegacyWeapon","Goal","WaitingWindow","RouteHint"})
+                Assert.That(hud.GetComponentsInChildren<Transform>(true).Any(t=>t.name==removed),Is.False,removed);
             Assert.That(Find(hud,"ResultPanel").activeSelf,Is.False);
             Assert.That(new UiState(default,LevelState.Running,"old constructor").SlimeCount,Is.EqualTo(-1));
         }
         [Test]
-        public void GoalWindowAndRouteDisplayAreReadOnlyAndResultFollowsPhase()
+        public void MissionOnlyShowsVictoryConditionAndResultFollowsPhase()
         {
             var hud=InstantiateHud();
             hud.Render(new UiState(default,LevelState.Failed,"objective",12,slimeLimit:20,
                 goalText:"终点 2 / 6",waitingText:"剩余 18 秒",routeHint:"L1 类型不匹配",resultText:"公开结果原因"),true,false,true,false);
-            Assert.That(Label(hud,"Goal").text,Is.EqualTo("终点 2 / 6"));
-            Assert.That(Label(hud,"WaitingWindow").text,Is.EqualTo("剩余 18 秒"));
-            Assert.That(Label(hud,"RouteHint").text,Is.EqualTo("L1 类型不匹配"));
+            var mission=Find(hud,"MissionCard");
+            Assert.That(mission.GetComponentsInChildren<Text>(),Has.Length.EqualTo(1));
+            hud.Render(new UiState(default,LevelState.Failed,"Escort the weapon to the goal.",12,
+                goalText:"终点 2 / 6",waitingText:"剩余 18 秒"),true,false,true,false);
+            Assert.That(Label(hud,"Objective").text,Is.EqualTo("胜利条件：护送箱子到达终点"));
+            Assert.That(Label(hud,"Objective").fontSize,Is.GreaterThanOrEqualTo(22));
             Assert.That(Label(hud,"Result").text,Does.StartWith("再试一次吧"));
             Assert.That(Label(hud,"ResultCounts").text,Does.Contain("终点 2 / 6"));
             hud.Render(new UiState(default,LevelState.Succeeded,"objective"),true,false,true,true);
@@ -80,7 +83,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(prefab.GetComponentsInChildren<PlacementInputAdapter>(true).Length,Is.EqualTo(1));
             Assert.That(prefab.GetComponentsInChildren<PlacementGridView>(true).Length,Is.EqualTo(1));
             var hud=new SerializedObject(prefab.GetComponentInChildren<BattleHudView>(true));
-            foreach(var field in new[]{"hudPanel","pausePanel","resultPanel","objectiveText","countsText","goalText","waitingText","routeHintText","resultText","pauseButton","resumeButton","pauseRestartButton","resultRestartButton"})
+            foreach(var field in new[]{"hudPanel","pausePanel","resultPanel","objectiveText","countsText","resultText","pauseButton","resumeButton","pauseRestartButton","resultRestartButton"})
                 Assert.IsNotNull(hud.FindProperty(field).objectReferenceValue,field);
         }
 
@@ -180,6 +183,95 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 "Transparent export margins must not create a full-screen clickable button.");
             Assert.That(rect.sizeDelta.x,Is.LessThan(340));
             Assert.That(rect.sizeDelta.y,Is.LessThan(180));
+        }
+
+        [TestCase("PF_FirstLevelPlacementSelection.prefab",3)]
+        [TestCase("PF_FirstLevelHUD.prefab",1)]
+        public void TooltipsAreBoundHiddenAndNeverBlockPointerInput(string file,int count)
+        {
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(Folder+file);
+            var tooltips=prefab.GetComponentsInChildren<UiHoverTooltip>(true);
+            Assert.That(tooltips,Has.Length.EqualTo(count));
+            foreach(var tooltip in tooltips)
+            {
+                var data=new SerializedObject(tooltip);
+                var card=(RectTransform)data.FindProperty("tooltip").objectReferenceValue;
+                var body=(Text)data.FindProperty("body").objectReferenceValue;
+                Assert.IsNotNull(card); Assert.IsNotNull(body);
+                Assert.That(card.gameObject.activeSelf,Is.False);
+                Assert.That(body.fontSize,Is.GreaterThanOrEqualTo(17));
+                Assert.That(card.GetComponentsInChildren<Graphic>(true).All(g=>!g.raycastTarget),Is.True);
+                Assert.That(card.GetComponent<CanvasGroup>().blocksRaycasts,Is.False);
+            }
+            if(file.Contains("PlacementSelection"))
+            {
+                Assert.That(prefab.GetComponentsInChildren<Transform>(true).Any(t=>t.name=="Budget"),Is.False);
+                Assert.That(Label(prefab.transform,"Hint").text,Is.EqualTo(FirstLevelUiText.ControlsHint));
+            }
+        }
+
+        [TestCase(1280,720)]
+        [TestCase(1024,768)]
+        [TestCase(1920,1080)]
+        [TestCase(1920,820)]
+        public void GuidanceStaysInsideViewportAndClearOfOtherControls(int width,int height)
+        {
+            instance=new GameObject("TEST_ONLY_GuidanceLayout");
+            Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"PF_FirstLevelHUD.prefab"),instance.transform);
+            Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"PF_FirstLevelPlacementSelection.prefab"),instance.transform);
+            var cameraObject=new GameObject("TEST_ONLY_UiCamera",typeof(Camera));
+            cameraObject.transform.SetParent(instance.transform);
+            var camera=cameraObject.GetComponent<Camera>();
+            var target=new RenderTexture(width,height,24);
+            try
+            {
+                camera.targetTexture=target;
+                foreach(var scaler in instance.GetComponentsInChildren<CanvasScaler>(true))
+                {
+                    var canvas=scaler.GetComponent<Canvas>();
+                    canvas.renderMode=RenderMode.ScreenSpaceCamera; canvas.worldCamera=camera; canvas.planeDistance=1f;
+                    scaler.enabled=false; scaler.enabled=true;
+                }
+                Canvas.ForceUpdateCanvases(); camera.Render();
+                var hint=Label(instance.transform,"Hint");
+                var hintBounds=ScreenBounds(hint.rectTransform,camera);
+                var cardBounds=ScreenBounds((RectTransform)hint.transform.parent,camera);
+                Assert.That(cardBounds.center.x,Is.EqualTo(width/2f).Within(1f),"The panel must be centered in the viewport.");
+                Assert.That(hintBounds.center.x,Is.EqualTo(cardBounds.center.x).Within(1f));
+                Assert.That(hintBounds.center.y,Is.EqualTo(cardBounds.center.y).Within(1f));
+                Assert.That(hint.alignment,Is.EqualTo(TextAnchor.MiddleCenter));
+                Assert.That(cardBounds.yMin,Is.GreaterThan(0));
+                Assert.That(cardBounds.yMax,Is.LessThan(height*0.12f),"Keep the controls hint close to the bottom edge.");
+                var mission=(RectTransform)Find(instance.transform,"MissionCard").transform;
+                Assert.That(cardBounds.Overlaps(ScreenBounds(mission,camera)),Is.False,"The victory condition must remain readable.");
+                var cancel=(RectTransform)Find(instance.transform,"CancelButton").transform;
+                Assert.That(cardBounds.Overlaps(ScreenBounds(cancel,camera)),Is.False,"The cancel button must remain separate while placing.");
+                foreach(var name in new[]{"FoodButton","FurnaceButton","ObstacleButton"})
+                {
+                    var button=Find(instance.transform,name).transform;
+                    // Include the largest normal hover scale when checking the count badge.
+                    button.localScale=Vector3.one*1.025f;
+                    var badge=(RectTransform)button.Find("RemainingBadge");
+                    var bounds=ScreenBounds(badge,camera);
+                    Assert.That(bounds.xMin,Is.GreaterThan(0),name);
+                    Assert.That(bounds.xMax,Is.LessThan(width-8f),name+" must leave room before the viewport edge.");
+                    Assert.That(bounds.yMin,Is.GreaterThan(0),name);
+                    Assert.That(bounds.yMax,Is.LessThan(height),name);
+                }
+                var objective=Label(instance.transform,"Objective");
+                Assert.That(objective.cachedTextGenerator.fontSizeUsedForBestFit,Is.GreaterThanOrEqualTo(16),"Keep the rendered victory condition readable even at 1024 pixels wide.");
+                Assert.That(objective.cachedTextGenerator.lineCount,Is.EqualTo(1),"The complete victory condition must fit on one line.");
+                Assert.That(objective.cachedTextGenerator.characterCountVisible,Is.GreaterThanOrEqualTo(objective.text.Length));
+            }
+            finally { camera.targetTexture=null; target.Release(); Object.DestroyImmediate(target); }
+        }
+
+        private static Rect ScreenBounds(RectTransform rect,Camera camera)
+        {
+            var corners=new Vector3[4]; rect.GetWorldCorners(corners);
+            var min=RectTransformUtility.WorldToScreenPoint(camera,corners[0]);
+            var max=RectTransformUtility.WorldToScreenPoint(camera,corners[2]);
+            return Rect.MinMaxRect(min.x,min.y,max.x,max.y);
         }
     }
 }

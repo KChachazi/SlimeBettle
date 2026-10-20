@@ -32,6 +32,76 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnityTearDown] public IEnumerator TearDown() { Object.Destroy(owner); yield return null; }
         private Button Button(string name)=>owner.GetComponentsInChildren<Button>(true).First(b=>b.name==name);
 
+        [UnityTest] public IEnumerator HoverHelpHidesOnPressExitAndPauseWithoutConsumingToolbarClicks()
+        {
+            var settings=UnityEngine.InputSystem.InputSystem.settings;
+            var previousBehavior=settings.editorInputBehaviorInPlayMode;
+            var previousBackground=settings.backgroundBehavior;
+            settings.editorInputBehaviorInPlayMode=InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+            settings.backgroundBehavior=InputSettings.BackgroundBehavior.IgnoreFocus;
+            var pointers=UnityEngine.InputSystem.InputSystem.devices.OfType<Pointer>().Where(p=>p.enabled).ToArray();
+            foreach(var pointer in pointers) UnityEngine.InputSystem.InputSystem.DisableDevice(pointer);
+            var mouse=UnityEngine.InputSystem.InputSystem.AddDevice<Mouse>();
+            try
+            {
+                foreach(var name in new[]{"FoodButton","FurnaceButton","ObstacleButton","RemoveButton"})
+                {
+                    var button=Button(name);
+                    var tooltip=button.GetComponent<UiHoverTooltip>();
+                    Assert.IsNotNull(tooltip,name);
+                    var point=RectTransformUtility.WorldToScreenPoint(null,button.transform.position);
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,new MouseState { position=point });
+                    yield return null; yield return null;
+                    Assert.That(tooltip.IsVisible,Is.True,name+" should show help on actual mouse hover.");
+                    var data=new SerializedObject(tooltip);
+                    var card=(RectTransform)data.FindProperty("tooltip").objectReferenceValue;
+                    var body=(Text)data.FindProperty("body").objectReferenceValue;
+                    Assert.That(body.preferredHeight,Is.LessThanOrEqualTo(body.rectTransform.rect.height+1f));
+                    foreach(var text in card.GetComponentsInChildren<Text>())
+                        Assert.That(text.cachedTextGenerator.characterCountVisible,Is.GreaterThan(0),text.name);
+                    var corners=new Vector3[4]; card.GetWorldCorners(corners);
+                    foreach(var corner in corners)
+                    {
+                        var screen=RectTransformUtility.WorldToScreenPoint(null,corner);
+                        Assert.That(screen.x,Is.InRange(0f,(float)Screen.width),name);
+                        Assert.That(screen.y,Is.InRange(0f,(float)Screen.height),name);
+                    }
+                    var hits=new List<RaycastResult>();
+                    EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current) { position=point },hits);
+                    Assert.That(hits.Any(hit=>hit.gameObject.transform.IsChildOf(card)),Is.False);
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,new MouseState { position=point }.WithButton(MouseButton.Left));
+                    yield return null; yield return null;
+                    Assert.That(tooltip.IsVisible,Is.False,name+" must hide as soon as the pointer is pressed.");
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,new MouseState { position=point });
+                    yield return null; yield return null;
+                    Assert.That(tooltip.IsVisible,Is.False,"A stationary pointer must not reopen help after clicking.");
+                    Assert.That(fixture.Backend.Requests,Is.Zero,"A toolbar click must not place an object on the map.");
+                    if(name=="RemoveButton") Assert.That(fixture.Placement.IsRemoving,Is.True);
+                    else Assert.That(fixture.Placement.SelectedItem.ToString(),Is.EqualTo(name.Replace("Button","")));
+                    var outside=new Vector2(Screen.width*0.4f,Screen.height*0.55f);
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,new MouseState { position=outside });
+                    yield return null; yield return null;
+                    Assert.That(tooltip.IsVisible,Is.False);
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,new MouseState { position=point });
+                    yield return null; yield return null;
+                    Assert.That(tooltip.IsVisible,Is.True,"Leaving and re-entering must show help again.");
+                    fixture.SetPhase(LevelState.Paused); yield return null;
+                    Assert.That(owner.GetComponentsInChildren<UiHoverTooltip>(true).All(t=>!t.IsVisible),Is.True);
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse,new MouseState { position=outside });
+                    yield return null; yield return null;
+                    fixture.Restart(); yield return null;
+                    Assert.That(owner.GetComponentsInChildren<UiHoverTooltip>(true).All(t=>!t.IsVisible),Is.True);
+                }
+            }
+            finally
+            {
+                UnityEngine.InputSystem.InputSystem.RemoveDevice(mouse);
+                foreach(var pointer in pointers) UnityEngine.InputSystem.InputSystem.EnableDevice(pointer);
+                settings.editorInputBehaviorInPlayMode=previousBehavior;
+                settings.backgroundBehavior=previousBackground;
+            }
+        }
+
         [UnityTest] public IEnumerator ThreeSelectionButtonsSubmitOnlyPlacementState()
         {
             foreach(var pair in new[]{("FoodButton",PlacementItemId.Food),("FurnaceButton",PlacementItemId.Furnace),("ObstacleButton",PlacementItemId.Obstacle)})
@@ -197,7 +267,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnityTest] public IEnumerator ToolbarAndModalBlockRaycastsWhileMapRemainsClickable()
         {
             Canvas.ForceUpdateCanvases(); yield return null;
-            foreach(var item in new[]{"FoodButton","ObstacleButton"})
+            foreach(var item in new[]{"FoodButton","FurnaceButton","ObstacleButton"})
                 Assert.That(Button(item).GetComponentsInChildren<Text>(true).Single(t=>t.name=="Remaining").text,
                     Is.EqualTo("剩余 --"),"Missing inventory must not be presented as zero stock.");
             var hits=new List<RaycastResult>();

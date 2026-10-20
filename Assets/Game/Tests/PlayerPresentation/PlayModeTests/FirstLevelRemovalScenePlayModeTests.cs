@@ -15,6 +15,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.EventSystems;
 
 namespace SlimeBattle.Tests.PlayerPresentation
 {
@@ -68,6 +69,11 @@ namespace SlimeBattle.Tests.PlayerPresentation
                 yield return null; yield return null;
                 var root = Object.FindObjectOfType<FirstLevelPresentationRoot>();
                 var camera = root.GetComponentInChildren<Camera>();
+                var labels = root.GetComponentsInChildren<Text>(true);
+                Assert.That(labels.Single(t => t.name == "Objective").text, Is.EqualTo("胜利条件：护送箱子到达终点"));
+                Assert.That(labels.Single(t => t.name == "Hint").text, Is.EqualTo(FirstLevelUiText.ControlsHint));
+                foreach (var removed in new[] { "LegacyWeapon", "Budget", "Goal", "WaitingWindow", "RouteHint" })
+                    Assert.That(root.GetComponentsInChildren<Transform>(true).Any(t => t.name == removed), Is.False, removed);
                 Assert.That(manager.GetCurrentContext().MapManager.TryGetMapBounds(out var bounds), Is.True);
                 var mapSize = bounds.Max - bounds.Min;
                 var fitSize = Mathf.Max(mapSize.y, mapSize.x / camera.aspect) * 0.5f;
@@ -84,6 +90,17 @@ namespace SlimeBattle.Tests.PlayerPresentation
                     Assert.That(manager.GetCurrentContext().MechanismSystem.TryGetWeaponSnapshot(out var weapon), Is.True);
                     root.GetComponentInChildren<CameraSystem>().ResetOpeningView(weapon.Position);
                     Capture(camera, root.gameObject, System.IO.Path.Combine(args[captureIndex + 1], level + ".png"));
+                    foreach (var size in new[] { new Vector2Int(1024, 768), new Vector2Int(1920, 1080), new Vector2Int(1920, 820) })
+                        Capture(camera, root.gameObject, System.IO.Path.Combine(args[captureIndex + 1], level + "-" + size.x + "x" + size.y + ".png"), size.x, size.y);
+                    foreach (var name in new[] { "FoodButton", "FurnaceButton", "ObstacleButton", "RemoveButton" })
+                    {
+                        var tooltip = root.GetComponentsInChildren<UiHoverTooltip>(true).Single(t => t.name == name);
+                        tooltip.OnPointerEnter(new PointerEventData(EventSystem.current));
+                        Assert.That(tooltip.IsVisible, Is.True, level + ": " + name);
+                        Capture(camera, root.gameObject, System.IO.Path.Combine(args[captureIndex + 1], level + "-" + name + ".png"));
+                        tooltip.OnPointerExit(new PointerEventData(EventSystem.current));
+                        Assert.That(tooltip.IsVisible, Is.False);
+                    }
                 }
             }
         }
@@ -211,6 +228,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             Assert.That(root.Placement.GetBudgetSnapshot().FoodRemaining, Is.EqualTo(60));
             Assert.That(root.Placement.GetBudgetSnapshot().ObstacleRemaining, Is.EqualTo(5));
             AssertRemaining(root, PlacementItemId.Food, 60);
+            AssertRemaining(root, PlacementItemId.Furnace, 3);
             AssertRemaining(root, PlacementItemId.Obstacle, 5);
             Assert.That(root.GetComponentsInChildren<Transform>(true).Any(t =>
                 t.name == "BagButton" || t.name == "CatalogButton" ||
@@ -351,7 +369,6 @@ namespace SlimeBattle.Tests.PlayerPresentation
 
         private static void AssertRemaining(FirstLevelPresentationRoot root, PlacementItemId item, int count)
         {
-            if (item == PlacementItemId.Furnace) return;
             var button = root.GetComponentsInChildren<Button>(true).Single(b => b.name == item + "Button");
             var label = button.GetComponentsInChildren<Text>(true).Single(t => t.name == "Remaining");
             Assert.That(label.gameObject.activeInHierarchy, Is.True);
@@ -443,24 +460,26 @@ namespace SlimeBattle.Tests.PlayerPresentation
             yield return null; yield return null;
         }
 
-        private static void Capture(Camera camera, GameObject owner, string path)
+        private static void Capture(Camera camera, GameObject owner, string path, int width = 1280, int height = 720)
         {
             var canvases = owner.GetComponentsInChildren<Canvas>(true).Where(canvas => canvas.isRootCanvas).ToArray();
             var modes = canvases.Select(canvas => canvas.renderMode).ToArray();
             var cameras = canvases.Select(canvas => canvas.worldCamera).ToArray();
             var distances = canvases.Select(canvas => canvas.planeDistance).ToArray();
-            var target = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32);
+            var target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
             var previous = RenderTexture.active;
             var previousTarget = camera.targetTexture;
-            var texture = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+            var texture = new Texture2D(width, height, TextureFormat.RGB24, false);
             try
             {
                 camera.targetTexture = target;
                 foreach (var canvas in canvases)
                 { canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 1f; }
                 Canvas.ForceUpdateCanvases();
+                foreach (var tooltip in owner.GetComponentsInChildren<UiHoverTooltip>(true).Where(t => t.IsVisible))
+                    tooltip.OnPointerEnter(new PointerEventData(EventSystem.current));
                 camera.Render(); RenderTexture.active = target;
-                texture.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0); texture.Apply();
+                texture.ReadPixels(new Rect(0, 0, width, height), 0, 0); texture.Apply();
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)));
                 System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
             }

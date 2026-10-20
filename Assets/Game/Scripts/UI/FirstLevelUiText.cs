@@ -5,8 +5,11 @@ namespace SlimeBattle.UI
     /// <summary>Presentation wording; backend rejection reasons remain visible verbatim.</summary>
     public static class FirstLevelUiText
     {
+        public const string ControlsHint = "左键选择/放置机关与拖动地图，滚轮缩放地图";
+
         public static string PlacementHint(PlacementSystem placement)
         {
+            if (!placement.IsInteracting) return ControlsHint;
             if (placement.IsRemoving && placement.Hint == "Outside map bounds.") return "超出地图边界，请在地图内选择机关";
             if (placement.IsRemoving && placement.Hint == "Map bounds are not configured.") return "地图边界未接入，暂时无法拆除";
             return Hint(placement.Hint);
@@ -20,11 +23,11 @@ namespace SlimeBattle.UI
             switch (message)
             {
                 case "Guide at least 6 slimes into the goal cave.": return "引导至少 6 只史莱姆进入终点洞穴";
-                case "Escort the weapon to the goal.": return "护送武器抵达终点";
+                case "Escort the weapon to the goal.": return "胜利条件：护送箱子到达终点";
                 case "Placement module is not connected.": return "放置模块未接入";
                 case "Level complete": return "关卡已完成";
                 case "Level failed": return "本次引导结束";
-                case "Choose Food, Furnace or Obstacle.": return "选择机关 · 左键拖图 / 滚轮缩放";
+                case "Choose Food, Furnace or Obstacle.": return ControlsHint;
                 case "Click/tap a map cell to place it.": return "绿色道路格可放置 · 点击放下，Esc 取消";
                 case "Placement must stay on a walkable road area.": return "此处不是可放道路 · 请选择绿色格子";
                 case "Free cell. Click/tap to place.": return "此格可以放置 · 点击即放下";
