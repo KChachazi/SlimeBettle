@@ -71,6 +71,7 @@ namespace SlimeBattle.Actors.Spawning
         [SerializeField] private SlimeConfig slimeConfig;
         [SerializeField] private EnemyConfig enemyConfig;
         [SerializeField] private Transform entitiesRoot;
+        [SerializeField, Min(0)] private int treasureChestFoodReward = 4;
         [SerializeField, Min(0.1f)] private float wanderDestinationRadius = 4f;
         private LevelContext installed;
 
@@ -162,7 +163,50 @@ namespace SlimeBattle.Actors.Spawning
                     Debug.LogError("Castle enemy spawn failed: " +
                         context.EnemyManager.LastFailureReason, this);
             }
+            InstallTreasureChest();
             installed = context;
+        }
+
+        private void InstallTreasureChest()
+        {
+            var chest = FindSceneObject("TreasureChest");
+            if (chest == null)
+            {
+                Debug.LogWarning("Castle map has no TreasureChest object.", this);
+                return;
+            }
+
+            var spriteRenderer = chest.GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null)
+            {
+                Debug.LogWarning("Castle TreasureChest requires a SpriteRenderer.", chest);
+                return;
+            }
+
+            if (!chest.activeSelf) chest.SetActive(true);
+            var trigger = chest.GetComponent<BoxCollider2D>();
+            if (trigger == null) trigger = chest.AddComponent<BoxCollider2D>();
+            trigger.isTrigger = true;
+            var scale = chest.transform.lossyScale;
+            trigger.size = new Vector2(
+                spriteRenderer.bounds.size.x / Mathf.Max(0.001f, Mathf.Abs(scale.x)),
+                spriteRenderer.bounds.size.y / Mathf.Max(0.001f, Mathf.Abs(scale.y)));
+
+            var pickup = chest.GetComponent<TreasureChestPickupAuthoring>();
+            if (pickup == null) pickup = chest.AddComponent<TreasureChestPickupAuthoring>();
+            pickup.Initialize(levelManager, treasureChestFoodReward);
+        }
+
+        private GameObject FindSceneObject(string objectName)
+        {
+            var roots = gameObject.scene.GetRootGameObjects();
+            foreach (var root in roots)
+            {
+                var transforms = root.GetComponentsInChildren<Transform>(true);
+                foreach (var candidate in transforms)
+                    if (candidate.name == objectName) return candidate.gameObject;
+            }
+            return null;
         }
     }
 }

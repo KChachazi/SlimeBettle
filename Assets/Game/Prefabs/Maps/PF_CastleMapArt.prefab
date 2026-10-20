@@ -696,6 +696,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   gateRenderer: {fileID: 212000008}
   gateCollider: {fileID: 660000008}
+  enemiesToDefeat: 2
 --- !u!1 &100009
 GameObject:
   m_ObjectHideFlags: 0
