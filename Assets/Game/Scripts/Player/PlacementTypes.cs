@@ -17,7 +17,7 @@ namespace SlimeBattle.Player.Placement
     {
         public PlacementPreview(PlacementItemId item, Vector3Int cell, Vector3 center,
             PlacementValidationStatus status, string message, PlacementAnchorSnapshot? anchor = null,
-            MechanismId removalTarget = default)
+            MechanismId removalTarget = default, float rotationDegrees = 0f)
         {
             Item = item;
             Cell = cell;
@@ -26,6 +26,7 @@ namespace SlimeBattle.Player.Placement
             Message = message ?? string.Empty;
             Anchor = anchor;
             RemovalTarget = removalTarget;
+            RotationDegrees = rotationDegrees;
         }
         public PlacementItemId Item { get; }
         public Vector3Int Cell { get; }
@@ -34,6 +35,7 @@ namespace SlimeBattle.Player.Placement
         public string Message { get; }
         public PlacementAnchorSnapshot? Anchor { get; }
         public MechanismId RemovalTarget { get; }
+        public float RotationDegrees { get; }
         public bool IsAnchor => Anchor.HasValue;
         public bool HasPosition => Status != PlacementValidationStatus.Inactive && Status != PlacementValidationStatus.NoPosition &&
             Status != PlacementValidationStatus.InvalidPosition;
@@ -52,12 +54,14 @@ namespace SlimeBattle.Player.Placement
 
     public readonly struct PlacementRequest
     {
-        public PlacementRequest(PlacementItemId item, Vector3Int cell, Vector3 worldCenter, PlacementAnchorId anchorId = default)
-        { Item = item; Cell = cell; WorldCenter = worldCenter; AnchorId = anchorId; }
+        public PlacementRequest(PlacementItemId item, Vector3Int cell, Vector3 worldCenter,
+            PlacementAnchorId anchorId = default, float rotationDegrees = 0f)
+        { Item = item; Cell = cell; WorldCenter = worldCenter; AnchorId = anchorId; RotationDegrees = rotationDegrees; }
         public PlacementItemId Item { get; }
         public Vector3Int Cell { get; }
         public Vector3 WorldCenter { get; }
         public PlacementAnchorId AnchorId { get; }
+        public float RotationDegrees { get; }
     }
 
     public readonly struct PlacementResult
@@ -71,9 +75,13 @@ namespace SlimeBattle.Player.Placement
 
     public readonly struct PlacementObjectSnapshot
     {
-        public PlacementObjectSnapshot(MechanismId id, Vector3 position) { Id = id; Position = position; }
+        public PlacementObjectSnapshot(MechanismId id, Vector3 position,
+            PlacementItemId item = PlacementItemId.None, float rotationDegrees = 0f)
+        { Id = id; Position = position; Item = item; RotationDegrees = rotationDegrees; }
         public MechanismId Id { get; }
         public Vector3 Position { get; }
+        public PlacementItemId Item { get; }
+        public float RotationDegrees { get; }
     }
 
     /// <summary>Unknown is distinct from zero. Limits/cooldowns remain owned by the configured backend.</summary>

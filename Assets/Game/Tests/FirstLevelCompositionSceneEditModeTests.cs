@@ -14,6 +14,23 @@ namespace SlimeBattle.Tests
     public sealed class FirstLevelCompositionSceneEditModeTests
     {
         [Test]
+        public void FormalGuardConfigDefinesTenEvenPostsAtRadiusTwo()
+        {
+            var guard = AssetDatabase.LoadAssetAtPath<GuardConfig>(
+                "Assets/Game/Configs/Actors/CFG_Guard.asset");
+            Assert.IsNotNull(guard);
+            Assert.That(guard.InitialCount, Is.EqualTo(10));
+            Assert.That(guard.SpawnOffsets.Count, Is.EqualTo(10));
+            for (var i = 0; i < guard.SpawnOffsets.Count; i++)
+            {
+                Assert.That(guard.SpawnOffsets[i].magnitude, Is.EqualTo(2f).Within(.003f));
+                var next = guard.SpawnOffsets[(i + 1) % guard.SpawnOffsets.Count];
+                Assert.That(Vector2.Distance(guard.SpawnOffsets[i], next),
+                    Is.EqualTo(1.236f).Within(.004f));
+            }
+        }
+
+        [Test]
         public void SceneBindsProductionContextMapActorsAndCaveRules()
         {
             var previous = SceneManager.GetActiveScene();

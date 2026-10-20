@@ -126,8 +126,38 @@ MonoBehaviour:
     configId:
     interactionRadiusPixels: 0
   - pointId: enemy_spawn_03
-    kind: 3
+    kind: 17
     designPosition: {x: 2710.349206, y: 2473.650794}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: enemy_spawn_04
+    kind: 3
+    designPosition: {x: 5369.904762, y: 3490.031746}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: treasure_chest_01
+    kind: 10
+    designPosition: {x: 2183.5, y: 388.5}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: rolling_rock_01
+    kind: 5
+    designPosition: {x: 2786.5, y: 4119.5}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: stone_art_02
+    kind: 18
+    designPosition: {x: 3915.5, y: 1010.5}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: swamp_art_01
+    kind: 18
+    designPosition: {x: 1093.5, y: 4765.5}
+    configId:
+    interactionRadiusPixels: 0
+  - pointId: elite_altar_art_01
+    kind: 18
+    designPosition: {x: 2235.5, y: 2207.5}
     configId:
     interactionRadiusPixels: 0
   - pointId: trap_01
@@ -358,6 +388,22 @@ MonoBehaviour:
     - {x: 1685.333333, y: 4823.365079}
     - {x: 346.412698, y: 4823.365079}
     movementSpeedMultiplier: 0.5
+    statusEffectConfigId:
+    guidanceRadiusPixels: 0
+  - areaId: rolling_rock_trigger_01
+    kind: 5
+    roadKind: 0
+    terrainKind: 0
+    regionKind: 0
+    usePolygon: 1
+    designCenter: {x: 4467.5, y: 4101.5}
+    radiusPixels: 1
+    designVertices:
+    - {x: 3266, y: 3859}
+    - {x: 5669, y: 3859}
+    - {x: 5669, y: 4344}
+    - {x: 3266, y: 4344}
+    movementSpeedMultiplier: 1
     statusEffectConfigId:
     guidanceRadiusPixels: 0
   routes:

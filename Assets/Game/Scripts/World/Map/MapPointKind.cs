@@ -18,6 +18,8 @@ namespace SlimeBattle.World
         Merge = 13,
         Goal = 14,
         Mechanism = 15,
-        SlimeSpawn = 16
+        SlimeSpawn = 16,
+        EliteSpawn = 17,
+        Scenery = 18
     }
 }

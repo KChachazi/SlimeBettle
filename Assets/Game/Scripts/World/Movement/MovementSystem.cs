@@ -7,8 +7,8 @@ using UnityEngine;
 namespace SlimeBattle.World.Movement
 {
     /// <summary>
-    /// Executes straight-line movement requests by setting dynamic Rigidbody2D velocity.
-    /// Physics owns collision response; static scene contacts end the active request.
+    /// Executes movement requests by setting dynamic Rigidbody2D velocity. Slimes may opt
+    /// into A* waypoints; physics still owns collision response for all actors.
     /// </summary>
     public sealed class MovementSystem : IDisposable
     {
@@ -16,22 +16,36 @@ namespace SlimeBattle.World.Movement
 
         private sealed class ActiveMovement
         {
-            public ActiveMovement(MovementRequestId requestId, Vector2 destination)
+            private readonly IReadOnlyList<Vector2> waypoints;
+            private int waypointIndex;
+
+            public ActiveMovement(MovementRequestId requestId, Vector2 destination,
+                IReadOnlyList<Vector2> waypoints)
             {
                 RequestId = requestId;
                 Destination = destination;
+                this.waypoints = waypoints;
             }
 
             public MovementRequestId RequestId { get; }
             public Vector2 Destination { get; }
+            public Vector2 CurrentWaypoint => waypoints == null || waypoints.Count == 0
+                ? Destination : waypoints[waypointIndex];
             public Vector2 DesiredDirection { get; set; }
+            public bool AdvanceWaypoint()
+            {
+                if (waypoints == null || waypointIndex + 1 >= waypoints.Count) return false;
+                waypointIndex++;
+                return true;
+            }
         }
 
         private sealed class ActorBinding
         {
             public ActorBinding(ActorId actorId, Rigidbody2D body,
                 ActorMovementBody collisionRelay, float worldSpeed,
-                Action<Vector2> positionUpdated, Func<string, bool> movementCompleted)
+                Action<Vector2> positionUpdated, Func<string, bool> movementCompleted,
+                bool requireRoadArea, bool useAStar)
             {
                 ActorId = actorId;
                 Body = body;
@@ -39,6 +53,8 @@ namespace SlimeBattle.World.Movement
                 WorldSpeed = worldSpeed;
                 PositionUpdated = positionUpdated;
                 MovementCompleted = movementCompleted;
+                RequireRoadArea = requireRoadArea;
+                UseAStar = useAStar;
                 State = new MovementState(actorId, MovementResult.None,
                     default(MovementRequestId), body.position, body.position, body.velocity);
             }
@@ -49,6 +65,8 @@ namespace SlimeBattle.World.Movement
             public float WorldSpeed { get; }
             public Action<Vector2> PositionUpdated { get; }
             public Func<string, bool> MovementCompleted { get; }
+            public bool RequireRoadArea { get; }
+            public bool UseAStar { get; }
             public ActiveMovement Active { get; set; }
             public MovementState State { get; set; }
         }
@@ -77,7 +95,8 @@ namespace SlimeBattle.World.Movement
         /// </summary>
         internal bool RegisterActor(ActorId actorId, Rigidbody2D body,
             float moveSpeedPixelsPerSecond, float pixelsPerUnit,
-            Action<Vector2> positionUpdated, Func<string, bool> movementCompleted)
+            Action<Vector2> positionUpdated, Func<string, bool> movementCompleted,
+            bool requireRoadArea = true, bool useAStar = false)
         {
             if (disposed || paused || !actorId.IsValid || body == null ||
                 body.GetComponent<Collider2D>() == null || positionUpdated == null ||
@@ -101,7 +120,8 @@ namespace SlimeBattle.World.Movement
             if (collisionRelay == null) collisionRelay = body.gameObject.AddComponent<ActorMovementBody>();
 
             var binding = new ActorBinding(actorId, body, collisionRelay,
-                moveSpeedPixelsPerSecond / pixelsPerUnit, positionUpdated, movementCompleted);
+                moveSpeedPixelsPerSecond / pixelsPerUnit, positionUpdated, movementCompleted,
+                requireRoadArea, useAStar);
             actors.Add(actorId, binding);
             collisionRelay.Bind(this, actorId);
             mapManager.NotifyActorPositionChanged(actorId, body.position);
@@ -120,8 +140,28 @@ namespace SlimeBattle.World.Movement
             if (binding.Active != null)
                 CancelMovement(binding.Active.RequestId, CancelReason.Superseded);
 
+            IReadOnlyList<Vector2> waypoints = null;
+            if (binding.UseAStar)
+            {
+                if (mapManager.TryGetMapBounds(out var bounds))
+                {
+                    var collider = binding.Body.GetComponent<Collider2D>();
+                    var extents = collider == null ? Vector2.zero :
+                        new Vector2(collider.bounds.extents.x, collider.bounds.extents.y);
+                    var radius = Mathf.Max(extents.x, extents.y);
+                    var occupancy = new OccupancyQuery(radius, requireWithinBounds: true,
+                        checkStaticBlockers: true, roadTolerance: 0.2f,
+                        ignoreRoadArea: !binding.RequireRoadArea);
+                    if (!AStarGridPathfinder.TryFindPath(binding.Body.position,
+                        request.Destination, bounds,
+                        position => mapManager.CanOccupy(position, occupancy), out waypoints))
+                        return default(MovementRequestId);
+                }
+                else waypoints = new[] { request.Destination };
+            }
+
             var requestId = MovementRequestId.NewId();
-            var active = new ActiveMovement(requestId, request.Destination);
+            var active = new ActiveMovement(requestId, request.Destination, waypoints);
             binding.Active = active;
             binding.State = new MovementState(binding.ActorId, MovementResult.InProgress,
                 requestId, binding.Body.position, request.Destination, binding.Body.velocity);
@@ -199,10 +239,18 @@ namespace SlimeBattle.World.Movement
                 }
 
                 var active = binding.Active;
-                var toDestination = active.Destination - position;
+                var toDestination = active.CurrentWaypoint - position;
                 var distance = toDestination.magnitude;
                 if (distance <= ArrivalTolerance)
                 {
+                    if (active.AdvanceWaypoint())
+                    {
+                        body.velocity = Vector2.zero;
+                        binding.State = new MovementState(binding.ActorId,
+                            MovementResult.InProgress, active.RequestId, position,
+                            active.Destination, Vector2.zero);
+                        continue;
+                    }
                     Complete(binding, active, MovementResult.ReachedDestination,
                         default(ContactInfo));
                     continue;
@@ -229,7 +277,7 @@ namespace SlimeBattle.World.Movement
                 var bodyRadius = Mathf.Max(extents.x, extents.y);
                 var occupancy = new OccupancyQuery(bodyRadius,
                     requireWithinBounds: true, checkStaticBlockers: false,
-                    roadTolerance: 0.2f);
+                    roadTolerance: 0.2f, ignoreRoadArea: !binding.RequireRoadArea);
                 if (!mapManager.CanOccupy(candidatePosition, occupancy))
                 {
                     Complete(binding, active, MovementResult.Blocked,

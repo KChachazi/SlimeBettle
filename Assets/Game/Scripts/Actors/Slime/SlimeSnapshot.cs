@@ -11,7 +11,8 @@ namespace SlimeBattle.Slimes
         public SlimeSnapshot(ActorSnapshot actor, ConfigId configId,
             float currentHealth, float maxHealth, SlimeControlMode controlMode,
             SlimeNeedState needState, bool isCarrying = false,
-            float pixelsPerUnit = 0f)
+            float pixelsPerUnit = 0f, Vector2 wanderCenter = default(Vector2),
+            bool hasWanderCenter = false)
         {
             ActorId = actor.ActorId;
             FactionId = actor.FactionId;
@@ -25,6 +26,8 @@ namespace SlimeBattle.Slimes
             StatusIds = actor.StatusIds;
             IsCarrying = isCarrying;
             PixelsPerUnit = pixelsPerUnit;
+            WanderCenter = wanderCenter;
+            HasWanderCenter = hasWanderCenter;
         }
         public ActorId ActorId { get; }
         public FactionId FactionId { get; }
@@ -38,5 +41,7 @@ namespace SlimeBattle.Slimes
         public IReadOnlyList<string> StatusIds { get; }
         public bool IsCarrying { get; }
         public float PixelsPerUnit { get; }
+        public Vector2 WanderCenter { get; }
+        public bool HasWanderCenter { get; }
     }
 }

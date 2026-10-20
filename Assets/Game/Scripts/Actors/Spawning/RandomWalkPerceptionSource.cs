@@ -27,6 +27,8 @@ namespace SlimeBattle.Actors.Spawning
         private readonly System.Random random = new System.Random();
         private readonly Dictionary<ActorId, Vector2> destinations =
             new Dictionary<ActorId, Vector2>();
+        private readonly Dictionary<ActorId, Vector2> slimeWanderCenters =
+            new Dictionary<ActorId, Vector2>();
         private long sampleTick;
 
         public RandomWalkPerceptionSource(SlimeManager slimeManager,
@@ -47,7 +49,21 @@ namespace SlimeBattle.Actors.Spawning
             if (!TryGetActorSnapshot(actorId, out var actor) || !actor.IsAlive)
             {
                 destinations.Remove(actorId);
+                slimeWanderCenters.Remove(actorId);
                 return new PerceptionSnapshot(++sampleTick, Array.Empty<TargetObservation>());
+            }
+
+            var isLocalSlime = actor.ActorType == ActorType.Slime && slimeWanderRadius > 0f;
+            var wanderCenter = actor.Position;
+            if (isLocalSlime && slimeManager.TryGetSnapshot(actorId, out var slime))
+            {
+                wanderCenter = slime.HasWanderCenter ? slime.WanderCenter : slime.Position;
+                if (!slimeWanderCenters.TryGetValue(actorId, out var previousCenter) ||
+                    (previousCenter - wanderCenter).sqrMagnitude > 0.0001f)
+                {
+                    destinations.Remove(actorId);
+                    slimeWanderCenters[actorId] = wanderCenter;
+                }
             }
 
             var bounds = GetWanderBounds(actorId, actor.ActorType);
@@ -56,8 +72,8 @@ namespace SlimeBattle.Actors.Spawning
                 shouldChooseDestination = ShouldChooseNewDestination(actorId, actor.Position, destination);
             if (shouldChooseDestination)
             {
-                destination = actor.ActorType == ActorType.Slime && slimeWanderRadius > 0f
-                    ? ChooseLocalSlimeDestination(actor.Position)
+                destination = isLocalSlime
+                    ? ChooseLocalSlimeDestination(wanderCenter)
                     : ChooseDestination(bounds, actor.Position);
                 destinations[actorId] = destination;
             }

@@ -93,6 +93,29 @@ namespace SlimeBattle.Tests
         }
 
         [Test]
+        public void RoadRequirementCanBeDisabledWithoutBypassingMapBounds()
+        {
+            AddBounds(new Vector2(20f, 20f));
+            var road = CreateObject("Road area");
+            var roadCollider = road.AddComponent<BoxCollider2D>();
+            roadCollider.isTrigger = true;
+            roadCollider.size = new Vector2(4f, 4f);
+            var area = road.AddComponent<MapAreaAuthoring>();
+            ConfigureArea(area, "road_" + Guid.NewGuid().ToString("N"),
+                MapAreaKind.Road, MapTerrainKind.None, 1f);
+
+            mapManager = new MapManager(testScene, null);
+
+            Assert.IsFalse(mapManager.CanOccupy(new Vector2(5f, 0f),
+                new OccupancyQuery(roadTolerance: 0f)));
+            Assert.IsTrue(mapManager.CanOccupy(new Vector2(5f, 0f),
+                new OccupancyQuery(ignoreRoadArea: true)));
+            Assert.IsFalse(mapManager.CanOccupy(new Vector2(10f, 0f),
+                new OccupancyQuery(.5f, ignoreRoadArea: true)),
+                "Skipping road membership must still enforce map bounds.");
+        }
+
+        [Test]
         public void ScenePointsExposeSpawnWeaponEnemyAndGoalFacts()
         {
             AddBounds(new Vector2(20f, 20f));

@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World<br>
 建议实现目录：Assets/Game/Scripts/World/Map/（核心、Authoring、Events）；地图和区域数据由 Assets/Game/Scenes/ 中的关卡场景提供<br>
 生命周期：当前 LevelContext 生命周期<br>
-状态：场景 Authoring 与离线地图定义均可建立地图快照；首关坐标数据和底图 Sprite 已接入独立测试夹具；沼泽/峡谷轮廓与静态碰撞仍待标注。
+状态：场景 Authoring 与离线地图定义均可建立地图快照；FirstLevel 的坐标数据、分层地图美术、沼泽减速区、滚石触发区和机关点位已接入关卡。
 
 逻辑归属：`MapManager` 属于 `Map` 领域；同领域下辖的 `MechanismSystem` 由小智统一负责，但两者保持独立的运行时数据和公开接口边界。
 
@@ -27,7 +27,7 @@ MapManager 是当前关卡的地图事实与空间查询服务。它绑定场景
 - 按已登记的场景静态碰撞体识别 MovementSystem 遇到的地图阻挡；
 - 在场景地图绑定与校验完成后发布 MapReadyEvent。
 
-地图信息由关卡场景提供，视觉地面仍可使用 Tilemap 或 SpriteRenderer；语义道路、地形和区域可使用带 Trigger Collider2D 的 `MapAreaAuthoring`，地图点使用带稳定 ID 的 `MapPointAuthoring`。对离线设计稿坐标表，可在场景加入 `MapLayoutAuthoring` 并引用 `FirstLevelMapDefinition`，由 MapManager 构建相同的只读快照。当前首关数据夹具 `PF_FirstLevelMapData_TEST` 已包含视觉底图 Sprite，但不含静态地形碰撞；沼泽/峡谷仍使用圆形范围代理，后续应按确认后的轮廓更新区域 authoring。底图 Sprite 只负责显示；Trigger 只作为地图查询几何，二者均不替代 MovementSystem 的物理碰撞体。
+地图信息由关卡场景提供，视觉地面仍可使用 Tilemap 或 SpriteRenderer；语义道路、地形和区域可使用带 Trigger Collider2D 的 `MapAreaAuthoring`，地图点使用带稳定 ID 的 `MapPointAuthoring`。对离线设计稿坐标表，可在场景加入 `MapLayoutAuthoring` 并引用 `FirstLevelMapDefinition`，由 MapManager 构建相同的只读快照。FirstLevel 使用分层地面、石路和前景美术；沼泽由两块多边形地形提供 0.5 倍移速，滚石触发区以 `Hazard` 多边形提供位置事实。底图 Sprite 只负责显示；地图区域几何不替代 MovementSystem 的物理碰撞体。
 
 ## 3. 不负责的内容
 
@@ -47,7 +47,8 @@ MapManager 是当前关卡的地图事实与空间查询服务。它绑定场景
 | 道路 | 主干道、分支道路 | 道路类型及当前位置是否位于道路区域；P0 不建立动态寻路图 | MovementSystem、AI、关卡设计工具 |
 | 地形 | 沼泽、峡谷、城堡等 | 地形类型、地形标签和可配置的移动修正 | MovementSystem、StatusManager 或对应关卡规则 |
 | 区域 | 低温、温暖等 | 区域 ID、类型、关联的效果配置 ID，以及 Actor 的进入/离开事实 | StatusManager、AI |
-| 地图点 | 出生点、目标点、武器点、敌人点 | 稳定点 ID、点类型和世界坐标 | 对应 Actor Manager、MechanismSystem、Core 结果规则组件 |
+| 地图点 | 出生点、目标点、武器点、敌人点、补给、布景 | 稳定点 ID、点类型和世界坐标 | 对应 Actor Manager、MechanismSystem、Core 结果规则组件 |
+| 危险区域 | 滚石等区域型机关触发范围 | 稳定区域 ID 和几何范围；不直接结算效果 | 对应机关/关卡运行时适配器 |
 | 路线候选 | 三条分支和一条共享主线段 | 稳定路线段 ID、角色、有序路点、合流点、终点和关联阻断/地图点 | 关卡路线规则、Actor/AI、Core |
 | 放置 Anchor | L1/L2/L3、SL1/SL2/SL3 等策划指定点位 | 稳定 Anchor ID、世界坐标、允许类型、替换策略和关联路线/陷阱事实 | PlacementSystem、MechanismSystem、路线/陷阱规则 |
 | 可放置区域 | 玩家可放置物体的区域标记 | 稳定区域 ID 和当前位置是否处于放置区域 | Placement/Mechanism 规则消费者 |
@@ -64,13 +65,13 @@ MapManager 是当前关卡的地图事实与空间查询服务。它绑定场景
 ```text
 MapBounds
 MapAreaId
-MapAreaKind                 // Road, Terrain, Region, Placement, Goal
+MapAreaKind                 // Road, Terrain, Region, Placement, Goal, Hazard
 MapRoadKind                 // Main, Branch
 MapTerrainKind              // Swamp, Canyon, Castle, Other
 MapRegionKind               // LowTemperature, Warm, Other
 MapAreaSnapshot
 MapPointId
-MapPointKind                // Spawn, Target, Weapon, EnemySpawn, GuardSpawn, Supply, Tutorial, Fork, Merge, Goal, Mechanism
+MapPointKind                // ... EliteSpawn, Scenery
 MapPointSnapshot
 MapRouteId
 MapRouteRole                 // Candidate, Branch, Main
@@ -113,7 +114,7 @@ Anchor 查询只提供只读空间事实，不负责替换、回收或机关激�
 
 Anchor 可由 `PlacementAnchorAuthoring` 或 `FirstLevelMapDefinition` 提供稳定 ID、位置、Snap 半径、允许的机关类型、是否允许替换以及关联路线/地图点事实。L1/L2/L3 是 `RouteBlock`，SL1/SL2 是 `TrapMitigation`，SL3 是 `HazardBlock`。Anchor 是策划点位白名单，不是由普通 Grid 自动推导的格子集合。MapManager 只查询这些静态事实，不执行替换、回收、路线阻断或陷阱触发。
 
-首关离线地图坐标采用 DOCX 的 5760×5760 设计坐标，原点在左下角、Y 轴向上。当前暂定 `100 design pixels = 1 Unity world unit`，即 `(x, y)` 转换为 `(x / 100, y / 100)`，地图边界为 `(0, 0)` 到 `(57.6, 57.6)`。底图 Sprite 画布与设计坐标尺寸一致，但点位和地形轮廓尚未逐项校准；该比例仍是首版假设。`MapAreaKind.Goal` 表示终点区域；其事件只表达空间进入/离开事实，不代替 Core 结果判定。
+首关离线地图坐标采用 5760×5760 设计坐标，原点在左下角、Y 轴向上。当前 `100 design pixels = 1 Unity world unit`，即 `(x, y)` 转换为 `(x / 100, y / 100)`，地图边界为 `(0, 0)` 到 `(57.6, 57.6)`。由 5670 像素数据表换算的道路、刷怪点和沼泽仍按既定 `5760 / 5670` 等比系数转换；本轮直接从 5760×5760 合成图匹配的宝箱、石头、沼泽贴图和祭坛点位使用图像像素坐标，不再二次放大。`MapAreaKind.Goal` 表示终点区域；其事件只表达空间进入/离开事实，不代替 Core 结果判定。
 
 MovementSystem 在 Actor 注册、物理位置同步和注销时，向 MapManager 提交位置变化/离场通知。它们是关卡内部的协作接口，不进入跨系统全局 API 表。MapManager 用位置查询维护区域成员关系，不保存 Actor 的位置副本；每次只在成员集合发生变化时发布边界事件。
 
@@ -154,7 +155,7 @@ MapManager 提供敌人点 / 终点洞穴 / 三条路线 / Anchor 点位
 
 ## 9. 当前实现与关键不变量
 
-当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring`、`MapRouteAuthoring`、`PlacementAnchorAuthoring`、可选 `MapBoundsAuthoring` 和 `MapLayoutAuthoring`。MovementSystem 查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。MechanismSystem 可额外注册玩家放置的静态障碍碰撞体，供 `CanOccupy` 和 MovementSystem 查询。`MAP_FirstLevel` 已提供 5760×5760 边界、三条分支段和一条共享主线段、路线点、敌人/陷阱/补给/教程点、终点圆区及六个 L/SL Anchor；`PF_FirstLevelMapData_TEST` 将此离线数据绑定到场景。`FixedRouteMovementAdapter` 可按单段路线快照逐点移动，但不实现首关选路策略；完整地形轮廓、静态碰撞、动态 Actor 占用与峡谷结果仍未实现。
+当前代码由 LevelContext 绑定活动场景，缓存非 Trigger 静态 Collider2D，并扫描 `MapAreaAuthoring`、`MapPointAuthoring`、`MapRouteAuthoring`、`PlacementAnchorAuthoring`、可选 `MapBoundsAuthoring` 和 `MapLayoutAuthoring`。MovementSystem 查询当前位置的地形移速倍率，并把刚体位置同步给 MapManager；区域进入/离开事件和 MapReadyEvent 已接入本局 EventBus，StatusManager 消费区域事件并按 `StatusEffectConfigId` 解析状态配置。MechanismSystem 可额外注册玩家放置的静态障碍碰撞体，供 `CanOccupy` 和 MovementSystem 查询。`MAP_FirstLevel` 已提供 5760×5760 边界、道路/沼泽多边形、路线、敌人/精英刷怪点、陷阱/宝箱/滚石/布景点、滚石危险区域和六个 L/SL Anchor；关卡装配器仍负责把这些地图事实连接到运行时对象。`PF_FirstLevelMapData_TEST` 将离线数据绑定到独立地图夹具。`FixedRouteMovementAdapter` 可按单段路线快照逐点移动，但不实现首关选路策略；峡谷掉落结果仍未实现。
 
 1. 同一 LevelContext 内所有系统使用相同的世界坐标和地图索引。
 2. MapManager 不拥有任何 Actor、掉落物、机关或事件实例的生命周期。
@@ -199,11 +200,11 @@ MapManager 提供敌人点 / 终点洞穴 / 三条路线 / Anchor 点位
 - **离线坐标表：**如策划先提供节点坐标而没有底图，可用 `FirstLevelMapDefinition` 加 `MapLayoutAuthoring` 保存设计像素坐标、圆形范围、路线和 Anchor；比例保存在地图资产中。该数据源适合早期查询/规则联调，不能代替根据地图图片标注的真实轮廓和物理碰撞。
 - **机制：**路线表示策划预绘制几何，L/SL 关联点影响路线/陷阱规则；不在地图作者脚本里配置自动绕行、替换、陷阱结算或失败策略。
 
-第一关坐标数据已录入 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset`，独立绑定夹具为 `Assets/Game/Tests/FirstLevelMap/PF_FirstLevelMapData_TEST.prefab`。策划底图已作为视觉 Sprite 接入夹具；独立验证场景 `Assets/Game/Tests/FirstLevelMap/FirstLevelMap_TEST.unity` 已完成 PlayMode 显示检查和 MapManager 快照查询。正式可玩关卡、地形轮廓和静态墙体碰撞仍待集成。本夹具不含可运行机关实例。
+第一关坐标数据已录入 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset`，独立绑定夹具为 `Assets/Game/Tests/FirstLevelMap/PF_FirstLevelMapData_TEST.prefab`。正式 `FirstLevel` 场景现使用分层底图和地图点装配宝箱、滚石、沼泽与祭坛；独立验证夹具仍只用于地图快照和调试几何，不含这些运行时机关实例。静态墙体碰撞和峡谷结果仍待接入。
 
 ## 补充：地图 Authoring 的独立交付与组合场景（2026-10-14）
 
-小智交付的 `PF_FirstLevelMapData_TEST` 引用 `MAP_FirstLevel` 并包含视觉底图 Sprite；独立验证场景为 `FirstLevelMap_TEST`，已确认底图完整显示且 MapManager 可查询路线/Anchor 快照。规划中的完整组合场景 `FirstLevelComposition_TEST` 仍待关卡组合者维护；地形/道路轮廓和物理碰撞待标注后接入。
+`PF_FirstLevelMapData_TEST` 引用 `MAP_FirstLevel` 并提供独立地图夹具；正式 `FirstLevel` 场景的 `FirstLevelCompositionRoot` 则把地图点和危险区连接到关卡运行时表现/触发器。完整墙体碰撞和峡谷结果仍待接入。
 
 地图 Authoring 只提供空间事实，不复制 `MapManager`，也不在场景脚本中实现路线阻断、Anchor 替换、陷阱结算或 Actor 创建。Anchor 只读查询为 `TryGetPlacementAnchor` / `GetPlacementAnchors`；共享组合场景仍由指定集成者维护，避免多人同时编辑同一个 `.unity` 文件。
 

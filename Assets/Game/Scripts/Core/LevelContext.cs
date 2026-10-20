@@ -132,20 +132,23 @@ namespace SlimeBattle.Core
                 if (guardConfig != null)
                 {
                     var guardPoints = MapManager.GetMapPoints(MapPointKind.GuardSpawn);
-                    if (guardPoints.Count > 0 ||
-                        MechanismSystem.TryGetWeaponSnapshot(out _))
+                    var hasEscortWeapon = MechanismSystem.TryGetWeaponSnapshot(out var weapon);
+                    if (guardPoints.Count > 0 || hasEscortWeapon)
                         GuardManager = new GuardManager(ConfigRegistry, EventBus,
                             guardPrefab, movementSystem: MovementSystem);
-                    foreach (var point in guardPoints)
-                        if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
-                            guardConfig.ConfigId, point.Position)).IsValid)
-                            throw new InvalidOperationException(
-                                "Guard spawn failed: " + GuardManager.LastFailureReason);
-                    if (guardPoints.Count == 0 &&
-                        MechanismSystem.TryGetWeaponSnapshot(out var weapon))
+                    if (hasEscortWeapon)
+                    {
                         foreach (var offset in guardConfig.SpawnOffsets)
                             if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
-                                guardConfig.ConfigId, weapon.Position + offset)).IsValid)
+                                guardConfig.ConfigId, weapon.Position + offset,
+                                escortOffset: offset)).IsValid)
+                                throw new InvalidOperationException(
+                                    "Guard spawn failed: " + GuardManager.LastFailureReason);
+                    }
+                    else
+                        foreach (var point in guardPoints)
+                            if (!GuardManager.SpawnGuard(new GuardSpawnRequest(
+                                guardConfig.ConfigId, point.Position)).IsValid)
                                 throw new InvalidOperationException(
                                     "Guard spawn failed: " + GuardManager.LastFailureReason);
                 }

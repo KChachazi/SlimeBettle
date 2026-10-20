@@ -92,6 +92,15 @@ namespace SlimeBattle.Core
             }
         }
 
+        /// <summary>Adds campaign food up to the configured inventory maximum.</summary>
+        public int AddFood(int amount)
+        {
+            if (!IsStarted || amount <= 0) return 0;
+            var previous = FoodCount;
+            FoodCount = (int)Math.Min(config.MaximumFood, (long)FoodCount + amount);
+            return FoodCount - previous;
+        }
+
         public void AwardLevel(LevelId levelId, int livingSlimes)
         {
             if (!IsStarted || ActiveLevelId != levelId ||

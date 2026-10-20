@@ -19,6 +19,7 @@ namespace SlimeBattle.Player.Input
         private InputAction press;
         private InputAction move;
         private InputAction attack;
+        private InputAction rotatePlacement;
         private InputAction cancel;
         private InputAction scroll;
         private Pointer primaryPointer;
@@ -95,6 +96,8 @@ namespace SlimeBattle.Player.Input
             }
             attack = actions.AddAction("Attack", InputActionType.Button, "<Keyboard>/space");
             attack.AddBinding("<Gamepad>/buttonSouth");
+            rotatePlacement = actions.AddAction("RotatePlacement", InputActionType.Button,
+                "<Mouse>/rightButton");
             cancel = actions.AddAction("Cancel", InputActionType.Button, "<Keyboard>/escape");
             cancel.AddBinding("<Gamepad>/start");
             scroll = actions.AddAction("Zoom", InputActionType.Value, "<Mouse>/scroll");
@@ -119,7 +122,8 @@ namespace SlimeBattle.Player.Input
             if (shouldWaitForRelease)
             {
                 shouldWaitForRelease = press.IsPressed() ||
-                    attack.IsPressed() || move.ReadValue<Vector2>().sqrMagnitude > 0.001f;
+                    attack.IsPressed() || rotatePlacement.IsPressed() ||
+                    move.ReadValue<Vector2>().sqrMagnitude > 0.001f;
                 snapshot = new PlayerInputSnapshot(Time.frameCount, mode, position, Vector2.zero,
                     Vector2.zero, false, false, false, false, didCancel, Vector2.zero, 0f, true);
                 return;
@@ -155,6 +159,8 @@ namespace SlimeBattle.Player.Input
                 : didPress;
             var movement = canPlay ? Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f) : Vector2.zero;
             var didAttack = canPlay && !isOverUi && !isPointerBlocked && !isHeld && attack.WasPressedThisFrame();
+            var didRotatePlacement = canPlay && !isOverUi && !isPointerBlocked && !isHeld &&
+                rotatePlacement.WasPressedThisFrame();
             snapshot = new PlayerInputSnapshot(Time.frameCount, mode, position, delta,
                 movement, didPress, isHeld, didRelease, didAttack, didCancel,
                 cameraDrag, canPlay && !isOverUi ? ReadZoom() : 0f, isPointerBlocked);
@@ -181,6 +187,8 @@ namespace SlimeBattle.Player.Input
             }
             previousMovement = movement;
             if (didAttack) { Submit(new PlayerCommand(PlayerCommandKind.Attack, Vector2.zero, position)); }
+            if (didRotatePlacement)
+            { Submit(new PlayerCommand(PlayerCommandKind.RotatePlacement, Vector2.zero, position)); }
         }
 
         private float ReadZoom()
