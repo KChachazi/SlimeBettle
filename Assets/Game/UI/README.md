@@ -2,11 +2,11 @@
 
 ## 2026-10-21 范围与状态反馈
 
-- 食物和熔炉显示半透明作用范围：食物为绿色、熔炉为橙色，冷却中的源变淡；放置预览使用虚线，不能放置时显示红色。半径直接读取机关快照或选中机关配置，并使用史莱姆的真实 PixelsPerUnit 换算，与游戏的吸引判定一致。
-- 饥饿、暴躁和害怕以头顶气泡显示；同一只史莱姆同时具备多个状态时合并显示。气泡跟随对应史莱姆和镜头，邻近气泡自动错开，并保留指向该史莱姆的连线。
+- 仅在选择放置食物或熔炉时显示半透明作用范围：食物为绿色、熔炉为橙色，预览使用虚线，不能放置时显示红色。落地、取消、拆除模式和选择障碍时隐藏圆环。半径直接读取选中机关配置，并使用史莱姆的真实 PixelsPerUnit 换算，与游戏的吸引判定一致。
+- 饥饿、暴躁和害怕以头顶气泡显示；同一只史莱姆同时具备多个状态时合并显示。气泡跟随对应史莱姆和镜头，文字、边框、尾巴、连线及避让间距按实际地图投影同比例缩放；拉远时气泡一起变小。邻近气泡自动错开，并保留指向该史莱姆的连线。
 - `GameplayFeedbackView` 仅读取公开快照，不改变状态、伤害、吸引规则或库存。覆盖层不挂 GraphicRaycaster，所有图形关闭 raycast；位于游戏 HUD 下层。重开、卸载和解除状态时清理旧提示。
 - 该功能随 `FirstLevelPresentationRoot` 接入正式第一关与 Castle，复用已有中文字体，无需重新生成地图或 HUD 预制体。
-- `GameplayFeedbackScenePlayModeTests` 从 Bootstrap 进入正式第一关，验证真实半径、缩放、非阻塞输入、移除、三个状态及并存、解除、重开。`../Tests/PlayerPresentation/GameplayFeedbackReview.png` 为测试通过实际 StatusManager 添加三种状态后的运行截图，测试冻结模拟便于对照；正常游戏仍由原有玩法触发状态。
+- `GameplayFeedbackScenePlayModeTests` 从 Bootstrap 进入正式第一关，验证选择时真实半径、落地后隐藏、切换/取消/拆除、非阻塞输入、三个状态及并存、解除、气泡与地图缩放比例、重开。`../Tests/PlayerPresentation/GameplayFeedbackReview.png` 为测试通过实际 StatusManager 添加三种状态后拉远镜头的运行截图，测试冻结模拟便于对照；正常游戏仍由原有玩法触发状态。
 - Unity 2022.3.62f2c1 验证：现有 11 项及新增 3 项 Play Mode 分批通过；UI/Placement、库存与关卡配置 Edit Mode 为 76/77。唯一失败 `SceneBindsProductionContextMapActorsAndCaveRules` 预期 6 个放置锚点、实际 0 个，已在未修改的最新 master `78120e7` 单独复现，相同断言与消息；本轮保留其现有玩法与地图数据。
 
 ## 2026-10-20 素材接入

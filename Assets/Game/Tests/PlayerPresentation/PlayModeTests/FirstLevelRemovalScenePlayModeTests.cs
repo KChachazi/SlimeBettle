@@ -31,6 +31,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            foreach (var existing in Object.FindObjectsOfType<GameRoot>()) Object.Destroy(existing.gameObject);
+            yield return null;
             loadFailure = string.Empty;
             var settings = UnityEngine.InputSystem.InputSystem.settings;
             previousInputBehavior = settings.editorInputBehaviorInPlayMode;

@@ -30,6 +30,8 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            foreach (var existing in Object.FindObjectsOfType<GameRoot>()) Object.Destroy(existing.gameObject);
+            yield return null;
             previousTimeScale = Time.timeScale;
             Time.timeScale = 1f;
             yield return SceneManager.LoadSceneAsync("Bootstrap");
@@ -52,44 +54,66 @@ namespace SlimeBattle.Tests.PlayerPresentation
             feedback = player.GetComponent<GameplayFeedbackView>();
             camera = player.GetComponentInChildren<Camera>();
             Assert.IsNotNull(feedback);
-            // TEST_ONLY: freeze simulation while verifying view geometry and status lifecycle.
+            // TEST_ONLY: freeze simulation and control preview positions without native pointer drift.
             Time.timeScale = 0f;
+            player.GetComponent<PlacementInputAdapter>().enabled = false;
         }
 
         [UnityTest]
-        public IEnumerator RangesMatchGameplayRadiusAndDisappearWithTheirSource()
+        public IEnumerator RangesMatchSelectedItemAndStayHiddenAfterPlacement()
         {
-            var food = Place(PlacementItemId.Food);
-            var furnace = Place(PlacementItemId.Furnace);
-            player.Placement.CancelPlacement();
-            yield return new WaitForSecondsRealtime(.15f);
-            Canvas.ForceUpdateCanvases();
+            var food = default(MechanismId);
             var ppu = context.SlimeManager.GetAliveSnapshots()[0].PixelsPerUnit;
-            foreach (var id in new[] { food, furnace })
+            foreach (var item in new[] { PlacementItemId.Food, PlacementItemId.Furnace })
             {
-                var source = context.MechanismSystem.GetGuideSources().Single(s => s.MechanismId == id);
-                var ring = feedback.GetComponentsInChildren<GuideRangeGraphic>().Single(g => g.name == "GuideRange_" + id.Value);
-                var expected = Vector2.Distance(camera.WorldToScreenPoint(source.Position),
-                    camera.WorldToScreenPoint(source.Position + Vector2.right * (source.AttractionRadiusPixels / ppu))) * 2f;
+                Preview(item);
+                yield return null; yield return null;
+                Canvas.ForceUpdateCanvases();
+                var preview = player.Placement.GetCurrentPreview();
+                var kind = item == PlacementItemId.Food ? MechanismKind.Food : MechanismKind.Furnace;
+                Assert.That(context.MechanismSystem.TryGetPlayerConfigId(kind, out var configId), Is.True);
+                Assert.That(context.ConfigRegistry.TryGetMechanism(configId, out var config), Is.True);
+                var ring = feedback.GetComponentsInChildren<GuideRangeGraphic>().Single();
+                Assert.That(ring.name, Is.EqualTo("GuideRange_Preview"));
+                var expected = Vector2.Distance(camera.WorldToScreenPoint(preview.WorldCenter),
+                    camera.WorldToScreenPoint(preview.WorldCenter + Vector3.right * (config.AttractionRadiusPixels / ppu))) * 2f;
                 Assert.That(ring.rectTransform.rect.width * ring.canvas.scaleFactor, Is.EqualTo(expected).Within(1f));
                 Assert.That(ring.canvasRenderer, Is.Not.Null);
                 Assert.That(ring.canvasRenderer.GetMesh().vertexCount, Is.GreaterThan(0));
+                Assert.That(feedback.VisibleRangeCount, Is.EqualTo(1));
+                if (item == PlacementItemId.Food) CaptureRequested("-selection");
+                var result = player.Placement.ConfirmPlacement();
+                Assert.That(result.Succeeded, Is.True, result.Reason);
+                if (item == PlacementItemId.Food) food = result.MechanismId;
+                yield return null; yield return null;
+                Assert.That(context.MechanismSystem.GetGuideSources().Any(s => s.MechanismId == result.MechanismId), Is.True);
+                Assert.That(feedback.VisibleRangeCount, Is.Zero, "A placed source must not keep a range ring.");
+                Assert.That(feedback.GetComponentsInChildren<GuideRangeGraphic>(), Is.Empty);
             }
             var overlay = feedback.transform.Find("GameplayFeedbackCanvas");
             Assert.That(overlay.GetComponentsInChildren<Graphic>(true).All(g => !g.raycastTarget), Is.True);
             Assert.That(overlay.GetComponentsInChildren<GraphicRaycaster>(true), Is.Empty);
             Assert.That(context.MechanismSystem.TryGetSnapshot(food, out var placed), Is.True);
             player.Placement.BeginRemoval(); player.Placement.PreviewPlacement(placed.Position);
+            yield return null; yield return null;
+            Assert.That(feedback.VisibleRangeCount, Is.Zero);
             Assert.That(player.Placement.ConfirmRemoval().Succeeded, Is.True);
             player.Placement.CancelPlacement();
-            yield return new WaitForSecondsRealtime(.15f);
-            Assert.That(feedback.GetComponentsInChildren<GuideRangeGraphic>().Any(g => g.name == "GuideRange_" + food.Value), Is.False);
-            player.Placement.BeginPlacement(PlacementItemId.Food);
-            player.Placement.PreviewPlacement(placed.Position);
+            yield return null; yield return null;
+            Assert.That(feedback.VisibleRangeCount, Is.Zero);
+            Preview(PlacementItemId.Food);
             yield return null; yield return null;
             Assert.That(feedback.GetComponentsInChildren<GuideRangeGraphic>().Any(g => g.name == "GuideRange_Preview"), Is.True);
+            player.Placement.BeginPlacement(PlacementItemId.Obstacle);
+            player.Placement.PreviewPlacement(placed.Position);
+            yield return null; yield return null;
+            Assert.That(feedback.VisibleRangeCount, Is.Zero);
+            player.Placement.BeginPlacement(PlacementItemId.Furnace);
+            player.Placement.PreviewPlacement(placed.Position);
+            yield return null; yield return null;
+            Assert.That(feedback.VisibleRangeCount, Is.EqualTo(1));
             player.Placement.CancelPlacement(); yield return null; yield return null;
-            Assert.That(feedback.GetComponentsInChildren<GuideRangeGraphic>().Any(g => g.name == "GuideRange_Preview"), Is.False);
+            Assert.That(feedback.VisibleRangeCount, Is.Zero);
         }
 
         [UnityTest]
@@ -118,14 +142,24 @@ namespace SlimeBattle.Tests.PlayerPresentation
             player.GetComponentInChildren<CameraSystem>().SubmitCommand(new CameraCommand(CameraCommandKind.Pan, new Vector2(.6f, 0f)));
             yield return null; yield return null;
             Assert.That(Bubble(slimes[0].ActorId).anchoredPosition.x, Is.Not.EqualTo(before.x));
-            var range = feedback.GetComponentsInChildren<GuideRangeGraphic>()[0].rectTransform;
-            var beforeZoom = range.rect.width;
+            Assert.That(feedback.VisibleRangeCount, Is.Zero);
+            var bubble = Bubble(slimes[0].ActorId);
+            var beforeZoom = BubblePixelHeight(bubble);
+            var worldPixelsBefore = Vector2.Distance(camera.WorldToScreenPoint(Vector2.zero), camera.WorldToScreenPoint(Vector2.up));
             player.GetComponentInChildren<CameraSystem>().SubmitCommand(new CameraCommand(CameraCommandKind.Zoom, Vector2.zero, 4f));
             yield return null; yield return null;
-            Assert.That(range.rect.width, Is.LessThan(beforeZoom));
-            var args = System.Environment.GetCommandLineArgs();
-            var capture = System.Array.IndexOf(args, "-feedbackScreenshot");
-            if (capture >= 0 && capture + 1 < args.Length) Capture(args[capture + 1]);
+            var worldPixelsAfter = Vector2.Distance(camera.WorldToScreenPoint(Vector2.zero), camera.WorldToScreenPoint(Vector2.up));
+            Assert.That(BubblePixelHeight(bubble), Is.LessThan(beforeZoom));
+            Assert.That(BubblePixelHeight(bubble) / beforeZoom, Is.EqualTo(worldPixelsAfter / worldPixelsBefore).Within(.002f));
+            player.GetComponentInChildren<CameraSystem>().SubmitCommand(new CameraCommand(CameraCommandKind.Zoom, Vector2.zero, -4f));
+            player.GetComponentInChildren<CameraSystem>().SubmitCommand(new CameraCommand(CameraCommandKind.Focus, focus));
+            yield return null; yield return null;
+            Assert.That(BubblePixelHeight(Bubble(slimes[0].ActorId)), Is.EqualTo(beforeZoom).Within(.5f));
+            CaptureRequested("-default");
+            player.GetComponentInChildren<CameraSystem>().SubmitCommand(new CameraCommand(CameraCommandKind.Zoom, Vector2.zero, 4f));
+            player.GetComponentInChildren<CameraSystem>().SubmitCommand(new CameraCommand(CameraCommandKind.Focus, focus));
+            yield return null; yield return null;
+            CaptureRequested();
 
             Assert.That(context.StatusManager.ApplyStatus(new StatusApplicationRequest(slimes[0].ActorId,
                 slimes[0].ActorId, new StatusId("Agitated"), 30f)), Is.True);
@@ -142,7 +176,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
         [UnityTest]
         public IEnumerator RestartReusesOneOverlayAndDiscardsOldStateAndRanges()
         {
-            var id = Place(PlacementItemId.Food);
+            Place(PlacementItemId.Food);
             var slime = context.SlimeManager.GetAliveSnapshots()[0];
             Assert.That(context.StatusManager.ApplyStatus(new StatusApplicationRequest(slime.ActorId,
                 slime.ActorId, new StatusId("Hungry"), 30f)), Is.True);
@@ -157,7 +191,7 @@ namespace SlimeBattle.Tests.PlayerPresentation
             feedback = player.GetComponent<GameplayFeedbackView>();
             Assert.That(player.GetComponentsInChildren<Canvas>(true).Count(c => c.name == "GameplayFeedbackCanvas"), Is.EqualTo(1));
             Assert.That(feedback.VisibleBubbleCount, Is.Zero);
-            Assert.That(feedback.GetComponentsInChildren<GuideRangeGraphic>().Any(g => g.name == "GuideRange_" + id.Value), Is.False);
+            Assert.That(feedback.VisibleRangeCount, Is.Zero);
             Assert.That(player.Placement.GetBudgetSnapshot().FoodRemaining, Is.EqualTo(60));
         }
 
@@ -165,6 +199,14 @@ namespace SlimeBattle.Tests.PlayerPresentation
             .Single(g => g.name == "SlimeStateBubble_" + id).transform;
 
         private MechanismId Place(PlacementItemId item)
+        {
+            Preview(item);
+            var result = player.Placement.ConfirmPlacement();
+            Assert.That(result.Succeeded, Is.True, result.Reason);
+            return result.MechanismId;
+        }
+
+        private void Preview(PlacementItemId item)
         {
             var kind = item == PlacementItemId.Food ? MechanismKind.Food : MechanismKind.Furnace;
             Assert.That(context.MechanismSystem.TryGetPlayerConfigId(kind, out var configId), Is.True);
@@ -182,11 +224,24 @@ namespace SlimeBattle.Tests.PlayerPresentation
                         !player.Placement.PreviewPlacement(position).IsValid) continue;
                     var target = camera.WorldToViewportPoint(player.Placement.GetCurrentPreview().WorldCenter);
                     if (target.x < .28f || target.x > .62f || target.y < .30f || target.y > .68f) continue;
-                    var result = player.Placement.ConfirmPlacement();
-                    if (result.Succeeded) return result.MechanismId;
+                    return;
                 }
             Assert.Fail("The production viewport must provide a legal cell for " + item);
-            return default;
+        }
+
+        private static float BubblePixelHeight(RectTransform bubble) => Vector2.Distance(
+            RectTransformUtility.WorldToScreenPoint(null, bubble.TransformPoint(new Vector3(0f, bubble.rect.yMin, 0f))),
+            RectTransformUtility.WorldToScreenPoint(null, bubble.TransformPoint(new Vector3(0f, bubble.rect.yMax, 0f))));
+
+        private void CaptureRequested(string suffix = "")
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            var capture = System.Array.IndexOf(args, "-feedbackScreenshot");
+            if (capture < 0 || capture + 1 >= args.Length) return;
+            var path = args[capture + 1];
+            if (suffix.Length > 0) path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(path),
+                System.IO.Path.GetFileNameWithoutExtension(path) + suffix + System.IO.Path.GetExtension(path));
+            Capture(path);
         }
 
         private void Capture(string path)
