@@ -162,7 +162,7 @@ namespace SlimeBattle.World
                 }
             }
 
-            if (hasRoadAreas)
+            if (!query.IgnoreRoadArea && hasRoadAreas)
             {
                 var onRoad = false;
                 foreach (var binding in areas.Values)

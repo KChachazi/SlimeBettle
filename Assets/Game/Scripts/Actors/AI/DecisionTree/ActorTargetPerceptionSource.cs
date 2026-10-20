@@ -109,7 +109,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 }
                 var destination = ownGuard.StandPosition;
                 if (hasWeapon)
-                    destination = GetEscortDestination(ownGuard, guardConfig, weapon);
+                    destination = GetEscortDestination(ownGuard, weapon);
                 return new PerceptionSnapshot(++sampleTick, targets,
                     hasDestination: true, destination: destination);
             }
@@ -179,13 +179,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 ActorControlMode.Autonomous, Array.Empty<string>());
 
         private static Vector2 GetEscortDestination(GuardSnapshot guard,
-            GuardConfig config, EscortWeaponSnapshot weapon)
-        {
-            var offset = guard.StandPosition - weapon.Position;
-            if (offset.sqrMagnitude <= 0.0001f) offset = Vector2.down;
-            return weapon.Position + offset.normalized * Mathf.Max(0f,
-                config.EscortDistance);
-        }
+            EscortWeaponSnapshot weapon) => weapon.Position + guard.EscortOffset;
 
         private bool IsGuardTarget(ActorId targetActorId)
         {
