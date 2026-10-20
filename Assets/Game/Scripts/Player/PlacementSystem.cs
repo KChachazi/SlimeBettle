@@ -184,6 +184,13 @@ namespace SlimeBattle.Player.Placement
             if (!isDisposed) { Changed?.Invoke(); }
         }
 
+        public void ReportInteractionHint(string message)
+        {
+            if (isDisposed) return;
+            Hint = string.IsNullOrWhiteSpace(message) ? string.Empty : message;
+            Changed?.Invoke();
+        }
+
         public void Refresh()
         {
             if (isDisposed) { return; }

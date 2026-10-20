@@ -9,6 +9,12 @@ using PlayerInputSystem = SlimeBattle.Player.Input.InputSystem;
 
 namespace SlimeBattle.Player.Placement
 {
+    public interface IPlacementPrimaryActionHandler
+    {
+        bool IsInteractionTarget(Vector2 screenPosition);
+        bool TryHandlePrimaryAction(Vector2 screenPosition);
+    }
+
     /// <summary>Existing pointer facts -> camera projection -> immediate placement on a valid map click.</summary>
     [DefaultExecutionOrder(100)]
     public sealed class PlacementInputAdapter : MonoBehaviour
@@ -16,17 +22,20 @@ namespace SlimeBattle.Player.Placement
         private PlayerInputSystem input;
         private CameraSystem cameraSystem;
         private PlacementSystem placement;
+        private IPlacementPrimaryActionHandler primaryActionHandler;
         private InputSubscriptionToken primaryToken;
         private InputSubscriptionToken movedToken;
         private InputSubscriptionToken cancelToken;
         private readonly List<RaycastResult> uiHits = new List<RaycastResult>();
 
-        public void Initialize(PlayerInputSystem input, CameraSystem cameraSystem, PlacementSystem placement)
+        public void Initialize(PlayerInputSystem input, CameraSystem cameraSystem,
+            PlacementSystem placement, IPlacementPrimaryActionHandler primaryActionHandler = null)
         {
             Unbind();
             this.input = input != null ? input : throw new ArgumentNullException(nameof(input));
             this.cameraSystem = cameraSystem != null ? cameraSystem : throw new ArgumentNullException(nameof(cameraSystem));
             this.placement = placement ?? throw new ArgumentNullException(nameof(placement));
+            this.primaryActionHandler = primaryActionHandler;
             if (isActiveAndEnabled) { Bind(); }
         }
 
@@ -53,6 +62,8 @@ namespace SlimeBattle.Player.Placement
         {
             if (data.Command.Kind == PlayerCommandKind.PrimaryAction)
             {
+                if (primaryActionHandler != null &&
+                    primaryActionHandler.TryHandlePrimaryAction(data.Command.ScreenPosition)) return;
                 if (Preview(data.Command.ScreenPosition))
                 {
                     if (placement.IsRemoving) { placement.ConfirmRemoval(); }
@@ -62,6 +73,8 @@ namespace SlimeBattle.Player.Placement
         }
         private void OnMoved(PointerMovedEvent data)
         {
+            if (input.IsPointerGestureClaimed ||
+                primaryActionHandler != null && primaryActionHandler.IsInteractionTarget(data.Position)) return;
             if (input.ReadSnapshot().CameraDrag == Vector2.zero) { Preview(data.Position); }
         }
 
@@ -70,7 +83,10 @@ namespace SlimeBattle.Player.Placement
             if (input == null || placement == null || !placement.IsInteracting) { return; }
             var snapshot = input.ReadSnapshot();
             if (snapshot.Frame == Time.frameCount && snapshot.Mode == InputMode.Gameplay &&
-                !snapshot.PointerBlocked && snapshot.CameraDrag == Vector2.zero)
+                !snapshot.PointerBlocked && snapshot.CameraDrag == Vector2.zero &&
+                !input.IsPointerGestureClaimed &&
+                (primaryActionHandler == null ||
+                    !primaryActionHandler.IsInteractionTarget(snapshot.PointerPosition)))
             { Preview(snapshot.PointerPosition); }
         }
 

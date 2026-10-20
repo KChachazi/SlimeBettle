@@ -29,6 +29,7 @@ namespace SlimeBattle.Player
         private IFirstLevelStatusSource statusSource;
         private LevelContext backendContext;
         private PlacementInputAdapter inputAdapter;
+        private CastleFoodCartInteractionAdapter foodCartAdapter;
         private PlacementGridView gridView;
         private PlacementSelectionView selectionView;
         private bool isInitialized;
@@ -113,7 +114,14 @@ namespace SlimeBattle.Player
             gridView.enabled = true;
             selectionView.Initialize(Placement);
             selectionView.enabled = true;
-            inputAdapter.Initialize(input, cameraSystem, Placement);
+            foodCartAdapter = GetComponent<CastleFoodCartInteractionAdapter>();
+            if (foodCartAdapter != null)
+            {
+                foodCartAdapter.Initialize(input, cameraSystem, Placement,
+                    context?.MechanismSystem);
+                foodCartAdapter.enabled = true;
+            }
+            inputAdapter.Initialize(input, cameraSystem, Placement, foodCartAdapter);
             inputAdapter.enabled = true;
             ApplyMapBounds();
         }
@@ -179,6 +187,7 @@ namespace SlimeBattle.Player
                 levelManager.LevelStarted -= OnStarted;
             }
             if (inputAdapter != null) { inputAdapter.enabled = false; }
+            if (foodCartAdapter != null) { foodCartAdapter.enabled = false; }
             if (gridView != null) { gridView.enabled = false; }
             if (selectionView != null) { selectionView.enabled = false; }
             Placement?.Dispose();

@@ -117,6 +117,7 @@ GameObject:
   - component: {fileID: 1924769653964830997}
   - component: {fileID: 4973638224073881278}
   - component: {fileID: 2889535644370975644}
+  - component: {fileID: 4100000000000000001}
   m_Layer: 0
   m_Name: PF_CastlePlayer
   m_TagString: Untagged
@@ -210,6 +211,18 @@ MonoBehaviour:
   selectionParent: {fileID: 0}
   selectionPrefab: {fileID: 0}
   selectionInstance: {fileID: 9142482428016369257}
+--- !u!114 &4100000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3359352289800567453}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a5f4fa32b8340669197b81a56e7a239, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &8154876363779512061
 MonoBehaviour:
   m_ObjectHideFlags: 0

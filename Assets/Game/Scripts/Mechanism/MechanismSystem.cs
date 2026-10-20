@@ -47,6 +47,19 @@ namespace SlimeBattle.Mechanisms
             public FoodRuntimeData(MechanismId id, MechanismConfig config,
                 MechanismAuthoring authoring, bool isPlayerPlaced)
                 : base(id, config, authoring, isPlayerPlaced) { }
+
+            public MechanismId FoodCartId { get; set; }
+        }
+
+        private sealed class FoodCartRuntimeData
+        {
+            public FoodCartRuntimeData(DiningCartAuthoring authoring)
+            {
+                Authoring = authoring;
+            }
+
+            public DiningCartAuthoring Authoring { get; }
+            public MechanismId LoadedFoodId { get; set; }
         }
 
         private sealed class FurnaceRuntimeData : MechanismRuntimeData
@@ -75,6 +88,8 @@ namespace SlimeBattle.Mechanisms
         private readonly CampaignResourceLedger campaignResources;
         private readonly Dictionary<MechanismId, MechanismRuntimeData> mechanisms =
             new Dictionary<MechanismId, MechanismRuntimeData>();
+        private readonly Dictionary<MechanismId, FoodCartRuntimeData> foodCarts =
+            new Dictionary<MechanismId, FoodCartRuntimeData>();
         private readonly Dictionary<ConfigId, float> placementCooldowns =
             new Dictionary<ConfigId, float>();
         private readonly List<SubscriptionToken> subscriptions = new List<SubscriptionToken>();
@@ -132,6 +147,151 @@ namespace SlimeBattle.Mechanisms
             if (disposed || weapon == null) return false;
             snapshot = weapon.GetSnapshot();
             return true;
+        }
+
+        public IReadOnlyList<MechanismId> GetFoodCartIds()
+        {
+            if (disposed || foodCarts.Count == 0) return Array.Empty<MechanismId>();
+            var result = new List<MechanismId>(foodCarts.Keys);
+            result.Sort((left, right) => string.CompareOrdinal(left.Value, right.Value));
+            return result.AsReadOnly();
+        }
+
+        public bool TryGetFoodCartAtPosition(Vector2 worldPosition, out MechanismId cartId)
+        {
+            cartId = default;
+            if (disposed) return false;
+            foreach (var pair in foodCarts)
+            {
+                var authoring = pair.Value.Authoring;
+                if (authoring == null || !authoring.isActiveAndEnabled ||
+                    !authoring.ContainsPointer(worldPosition)) continue;
+                cartId = pair.Key;
+                return true;
+            }
+            return false;
+        }
+
+        public bool TryGetFoodCartPosition(MechanismId cartId, out Vector2 position)
+        {
+            position = default;
+            if (disposed || !foodCarts.TryGetValue(cartId, out var cart) ||
+                cart.Authoring == null) return false;
+            position = cart.Authoring.Position;
+            return true;
+        }
+
+        public bool CanLoadFoodCart(MechanismId cartId, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (disposed || paused)
+            {
+                failureReason = "The level is not accepting cart interactions.";
+                return false;
+            }
+            if (!foodCarts.TryGetValue(cartId, out var cart) || cart.Authoring == null)
+            {
+                failureReason = "The dining cart is unavailable.";
+                return false;
+            }
+            if (cart.LoadedFoodId.IsValid)
+            {
+                failureReason = "The dining cart already has food loaded.";
+                return false;
+            }
+            if (!TryGetPlayerConfigId(MechanismKind.Food, out var foodConfigId) ||
+                !configs.TryGetMechanism(foodConfigId, out _))
+            {
+                failureReason = "The player food mechanism is not configured.";
+                return false;
+            }
+            if (campaignResources != null &&
+                campaignResources.GetMechanismCount(MechanismKind.Food) <= 0)
+            {
+                failureReason = "The food inventory is empty.";
+                return false;
+            }
+            return true;
+        }
+
+        public MechanismPlacementResult RequestLoadFoodCart(MechanismId cartId)
+        {
+            if (!CanLoadFoodCart(cartId, out var reason))
+                return new MechanismPlacementResult(false, default, reason);
+            if (!foodCarts.TryGetValue(cartId, out var cart) ||
+                cart.Authoring.FoodSlot == null ||
+                !TryGetPlayerConfigId(MechanismKind.Food, out var configId) ||
+                !configs.TryGetMechanism(configId, out var config) ||
+                config.PlacementPrefab == null ||
+                new ConfigId(config.PlacementPrefab.ConfigId) != configId)
+                return new MechanismPlacementResult(false, default,
+                    "The dining cart or matching food prefab is incomplete.");
+
+            var food = UnityEngine.Object.Instantiate(config.PlacementPrefab);
+            SceneManager.MoveGameObjectToScene(food.gameObject, scene);
+            food.transform.SetParent(cart.Authoring.FoodSlot, false);
+            food.transform.localPosition = Vector3.zero;
+            food.transform.localRotation = Quaternion.identity;
+            cart.Authoring.SetFoodVisualSorting(food);
+
+            var foodId = MechanismId.NewId();
+            if (!TryRegisterAuthoring(food, foodId, config, isPlayerPlaced: false,
+                publishEvent: false))
+            {
+                DestroyPlacedObject(food.gameObject);
+                return new MechanismPlacementResult(false, default,
+                    "The food mechanism could not be loaded onto the dining cart.");
+            }
+
+            var foodRuntime = (FoodRuntimeData)mechanisms[foodId];
+            foodRuntime.FoodCartId = cartId;
+            foodRuntime.RemainingActivations = 1;
+            if (campaignResources != null &&
+                !campaignResources.TrySpendMechanism(MechanismKind.Food))
+            {
+                RemoveRuntimeMechanism(foodRuntime, "Cart food inventory changed.",
+                    startPlacementCooldown: false, hideAuthoring: false);
+                DestroyPlacedObject(food.gameObject);
+                return new MechanismPlacementResult(false, default,
+                    "The food inventory is empty.");
+            }
+
+            cart.LoadedFoodId = foodId;
+            PublishStateChanged(foodRuntime, MechanismState.Removed, "Loaded onto dining cart.");
+            StartPlacementCooldown(config);
+            NotifyPlacedCarrierContacts(foodRuntime);
+            return new MechanismPlacementResult(true, foodId, string.Empty);
+        }
+
+        public bool RequestMoveFoodCart(MechanismId cartId, Vector2 worldPosition,
+            out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (disposed || paused || !foodCarts.TryGetValue(cartId, out var cart) ||
+                cart.Authoring == null)
+            {
+                failureReason = "The dining cart cannot move right now.";
+                return false;
+            }
+            if (!cart.Authoring.TryProjectToTrack(worldPosition, out var projected))
+            {
+                failureReason = "The dining cart must stay on its configured track.";
+                return false;
+            }
+            if (!mapManager.CanOccupy(projected, new OccupancyQuery(
+                cart.Authoring.MovementClearanceRadius, ignoreRoadArea: true)))
+            {
+                failureReason = "The track position is outside the map or blocked.";
+                return false;
+            }
+            cart.Authoring.MoveTo(projected);
+            return true;
+        }
+
+        public void SetFoodCartPlacementPrompt(MechanismId cartId, bool visible, bool hovered)
+        {
+            if (!disposed && foodCarts.TryGetValue(cartId, out var cart))
+                cart.Authoring?.SetFoodPlacementPrompt(visible, hovered);
         }
 
         public bool RequestWeaponDamage(ActorId sourceActorId,
@@ -554,6 +714,16 @@ namespace SlimeBattle.Mechanisms
                 startPlacementCooldown: mechanism.IsPlayerPlaced, hideAuthoring: false);
         }
 
+        internal void NotifyFoodCartDestroyed(DiningCartAuthoring authoring)
+        {
+            if (disposed || ReferenceEquals(authoring, null)) return;
+            var id = authoring.CartId;
+            if (foodCarts.TryGetValue(id, out var cart) &&
+                ReferenceEquals(cart.Authoring, authoring))
+                foodCarts.Remove(id);
+            authoring.Unbind(this);
+        }
+
         public void Dispose()
         {
             if (disposed) return;
@@ -564,6 +734,12 @@ namespace SlimeBattle.Mechanisms
             carrierGuards = null;
             mustLeaveBoardingZone.Clear();
             guideDepartureTimers.Clear();
+            foreach (var cart in foodCarts.Values)
+            {
+                cart.Authoring?.SetFoodPlacementPrompt(false, false);
+                cart.Authoring?.Unbind(this);
+            }
+            foodCarts.Clear();
             var snapshot = new List<MechanismRuntimeData>(mechanisms.Values);
             foreach (var mechanism in snapshot)
             {
@@ -605,6 +781,26 @@ namespace SlimeBattle.Mechanisms
                     }
                     TryRegisterAuthoring(authoring, authoring.MechanismId, config,
                         isPlayerPlaced: false);
+                }
+
+                foreach (var authoring in root.GetComponentsInChildren<DiningCartAuthoring>(true))
+                {
+                    if (authoring == null || authoring.gameObject.scene.handle != scene.handle ||
+                        !authoring.isActiveAndEnabled) continue;
+                    var id = authoring.CartId;
+                    var collider = authoring.InteractionCollider;
+                    if (!id.IsValid || foodCarts.ContainsKey(id) || mechanisms.ContainsKey(id) ||
+                        authoring.FoodSlot == null || !authoring.HasValidTrack ||
+                        collider == null || !collider.isTrigger ||
+                        !authoring.TryProjectToTrack(authoring.Position, out var trackPosition))
+                    {
+                        Debug.LogError("MechanismSystem: dining cart requires a unique ID, a food slot, " +
+                            "a trigger collider, and at least two nearby track points.", authoring);
+                        continue;
+                    }
+                    authoring.MoveTo(trackPosition);
+                    authoring.Bind(this);
+                    foodCarts.Add(id, new FoodCartRuntimeData(authoring));
                 }
             }
         }
@@ -888,7 +1084,13 @@ namespace SlimeBattle.Mechanisms
 
         private bool ConsumeActivation(MechanismRuntimeData mechanism, ActorId actorId)
         {
-            if (mechanism.Config.ActivationLimit > 0)
+            var cartFood = mechanism as FoodRuntimeData;
+            var isCartFood = cartFood != null && cartFood.FoodCartId.IsValid;
+            if (isCartFood && foodCarts.TryGetValue(cartFood.FoodCartId, out var cart) &&
+                cart.LoadedFoodId == mechanism.Id)
+                cart.LoadedFoodId = default;
+
+            if (GetActivationLimit(mechanism) > 0)
             {
                 mechanism.RemainingActivations = Mathf.Max(0,
                     mechanism.RemainingActivations - 1);
@@ -902,6 +1104,12 @@ namespace SlimeBattle.Mechanisms
                     {
                         mechanism.Authoring.Unbind(this);
                         mechanism.Authoring.SetMechanismVisible(false);
+                    }
+                    if (isCartFood)
+                    {
+                        if (mechanism.Authoring != null)
+                            DestroyPlacedObject(mechanism.Authoring.gameObject);
+                        return true;
                     }
                     if (mechanism.IsPlayerPlaced)
                     {
@@ -1045,10 +1253,14 @@ namespace SlimeBattle.Mechanisms
                 ? Vector2.zero : (Vector2)mechanism.Authoring.transform.position;
             return new MechanismSnapshot(mechanism.Id, mechanism.Config.ConfigId,
                 mechanism.Config.Kind, position, mechanism.State, mechanism.IsPlayerPlaced,
-                mechanism.Config.ActivationLimit, mechanism.RemainingActivations,
+                GetActivationLimit(mechanism), mechanism.RemainingActivations,
                 mechanism.CooldownRemainingSeconds, mechanism.Config.GuideSourceType,
                 mechanism.Config.AttractionRadiusPixels, mechanism.AnchorId);
         }
+
+        private static int GetActivationLimit(MechanismRuntimeData mechanism) =>
+            mechanism is FoodRuntimeData food && food.FoodCartId.IsValid
+                ? 1 : mechanism.Config.ActivationLimit;
 
         private static MechanismRuntimeData CreateRuntimeData(MechanismId id,
             MechanismConfig config, MechanismAuthoring authoring, bool isPlayerPlaced)
