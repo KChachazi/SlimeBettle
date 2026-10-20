@@ -621,6 +621,20 @@ namespace SlimeBattle.Mechanisms
             return configId.IsValid;
         }
 
+        public bool TryGetPlayerAttractionRadiusWorldUnits(MechanismKind kind,
+            out float radiusWorldUnits)
+        {
+            radiusWorldUnits = 0f;
+            if (disposed || carrierSlimes == null ||
+                !TryGetPlayerConfigId(kind, out var configId) ||
+                !configs.TryGetMechanism(configId, out var config)) return false;
+
+            var pixelsPerUnit = carrierSlimes.GameplayPixelsPerUnit;
+            if (!IsFinite(pixelsPerUnit) || pixelsPerUnit <= 0f) return false;
+            radiusWorldUnits = config.AttractionRadiusPixels / pixelsPerUnit;
+            return IsFinite(radiusWorldUnits) && radiusWorldUnits > 0f;
+        }
+
         /// <summary>Registers a prefab instance after PlacementSystem has accepted its inventory request.</summary>
         public MechanismPlacementResult RequestPlace(MechanismPlacementRequest request)
         {

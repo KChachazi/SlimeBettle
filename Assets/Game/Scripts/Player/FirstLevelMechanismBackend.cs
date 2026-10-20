@@ -8,7 +8,7 @@ namespace SlimeBattle.Player
 {
     /// <summary>Drag this component into the presentation backend slot, never a plain C# system.</summary>
     public sealed class FirstLevelMechanismBackend : MonoBehaviour, IPlacementBackend,
-        IAnchorReplacementBackend, IPlacementRemovalBackend
+        IPlacementPreviewInfoProvider, IAnchorReplacementBackend, IPlacementRemovalBackend
     {
         [SerializeField] private LevelManager levelManager;
         private LevelContext boundContext;
@@ -38,6 +38,13 @@ namespace SlimeBattle.Player
         public bool IsAvailable => isActiveAndEnabled && Current.IsAvailable;
         public bool SupportsAnchorReplacement => IsAvailable && Current.SupportsAnchorReplacement;
         public bool SupportsRemoval => isActiveAndEnabled && Current.SupportsRemoval;
+        public bool TryGetAttractionRadiusWorldUnits(PlacementItemId item,
+            out float radius)
+        {
+            radius = 0f;
+            return isActiveAndEnabled &&
+                Current.TryGetAttractionRadiusWorldUnits(item, out radius);
+        }
         public PlacementResult RequestRemoval(MechanismId mechanismId) => SupportsRemoval
             ? Current.RequestRemoval(mechanismId) : new PlacementResult(false, mechanismId, "机关后端未接入或已禁用");
         public PlacementResult RequestPlacement(PlacementRequest request) => IsAvailable

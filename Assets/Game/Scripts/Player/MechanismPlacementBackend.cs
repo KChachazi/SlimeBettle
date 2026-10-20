@@ -7,7 +7,8 @@ namespace SlimeBattle.Player.Placement
     /// Current-level bridge: Placement submits a kind and snapped position;
     /// MechanismSystem owns prefab creation and runtime state.
     /// </summary>
-    public sealed class MechanismPlacementBackend : IPlacementBackend, IAnchorReplacementBackend, IPlacementRemovalBackend
+    public sealed class MechanismPlacementBackend : IPlacementBackend,
+        IPlacementPreviewInfoProvider, IAnchorReplacementBackend, IPlacementRemovalBackend
     {
         private readonly MechanismSystem mechanisms;
         public MechanismPlacementBackend(MechanismSystem mechanisms) { this.mechanisms = mechanisms; }
@@ -17,6 +18,16 @@ namespace SlimeBattle.Player.Placement
             mechanisms.TryGetPlayerConfigId(MechanismKind.Obstacle, out _);
         public bool SupportsAnchorReplacement => IsAvailable;
         public bool SupportsRemoval => mechanisms != null;
+        public bool TryGetAttractionRadiusWorldUnits(PlacementItemId item,
+            out float radius)
+        {
+            radius = 0f;
+            var kind = item == PlacementItemId.Food ? MechanismKind.Food
+                : item == PlacementItemId.Furnace ? MechanismKind.Furnace
+                : MechanismKind.None;
+            return mechanisms != null &&
+                mechanisms.TryGetPlayerAttractionRadiusWorldUnits(kind, out radius);
+        }
         public PlacementResult RequestRemoval(MechanismId mechanismId)
         {
             var removed = mechanisms != null && mechanisms.RequestRemove(mechanismId);

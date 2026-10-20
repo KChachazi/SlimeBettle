@@ -63,6 +63,13 @@ namespace SlimeBattle.Player.Placement
         public float CurrentRotationDegrees => rotationQuarterTurns * 90f;
         public string Hint { get; private set; } = "Choose Food, Furnace or Obstacle.";
         public PlacementPreview GetCurrentPreview() { return preview; }
+        public bool TryGetAttractionRadiusWorldUnits(PlacementItemId item,
+            out float radius)
+        {
+            radius = 0f;
+            return backend is IPlacementPreviewInfoProvider provider &&
+                provider.TryGetAttractionRadiusWorldUnits(item, out radius);
+        }
         public PlacementBudgetSnapshot GetBudgetSnapshot() { return isDisposed ? default : backend.GetBudgetSnapshot(); }
         public IReadOnlyCollection<Vector3Int> GetOccupiedCells() { return new List<Vector3Int>(occupied).AsReadOnly(); }
         public MapBounds? GetMapBounds() { return isDisposed ? null : readBounds(); }

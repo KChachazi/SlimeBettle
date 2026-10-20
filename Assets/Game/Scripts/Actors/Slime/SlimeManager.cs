@@ -58,6 +58,8 @@ namespace SlimeBattle.Slimes
         public string LastFailureReason { get; private set; } = string.Empty;
         public int MaxAliveCount => maxAliveCount;
         public int GoalOccupantCount => goalOccupants.Count;
+        public float GameplayPixelsPerUnit => prefab != null
+            ? prefab.GameplayPixelsPerUnit : 0f;
 
         // 场景装配方指定后续生成实例的父节点；Actor 仍由 Manager 创建和销毁。
         public bool TrySetSpawnParent(Transform parent)

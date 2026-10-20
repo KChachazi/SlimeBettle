@@ -13,7 +13,10 @@ namespace SlimeBattle.Player.Placement
         [SerializeField] private Color freeColor = new Color(0.2f, 0.95f, 0.55f, 0.7f);
         [SerializeField] private Color occupiedColor = new Color(1f, 0.35f, 0.25f, 0.75f);
         [SerializeField] private Color outsideColor = new Color(0.8f, 0.35f, 1f, 0.75f);
+        [SerializeField] private Color attractionRangeColor = new Color(0.1f, 0.85f, 1f, 0.9f);
         [SerializeField, Min(0.01f)] private float lineWidth = 0.08f;
+        [SerializeField, Min(0.005f)] private float attractionRangeLineWidth = 0.05f;
+        private const int AttractionRangeSegmentCount = 96;
         private PlacementGridAuthoring grid;
         private PlacementSystem placement;
         private GameObject visuals;
@@ -26,6 +29,8 @@ namespace SlimeBattle.Player.Placement
         private readonly List<SpriteRenderer> lines = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> placeableCells = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> occupiedCells = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> attractionRangeSegments =
+            new List<SpriteRenderer>();
         private readonly List<AnchorVisual> anchorVisuals = new List<AnchorVisual>();
         private sealed class AnchorVisual
         {
@@ -102,6 +107,7 @@ namespace SlimeBattle.Player.Placement
             }
             DrawAnchors();
             var preview = placement.GetCurrentPreview();
+            DrawAttractionRange(preview);
             if (!preview.HasPosition) { DestroyPreview(); return; }
             if (previewRenderer == null)
             {
@@ -124,6 +130,45 @@ namespace SlimeBattle.Player.Placement
                 preview.Status == PlacementValidationStatus.OutOfBounds ||
                     preview.Status == PlacementValidationStatus.InvalidArea ? outsideColor :
                 preview.Status == PlacementValidationStatus.Occupied ? occupiedColor : new Color(1f, 0.75f, 0.2f, 0.75f);
+        }
+
+        private void DrawAttractionRange(PlacementPreview preview)
+        {
+            foreach (var segment in attractionRangeSegments)
+                segment.gameObject.SetActive(false);
+
+            if (!preview.HasPosition ||
+                (preview.Item != PlacementItemId.Food &&
+                 preview.Item != PlacementItemId.Furnace) ||
+                !placement.TryGetAttractionRadiusWorldUnits(preview.Item,
+                    out var radius) || radius <= 0f)
+                return;
+
+            for (var i = 0; i < AttractionRangeSegmentCount; i++)
+            {
+                if (i == attractionRangeSegments.Count)
+                {
+                    var segment = MakeSprite("AttractionRangeSegment");
+                    segment.sortingOrder = 101;
+                    attractionRangeSegments.Add(segment);
+                }
+
+                var startAngle = 2f * Mathf.PI * i / AttractionRangeSegmentCount;
+                var endAngle = 2f * Mathf.PI * (i + 1) / AttractionRangeSegmentCount;
+                var start = preview.WorldCenter + new Vector3(
+                    Mathf.Cos(startAngle) * radius, Mathf.Sin(startAngle) * radius, 0f);
+                var end = preview.WorldCenter + new Vector3(
+                    Mathf.Cos(endAngle) * radius, Mathf.Sin(endAngle) * radius, 0f);
+                var delta = end - start;
+                var renderer = attractionRangeSegments[i];
+                renderer.gameObject.SetActive(true);
+                renderer.transform.position = (start + end) * 0.5f;
+                renderer.transform.rotation = Quaternion.Euler(0f, 0f,
+                    Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+                renderer.transform.localScale = new Vector3(delta.magnitude,
+                    attractionRangeLineWidth, 1f);
+                renderer.color = attractionRangeColor;
+            }
         }
 
         private void DrawPlaceableCells(MapBounds? bounds)
