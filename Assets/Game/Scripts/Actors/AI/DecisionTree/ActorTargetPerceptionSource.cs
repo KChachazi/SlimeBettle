@@ -107,6 +107,18 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                         isNearWeapon: isNearWeapon,
                         isAttacking: isAttacking);
                 }
+                if (ownGuard.RetaliationTargetId.IsValid &&
+                    slimes.TryGetSnapshot(ownGuard.RetaliationTargetId, out var attacker) &&
+                    attacker.IsAlive)
+                {
+                    var attackerActor = new ActorSnapshot(attacker.ActorId,
+                        attacker.FactionId, ActorType.Slime, attacker.IsAlive,
+                        attacker.Position, attacker.CurrentHealth, attacker.MaxHealth,
+                        (ActorControlMode)attacker.ControlMode, attacker.StatusIds);
+                    AddIfDetected(self, attackerActor,
+                        Mathf.Max(guardConfig.DetectionRange, guardConfig.LeashDistance),
+                        targets, isRetaliationTarget: true);
+                }
                 var destination = ownGuard.StandPosition;
                 if (hasWeapon)
                     destination = GetEscortDestination(ownGuard, weapon);
@@ -192,7 +204,8 @@ namespace SlimeBattle.Actors.AI.DecisionTree
         private static void AddIfDetected(ActorSnapshot self, ActorSnapshot target,
             float detectionRange, List<TargetObservation> targets, bool isHuman = false,
             bool isAttackingWeapon = false, bool isAttackingGuard = false,
-            bool isNearWeapon = false, bool isAttacking = false)
+            bool isNearWeapon = false, bool isAttacking = false,
+            bool isRetaliationTarget = false)
         {
             if (target.ActorId == self.ActorId || !target.IsAlive ||
                 (target.FactionId == self.FactionId && !isHuman) ||
@@ -203,7 +216,8 @@ namespace SlimeBattle.Actors.AI.DecisionTree
                 isAttackingWeapon: isAttackingWeapon,
                 isAttackingGuard: isAttackingGuard,
                 isNearWeapon: isNearWeapon,
-                isAttacking: isAttacking));
+                isAttacking: isAttacking,
+                isRetaliationTarget: isRetaliationTarget));
         }
 
         private bool TryGetFleeResult(ActorSnapshot actor,

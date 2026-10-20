@@ -17,7 +17,7 @@ MonoBehaviour:
   playerPlaceable: 1
   attractionRadiusPixels: 500
   placementRadiusWorldUnits: 0.5
-  activationLimit: 3
+  activationLimit: 1
   activationCooldownSeconds: 0
   placementCooldownSeconds: 0
   durability: 0

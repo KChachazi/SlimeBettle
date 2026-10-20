@@ -10,7 +10,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
         public TargetObservation(ActorSnapshot actor, bool isHostile, bool isVisible = true,
             bool isHuman = false, bool isAttackingWeapon = false,
             bool isAttackingGuard = false, bool isNearWeapon = false,
-            bool isAttacking = false)
+            bool isAttacking = false, bool isRetaliationTarget = false)
         {
             Actor = actor;
             IsHostile = isHostile;
@@ -20,6 +20,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
             IsAttackingGuard = isAttackingGuard;
             IsNearWeapon = isNearWeapon;
             IsAttacking = isAttacking;
+            IsRetaliationTarget = isRetaliationTarget;
         }
 
         public ActorSnapshot Actor { get; }
@@ -30,6 +31,7 @@ namespace SlimeBattle.Actors.AI.DecisionTree
         public bool IsAttackingGuard { get; }
         public bool IsNearWeapon { get; }
         public bool IsAttacking { get; }
+        public bool IsRetaliationTarget { get; }
     }
 
     public enum GuidanceKind { Food, Warmth, Wander }

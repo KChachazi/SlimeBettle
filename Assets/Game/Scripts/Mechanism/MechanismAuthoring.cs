@@ -55,6 +55,11 @@ namespace SlimeBattle.Mechanisms
             NotifyContact(other, MechanismContactKind.Entered);
         }
 
+        private void OnTriggerStay2D(Collider2D other)
+        {
+            NotifyContact(other, MechanismContactKind.Stayed);
+        }
+
         private void OnTriggerExit2D(Collider2D other)
         {
             NotifyContact(other, MechanismContactKind.Exited);

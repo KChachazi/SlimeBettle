@@ -20,6 +20,7 @@ namespace SlimeBattle.Actors.Guards
         private bool disposed;
         private Vector2 standPosition;
         private Vector2 escortOffset;
+        private ActorId retaliationTargetId;
 
         public event Action<GuardActor, ResolvedEffect> Died;
         public ActorId ActorId => core == null ? default(ActorId) : core.GetActorId();
@@ -63,7 +64,8 @@ namespace SlimeBattle.Actors.Guards
         }
 
         public GuardSnapshot GetSnapshot() => new GuardSnapshot(core.GetSnapshot(),
-            config.ConfigId, stateMachine.CurrentState, standPosition, escortOffset);
+            config.ConfigId, stateMachine.CurrentState, standPosition, escortOffset,
+            retaliationTargetId);
 
         public EffectApplyResult ApplyResolvedEffect(ResolvedEffect effect)
         {
@@ -71,6 +73,8 @@ namespace SlimeBattle.Actors.Guards
                 effect.Type != EffectType.Heal))
                 return EffectApplyResult.Rejected("Guard only accepts health effects.");
             var result = core.ApplyResolvedEffect(effect);
+            if (effect.IsDamage && result.Changed && effect.SourceActorId.IsValid)
+                retaliationTargetId = effect.SourceActorId;
             var deathAnimationDuration = 0f;
             if (result.DidKill)
             {

@@ -126,6 +126,34 @@ namespace SlimeBattle.World.Movement
             return false;
         }
 
+        public static bool TryFindNearestPassablePoint(Vector2 anchor,
+            MapBounds bounds, Func<Vector2, bool> canOccupy, out Vector2 point)
+        {
+            point = default(Vector2);
+            var size = bounds.Size;
+            if (canOccupy == null || size.x <= 0f || size.y <= 0f) return false;
+
+            var width = Mathf.CeilToInt(size.x / CellSize);
+            var height = Mathf.CeilToInt(size.y / CellSize);
+            var passable = new Dictionary<Cell, bool>();
+            bool IsPassable(Cell cell)
+            {
+                if (cell.X < 0 || cell.Y < 0 || cell.X >= width || cell.Y >= height)
+                    return false;
+                if (!passable.TryGetValue(cell, out var result))
+                {
+                    result = canOccupy(ToWorld(cell, bounds));
+                    passable.Add(cell, result);
+                }
+                return result;
+            }
+
+            if (!TryFindNearbyCell(anchor, bounds, width, height, IsPassable,
+                canOccupy, requireLineOfSight: false, out var nearest)) return false;
+            point = ToWorld(nearest, bounds);
+            return true;
+        }
+
         private static bool TryFindNearbyCell(Vector2 anchor, MapBounds bounds,
             int width, int height, Func<Cell, bool> isPassable,
             Func<Vector2, bool> canOccupy, bool requireLineOfSight,

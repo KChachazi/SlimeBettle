@@ -34,6 +34,7 @@ namespace SlimeBattle.Mechanisms
     public enum MechanismContactKind
     {
         Entered = 0,
-        Exited = 1
+        Exited = 1,
+        Stayed = 2
     }
 }

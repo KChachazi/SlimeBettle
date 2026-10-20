@@ -139,10 +139,10 @@ namespace SlimeBattle.Tests
             Assert.AreEqual(0, world.CancelCount);
 
             Assert.AreEqual(StateMachineResult.Accepted,
-                state.SubmitIntent(ActionIntent.Move(new Vector2(1.12f, 0f)), context));
+                state.SubmitIntent(ActionIntent.Move(new Vector2(1.22f, 0f)), context));
             Assert.AreEqual(2, world.Moves.Count);
             Assert.AreEqual(1, world.CancelCount);
-            Assert.AreEqual(new Vector2(1.12f, 0f), world.Moves[1].Destination);
+            Assert.AreEqual(new Vector2(1.22f, 0f), world.Moves[1].Destination);
         }
 
         [Test]
@@ -493,6 +493,33 @@ namespace SlimeBattle.Tests
                         destination: new Vector2(2f, 0f))));
                 Assert.AreEqual(ActionIntentType.Move, escortIntent.Type);
                 Assert.AreEqual(new Vector2(2f, 0f), escortIntent.Destination);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
+
+        [Test]
+        public void GuardDecisionRetaliatesAgainstSlimeThatAttackedIt()
+        {
+            var config = ScriptableObject.CreateInstance<GuardConfig>();
+            try
+            {
+                config.SetConfigId("guard-retaliation");
+                config.ConfigureStats(10, 100, 1f, 1f);
+                var guard = new ActorSnapshot(new ActorId("guard"),
+                    new FactionId("Human"), ActorType.Guard, true, Vector2.zero,
+                    100f, 100f);
+                var attacker = new ActorSnapshot(new ActorId("attacker"),
+                    new FactionId("Slime"), ActorType.Slime, true,
+                    new Vector2(.75f, 0f), 100f, 100f);
+                var intent = new GuardDecision(config).Evaluate(new DecisionContext(
+                    guard, new PerceptionSnapshot(1, new[]
+                    {
+                        new TargetObservation(attacker, true,
+                            isRetaliationTarget: true)
+                    }, hasDestination: true, destination: Vector2.zero)));
+
+                Assert.AreEqual(ActionIntentType.Attack, intent.Type);
+                Assert.AreEqual(attacker.ActorId, intent.Attack.TargetId);
             }
             finally { UnityEngine.Object.DestroyImmediate(config); }
         }

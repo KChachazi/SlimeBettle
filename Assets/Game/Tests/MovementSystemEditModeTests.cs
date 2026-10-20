@@ -2,6 +2,7 @@ using NUnit.Framework;
 using SlimeBattle.Actors;
 using SlimeBattle.World;
 using SlimeBattle.World.Movement;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -48,10 +49,15 @@ namespace SlimeBattle.Tests
         [Test]
         public void IdleBodyLosesCollisionVelocityAndNewMoveStillWorks()
         {
+            var scene = EditorSceneManager.NewPreviewScene();
+            var boundsObject = new GameObject("Movement test bounds");
+            SceneManager.MoveGameObjectToScene(boundsObject, scene);
+            boundsObject.AddComponent<MapBoundsAuthoring>();
             var actorObject = new GameObject("Movement test actor");
+            SceneManager.MoveGameObjectToScene(actorObject, scene);
             var body = actorObject.AddComponent<Rigidbody2D>();
             actorObject.AddComponent<CircleCollider2D>();
-            var map = new MapManager(SceneManager.GetActiveScene(), null);
+            var map = new MapManager(scene, null);
             var movement = new MovementSystem(map, null);
             try
             {
@@ -75,7 +81,88 @@ namespace SlimeBattle.Tests
             {
                 movement.Dispose();
                 map.Dispose();
-                Object.DestroyImmediate(actorObject);
+                EditorSceneManager.ClosePreviewScene(scene);
+            }
+        }
+
+        [Test]
+        public void AStarMovementReplansWhenAStaticObstacleBlocksItsCurrentPath()
+        {
+            var scene = EditorSceneManager.NewPreviewScene();
+            var boundsObject = new GameObject("AStar test bounds");
+            SceneManager.MoveGameObjectToScene(boundsObject, scene);
+            boundsObject.AddComponent<MapBoundsAuthoring>();
+            var actorObject = new GameObject("AStar test actor");
+            SceneManager.MoveGameObjectToScene(actorObject, scene);
+            actorObject.transform.position = new Vector2(-2f, 0f);
+            var body = actorObject.AddComponent<Rigidbody2D>();
+            actorObject.AddComponent<CircleCollider2D>();
+            var map = new MapManager(scene, null);
+            var movement = new MovementSystem(map, null);
+            try
+            {
+                var actorId = ActorId.NewId();
+                Assert.IsTrue(movement.RegisterActor(actorId, body, 200f, 100f,
+                    _ => { }, _ => true, requireRoadArea: false, useAStar: true));
+                Assert.IsTrue(movement.SubmitMovement(new MovementRequest(actorId,
+                    new Vector2(2f, 0f))).IsValid);
+
+                var obstacle = new GameObject("new route blocker");
+                SceneManager.MoveGameObjectToScene(obstacle, scene);
+                obstacle.transform.position = new Vector2(-1.37f, 0f);
+                var obstacleCollider = obstacle.AddComponent<BoxCollider2D>();
+                obstacleCollider.size = new Vector2(.2f, 2f);
+                Assert.IsTrue(map.RegisterMovementBlocker(obstacleCollider));
+                Physics2D.SyncTransforms();
+
+                movement.FixedTick(.02f);
+                Assert.IsTrue(movement.TryGetMovementState(actorId, out var blockedState));
+                Assert.AreEqual(MovementResult.InProgress, blockedState.Result,
+                    "A blocked direct segment should be replanned instead of ending as Blocked.");
+
+                movement.FixedTick(.02f);
+                Assert.Greater(body.velocity.sqrMagnitude, 0f,
+                    "The replanned path should continue moving around the obstacle.");
+            }
+            finally
+            {
+                movement.Dispose();
+                map.Dispose();
+                EditorSceneManager.ClosePreviewScene(scene);
+            }
+        }
+
+        [Test]
+        public void RegisteredActorsIgnoreEachOtherToAvoidPhysicalDeadlocks()
+        {
+            var firstObject = new GameObject("Movement test first actor");
+            var secondObject = new GameObject("Movement test second actor");
+            var map = new MapManager(SceneManager.GetActiveScene(), null);
+            var movement = new MovementSystem(map, null);
+            try
+            {
+                var firstBody = firstObject.AddComponent<Rigidbody2D>();
+                var firstCollider = firstObject.AddComponent<CircleCollider2D>();
+                var secondBody = secondObject.AddComponent<Rigidbody2D>();
+                var secondCollider = secondObject.AddComponent<CircleCollider2D>();
+                var firstId = ActorId.NewId();
+                var secondId = ActorId.NewId();
+                Assert.IsTrue(movement.RegisterActor(firstId, firstBody, 200f, 100f,
+                    _ => { }, _ => true));
+                Assert.IsTrue(movement.RegisterActor(secondId, secondBody, 200f, 100f,
+                    _ => { }, _ => true));
+
+                Assert.IsTrue(Physics2D.GetIgnoreCollision(firstCollider, secondCollider));
+
+                movement.UnregisterActor(firstId);
+                Assert.IsFalse(Physics2D.GetIgnoreCollision(firstCollider, secondCollider));
+            }
+            finally
+            {
+                movement.Dispose();
+                map.Dispose();
+                Object.DestroyImmediate(firstObject);
+                Object.DestroyImmediate(secondObject);
             }
         }
     }

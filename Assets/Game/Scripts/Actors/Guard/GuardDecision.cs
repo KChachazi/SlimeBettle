@@ -31,7 +31,8 @@ namespace SlimeBattle.Actors.Guards
                 observation => observation.IsAttackingWeapon);
             if (!nearest.ActorId.IsValid)
                 nearest = FindNearest(context, standPosition,
-                    observation => observation.IsAttackingGuard);
+                    observation => observation.IsAttackingGuard ||
+                        observation.IsRetaliationTarget);
             if (!nearest.ActorId.IsValid)
                 nearest = FindNearest(context, standPosition,
                     observation => observation.IsNearWeapon &&
@@ -63,7 +64,9 @@ namespace SlimeBattle.Actors.Guards
             {
                 if (!observation.IsVisible || !observation.IsHostile ||
                     !observation.Actor.IsAlive ||
-                    observation.Actor.ActorType != ActorType.Enemy ||
+                    (observation.Actor.ActorType != ActorType.Enemy &&
+                     !(observation.Actor.ActorType == ActorType.Slime &&
+                       observation.IsRetaliationTarget)) ||
                     !predicate(observation) ||
                     Vector2.Distance(observation.Actor.Position, standPosition) >
                         leashDistance) continue;

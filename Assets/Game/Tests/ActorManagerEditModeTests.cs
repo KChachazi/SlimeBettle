@@ -357,6 +357,7 @@ namespace SlimeBattle.Tests
                 var id = manager.SpawnGuard(new GuardSpawnRequest(config.ConfigId, Vector2.zero));
                 Assert.IsTrue(id.IsValid);
                 Assert.IsTrue(manager.TryGetActor(id, out var guard));
+                Assert.AreEqual(new FactionId("Human"), guard.GetSnapshot().FactionId);
                 var guardRoot = new GameObject("Guard Root");
                 assets.Add(guardRoot);
                 guardRoot.transform.position = new Vector3(3f, 2f, 0f);
@@ -369,11 +370,14 @@ namespace SlimeBattle.Tests
                     EffectType.Status, 0f, id, "hot")).IsAccepted);
                 Assert.IsFalse(guard.ApplyResolvedEffect(new ResolvedEffect(
                     EffectType.Status, 0f, id, "cold")).IsAccepted);
-                Assert.IsTrue(guard.ApplyResolvedEffect(ResolvedEffect.Damage(1f)).IsAccepted);
+                var attackerId = new ActorId("slime-attacker");
+                Assert.IsTrue(guard.ApplyResolvedEffect(
+                    ResolvedEffect.Damage(1f, attackerId)).IsAccepted);
                 var after = guard.GetSnapshot();
                 Assert.AreEqual(0, after.StatusIds.Count);
                 Assert.AreEqual(before.CurrentHealth - 1f, after.CurrentHealth);
                 Assert.AreEqual(before.ActionState, after.ActionState);
+                Assert.AreEqual(attackerId, after.RetaliationTargetId);
             }
             finally { manager.Dispose(); }
         }
