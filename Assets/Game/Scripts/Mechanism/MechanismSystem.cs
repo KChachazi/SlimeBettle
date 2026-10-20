@@ -322,7 +322,8 @@ namespace SlimeBattle.Mechanisms
 
             if (mechanism.Config.Kind == MechanismKind.Food)
             {
-                if (context.ContactKind != MechanismContactKind.Entered ||
+                if ((context.ContactKind != MechanismContactKind.Entered &&
+                     context.ContactKind != MechanismContactKind.Stayed) ||
                     context.ActorType != ActorType.Slime) return false;
                 return RequestActivate(mechanism.Id, new MechanismActivationRequest(
                     context.ActorId, MechanismActivationKind.Contact, context.ActorPosition));

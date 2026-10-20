@@ -17,6 +17,25 @@ namespace SlimeBattle.Tests
 {
     public sealed class FirstLevelMechanismPlacementEditModeTests
     {
+        private sealed class TestSlimeReceiver : IEffectReceiver
+        {
+            public TestSlimeReceiver(string id)
+            {
+                ActorId = new ActorId(id);
+            }
+
+            public ActorId ActorId { get; }
+            public ActorId GetActorId() => ActorId;
+            public ActorType GetActorType() => ActorType.Slime;
+            public FactionId GetFactionId() => new FactionId("Slime");
+            public bool IsAlive() => true;
+            public ActorSnapshot GetSnapshot() => new ActorSnapshot(ActorId,
+                GetFactionId(), ActorType.Slime, true, Vector2.zero);
+            public EffectApplyResult ApplyResolvedEffect(ResolvedEffect effect) =>
+                EffectApplyResult.Rejected("Not used by this test.");
+            public bool RemoveResolvedStatus(string statusId) => false;
+        }
+
         private readonly List<UnityEngine.Object> assets = new List<UnityEngine.Object>();
         private Scene scene;
         private MapManager map;
@@ -128,6 +147,52 @@ namespace SlimeBattle.Tests
                         path + " visuals must render above the map and below actors/weapon.");
                 }
             }
+
+            var foodConfig = AssetDatabase.LoadAssetAtPath<MechanismConfig>(
+                "Assets/Game/Configs/Mechanisms/PlayerPlaceable/CFG_Food.asset");
+            var foodPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(paths[0]);
+            Assert.IsNotNull(foodConfig);
+            Assert.AreEqual(1, foodConfig.ActivationLimit,
+                "Each placed food item should disappear after one Slime eats it.");
+            Assert.That(foodPrefab.GetComponent<CircleCollider2D>().radius,
+                Is.EqualTo(.5f).Within(.001f),
+                "Food contact should cover its visible footprint.");
+        }
+
+        [Test]
+        public void FoodStayedContactConsumesOnceAndRejectsOtherSlimes()
+        {
+            var food = ScriptableObject.CreateInstance<MechanismConfig>();
+            assets.Add(food);
+            food.SetConfigId("scene-food");
+            food.Configure(MechanismKind.Food, false, 500f, 0.25f, 1, 0f, 0f);
+            var configs = new ConfigRegistry(new ConfigAsset[] { food });
+            var firstSlime = new TestSlimeReceiver("first-slime");
+            var secondSlime = new TestSlimeReceiver("second-slime");
+            map = new MapManager(scene, null);
+            status = new StatusManager(configs, null, id =>
+                id == firstSlime.ActorId ? firstSlime :
+                id == secondSlime.ActorId ? secondSlime : null);
+
+            var foodObject = new GameObject("single-use scene food");
+            SceneManager.MoveGameObjectToScene(foodObject, scene);
+            var authoring = foodObject.AddComponent<MechanismAuthoring>();
+            foodObject.AddComponent<CircleCollider2D>().isTrigger = true;
+            Set(authoring, "mechanismId", "scene-food-instance");
+            Set(authoring, "configId", "scene-food");
+            mechanisms = new MechanismSystem(configs, 20, map, status, null, scene);
+
+            var mechanismId = new MechanismId("scene-food-instance");
+            Assert.IsTrue(mechanisms.NotifyContact(new MechanismTriggerContext(
+                mechanismId, firstSlime.ActorId, ActorType.Slime,
+                MechanismContactKind.Stayed, Vector2.zero)));
+            Assert.IsTrue(mechanisms.TryGetSnapshot(mechanismId, out var consumed));
+            Assert.AreEqual(MechanismState.Exhausted, consumed.State);
+            Assert.AreEqual(0, consumed.RemainingActivations);
+            Assert.IsFalse(mechanisms.NotifyContact(new MechanismTriggerContext(
+                mechanismId, secondSlime.ActorId, ActorType.Slime,
+                MechanismContactKind.Stayed, Vector2.zero)),
+                "A second Slime must not activate the same single-use food.");
         }
 
         [Test]
