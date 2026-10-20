@@ -65,7 +65,11 @@ namespace SlimeBattle.Actors.Slimes
             pixelsPerUnit = gameplayPixelsPerUnit;
             core = new ActorCore(actorId, factionId, ActorType.Slime,
                 config.ConfigId, position, config.MaxHealth);
-            runtime = new SlimeRuntimeData();
+            runtime = new SlimeRuntimeData
+            {
+                WanderCenter = position,
+                HasWanderCenter = true
+            };
             decisionTree = new ActorDecisionTree();
             decisionTree.SetRoot(new BasicSlimeDecision(runtime, config.AttackRange, config.ConfigId));
             stateMachine = new ActorStateMachine(config.AttackRange, config.AttackPower,
@@ -105,7 +109,7 @@ namespace SlimeBattle.Actors.Slimes
             return new SlimeSnapshot(snapshot, config.ConfigId,
                 snapshot.CurrentHealth, snapshot.MaxHealth,
                 (SlimeControlMode)snapshot.ControlMode, need, isCarrying,
-                pixelsPerUnit);
+                pixelsPerUnit, runtime.WanderCenter, runtime.HasWanderCenter);
         }
 
         private static SlimeNeedState GetPrimaryNeed(ActorSnapshot snapshot)

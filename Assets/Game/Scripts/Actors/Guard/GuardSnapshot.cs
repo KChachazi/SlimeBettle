@@ -9,7 +9,8 @@ namespace SlimeBattle.Guards
     public readonly struct GuardSnapshot
     {
         public GuardSnapshot(ActorSnapshot actor, ConfigId configId, StateId actionState,
-            Vector2 standPosition = default(Vector2))
+            Vector2 standPosition = default(Vector2),
+            Vector2 escortOffset = default(Vector2))
         {
             ActorId = actor.ActorId;
             FactionId = actor.FactionId;
@@ -21,6 +22,7 @@ namespace SlimeBattle.Guards
             ConfigId = configId;
             ActionState = actionState;
             StandPosition = standPosition;
+            EscortOffset = escortOffset;
         }
 
         public ActorId ActorId { get; }
@@ -33,5 +35,6 @@ namespace SlimeBattle.Guards
         public ConfigId ConfigId { get; }
         public StateId ActionState { get; }
         public Vector2 StandPosition { get; }
+        public Vector2 EscortOffset { get; }
     }
 }

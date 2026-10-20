@@ -10,5 +10,7 @@ namespace SlimeBattle.Actors.Slimes
         public ActorId TargetId { get; internal set; }
         public GroupId GroupId { get; internal set; }
         public Vector2 GroupTarget { get; internal set; }
+        public Vector2 WanderCenter { get; internal set; }
+        public bool HasWanderCenter { get; internal set; }
     }
 }

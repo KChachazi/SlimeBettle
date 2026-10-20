@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World.Movement
 建议实现目录：Assets/Game/Scripts/World/Movement/
 生命周期：当前 LevelContext 生命周期
-状态：P0 直线移动、地图地形倍率、StatusManager 移动修正和固定路线分段适配契约已实现；护送武器端口接入待 MechanismSystem 消费
+状态：P0 Actor 直线移动、史莱姆 A* 绕障、地图地形倍率、StatusManager 移动修正和固定路线分段适配契约已实现；护送武器端口接入待 MechanismSystem 消费
 
 ## 1. 职责
 
@@ -75,7 +75,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 - 使用动态 Rigidbody2D、零重力、冻结旋转和连续碰撞检测；MovementSystem 在 `FixedTick` 设置刚体速度，不直接改 Transform。
 - 角色之间由二维物理碰撞产生推挤；MovementSystem 只结束与 MapManager 识别出的静态实体碰撞所对应的请求。
 - `ActorConfig.MoveSpeed` 的单位为像素/秒；世界速度为 `MoveSpeed / SpriteRenderer.sprite.pixelsPerUnit`。
-- 首版普通 Actor 朝请求目标直线移动，不做动态寻路。`FixedRouteMovementAdapter` 可将固定路线按路点转为非 Actor 移动端口的连续分段请求；其 `IFixedRouteSegmentMotor` 实现由武器/运输所有者提供。与 MapManager 绑定的场景静态实体碰撞时，Actor 请求停止并发布 `MovementBlockedEvent`；非 Actor 分段端口返回阻挡事实后，适配器停在 Blocked 等消费方决定重试或取消。系统不把碰撞解释为伤害、自动绕行或运输失败。
+- 普通 Actor 默认朝请求目标直线移动。SlimeManager 注册的史莱姆启用 A* 网格寻路：网格间距 0.5 Unity 单位，节点通过 MapManager 的边界、Road 区域和静态阻挡查询；八方向移动禁止斜穿角点，并将连续可直达路段合并。其他 Actor 保持直线移动。`FixedRouteMovementAdapter` 可将固定路线按路点转为非 Actor 移动端口的连续分段请求；其 `IFixedRouteSegmentMotor` 实现由武器/运输所有者提供。与 MapManager 绑定的场景静态实体碰撞时，Actor 请求停止并发布 `MovementBlockedEvent`；非 Actor 分段端口返回阻挡事实后，适配器停在 Blocked 等消费方决定重试或取消。系统不把碰撞解释为伤害或运输失败。
 - 地形移速修正从 MapManager 的当前位置快照读取；寒冷、炙热、减速等 Actor 状态修正由 StatusManager 提供。两类修正都只影响速度计算，MovementSystem 仍独占实际位移。
 - 地形倍率按乘法叠加到 Actor 基础移速和 StatusManager 提供的 Actor 状态倍率上。当前 `Level_test` 尚未配置语义地形区域，因此实际场景速度仍为原移速。
 - 暂停、死亡、销毁和重开会停止刚体并清理当前请求。取消会使当前速度归零；同一 Actor 只保留一个活动请求。

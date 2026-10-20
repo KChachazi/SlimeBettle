@@ -55,7 +55,8 @@ namespace SlimeBattle.Guards
             var actor = UnityEngine.Object.Instantiate(prefab, request.Position,
                 Quaternion.identity, actorParent);
             actor.Initialize(config, id, request.Position,
-                request.FactionId.IsValid ? request.FactionId : new FactionId("Slime"));
+                request.FactionId.IsValid ? request.FactionId : new FactionId("Slime"),
+                request.EscortOffset);
             actors.Add(id, actor);
             if (!TryRegisterMovement(actor, config.MoveSpeed))
             {
@@ -161,7 +162,7 @@ namespace SlimeBattle.Guards
             return movementSystem.RegisterActor(actor.ActorId,
                 actor.GetComponent<Rigidbody2D>(), moveSpeedPixelsPerSecond,
                 spriteRenderer.sprite.pixelsPerUnit, actor.NotifyMovementResult,
-                actor.NotifyMovementCompleted);
+                actor.NotifyMovementCompleted, requireRoadArea: false);
         }
 
         private void OnActorDied(GuardActor actor, ResolvedEffect effect)

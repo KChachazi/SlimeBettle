@@ -274,6 +274,8 @@ namespace SlimeBattle.Tests
                 world.Actors[enemy.ActorId] = enemy;
                 slime.Tick(new ActorContext(.2f, world, world));
                 Assert.AreEqual(new Vector2(4f, 0f), world.Moves[0].Destination);
+                Assert.IsTrue(slime.GetSnapshot().HasWanderCenter);
+                Assert.AreEqual(new Vector2(4f, 0f), slime.GetSnapshot().WanderCenter);
                 Assert.AreEqual(0, world.Effects.Count);
                 Assert.That(slime.LastDecisionReason, Does.Contain("饥饿"));
                 Assert.AreEqual(SlimeBattle.Slimes.SlimeNeedState.Hungry,
@@ -287,6 +289,8 @@ namespace SlimeBattle.Tests
                     hasEscapeDestination: true, escapeDestination: new Vector2(-3f, 0f));
                 slime.Tick(new ActorContext(.2f, world, world));
                 Assert.AreEqual(new Vector2(-3f, 0f), world.Moves[1].Destination);
+                Assert.AreEqual(new Vector2(4f, 0f), slime.GetSnapshot().WanderCenter,
+                    "Fear movement must not replace the remembered attraction center.");
                 Assert.That(slime.LastDecisionReason, Does.Contain("害怕"));
                 Assert.AreEqual(SlimeBattle.Slimes.SlimeNeedState.Afraid,
                     slime.GetSnapshot().NeedState);
@@ -317,6 +321,7 @@ namespace SlimeBattle.Tests
                 };
                 slime.Tick(new ActorContext(.2f, world, world));
                 Assert.AreEqual(new Vector2(2f, 0f), world.Moves[0].Destination);
+                Assert.AreEqual(new Vector2(2f, 0f), slime.GetSnapshot().WanderCenter);
                 Assert.That(slime.LastDecisionReason, Does.Contain("正常/暴躁"));
 
                 Assert.IsTrue(slime.NotifyMovementCompleted("movement-1"));
@@ -326,6 +331,8 @@ namespace SlimeBattle.Tests
                     new[] { new TargetObservation(enemy, true) }, guides: guides);
                 slime.Tick(new ActorContext(.2f, world, world));
                 Assert.AreEqual(enemy.Position, world.Moves[1].Destination);
+                Assert.AreEqual(new Vector2(2f, 0f), slime.GetSnapshot().WanderCenter,
+                    "Combat must not overwrite the last selected attraction center.");
                 Assert.That(slime.LastDecisionReason, Does.Contain("接近战斗"));
                 slime.Dispose(world);
             }
