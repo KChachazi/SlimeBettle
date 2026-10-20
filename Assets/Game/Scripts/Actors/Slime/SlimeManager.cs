@@ -357,7 +357,7 @@ namespace SlimeBattle.Slimes
             return movementSystem.RegisterActor(actor.ActorId,
                 actor.GetComponent<Rigidbody2D>(), moveSpeedPixelsPerSecond,
                 actor.GameplayPixelsPerUnit, actor.NotifyMovementResult,
-                actor.NotifyMovementCompleted);
+                actor.NotifyMovementCompleted, useAStar: true);
         }
 
         private static void DestroyActor(SlimeActor actor)
