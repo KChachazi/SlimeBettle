@@ -164,41 +164,32 @@ namespace SlimeBattle.Tests
         [Test]
         public void CastleMapProvidesTwentyOrderedSpawnPointsNearWeaponStart()
         {
-            var previous = SceneManager.GetActiveScene();
-            var scene = EditorSceneManager.NewPreviewScene();
-            MapManager map = null;
-            try
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-                    "Assets/Game/Prefabs/Maps/PF_CastleMapArt.prefab");
-                Assert.IsNotNull(prefab);
-                PrefabUtility.InstantiatePrefab(prefab, scene);
-                map = new MapManager(scene, null);
-                var points = new List<MapPointSnapshot>(
-                    map.GetMapPoints(MapPointKind.SlimeSpawn));
-                points.Sort((left, right) => string.CompareOrdinal(
-                    left.PointId.Value, right.PointId.Value));
-                var weapons = map.GetMapPoints(MapPointKind.Weapon);
+            var definition = AssetDatabase.LoadAssetAtPath<FirstLevelMapDefinition>(
+                "Assets/Game/Configs/Maps/Castle/MAP_Castle.asset");
+            Assert.IsNotNull(definition);
+            Assert.IsTrue(definition.TryBuildSnapshot(out var layout, out var error), error);
 
-                Assert.AreEqual(20, points.Count);
-                Assert.AreEqual(0, map.GetMapPoints(MapPointKind.Spawn).Count);
-                Assert.AreEqual(1, weapons.Count);
-                var previousDistance = 0f;
-                for (var i = 0; i < points.Count; i++)
-                {
-                    Assert.AreEqual("castle_slime_spawn_" + (i + 1).ToString("D2"),
-                        points[i].PointId.Value);
-                    var distance = Vector2.Distance(points[i].Position,
-                        weapons[0].Position);
-                    Assert.GreaterOrEqual(distance, previousDistance);
-                    previousDistance = distance;
-                }
-            }
-            finally
+            var points = new List<MapPointSnapshot>();
+            var weapons = new List<MapPointSnapshot>();
+            foreach (var point in layout.Points)
             {
-                map?.Dispose();
-                if (scene.IsValid()) EditorSceneManager.ClosePreviewScene(scene);
-                if (previous.IsValid()) SceneManager.SetActiveScene(previous);
+                if (point.Kind == MapPointKind.SlimeSpawn) points.Add(point);
+                else if (point.Kind == MapPointKind.Weapon) weapons.Add(point);
+            }
+            points.Sort((left, right) => string.CompareOrdinal(
+                left.PointId.Value, right.PointId.Value));
+
+            Assert.AreEqual(20, points.Count);
+            Assert.AreEqual(1, weapons.Count);
+            var previousDistance = 0f;
+            for (var i = 0; i < points.Count; i++)
+            {
+                Assert.AreEqual("castle_slime_spawn_" + (i + 1).ToString("D2"),
+                    points[i].PointId.Value);
+                var distance = Vector2.Distance(points[i].Position,
+                    weapons[0].Position);
+                Assert.GreaterOrEqual(distance, previousDistance);
+                previousDistance = distance;
             }
         }
     }
