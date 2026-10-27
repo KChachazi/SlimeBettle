@@ -1,36 +1,34 @@
-# 26 Core 关卡结果规则设计（原 ObjectiveSystem 文档）
+# 26 Core 关卡结果规则（原 ObjectiveSystem 文档）
 
 系统编号：`CORE-04`  
-文档称谓：`CoreLevelOutcomeRules`（仅用于说明职责，不冻结最终类名）
+实现类型：`LevelResultRules`
 默认命名空间：`SlimeBattle.Core`
 建议实现目录：`Assets/Game/Scripts/Core/`
 生命周期：随当前 `LevelContext` 创建、订阅、结算和销毁
-状态：结果规则归属已确认；代码迁移和最终类型名待实现
+状态：已由 `LevelContext` 创建；支持 `CaveOccupancy` 与 `EscortWeapon` 两类目标。正式 `FirstLevel` / `Castle` 当前选择护送武器目标。
 
-> 为避免本次文档更新破坏既有链接，文件名暂保留 `26-ObjectiveSystem.md`。新代码不得继续把 `ObjectiveSystem` 作为独立 LevelContext 系统，也不得在 `Assets/Game/Scripts/Objectives/` 新增护送武器运行时逻辑。
+> 为保持已有链接，文件名暂保留 `26-ObjectiveSystem.md`。当前 `LevelContext` 不创建旧 `ObjectiveSystem`；其源码仍在仓库中，但不属于正式关卡结果运行时。
 
 ## 1. 定位
 
 Core 关卡结果规则组件只聚合当前关卡已经发生的结果事件，并确认本局成功或失败。它不是一个拥有玩法对象的独立系统，不保存武器、史莱姆、守卫或机关的运行时副本。
 
-最新第一关规则已经确认：
+结果模式由 `LevelConfig.ObjectiveKind` 选择。当前配置中 `FirstLevel` 与 `Castle` 均为 `EscortWeapon`；旧洞穴配置和未序列化目标类型的测试配置使用 `CaveOccupancy`。
 
-1. 史莱姆进入终点洞穴的数量达到 6 只时满足成功条件；
-2. 等待窗口结束时进入终点洞穴的史莱姆不足 6 只，触发失败；
-3. `SlimeDepletedEvent` 等史莱姆耗尽事实可以作为失败事实，但不能绕过终点统计和等待窗口的规则；
-4. 同一局成功或失败只确认一次；
-5. `LevelManager` 只负责接收最终结果并推进结算、重开或离开流程，不复制上述规则。
+- **护送武器模式：**武器抵达终点成功；武器被摧毁或史莱姆耗尽失败。若同一帧同时收到抵达与失败事实，代码先判定抵达成功。
+- **洞穴人数模式：**以 `SlimeGoalOccupancyChangedEvent.AliveInsideCount` 表示当前洞穴内存活数量；第一只史莱姆进入后开启等待窗口，人数达到阈值成功；史莱姆耗尽立即失败；窗口到期仍不足阈值则失败。若同一帧达到人数阈值并收到耗尽事实，代码先判定成功。
+- 每局只确认一次结果。`LevelManager` 订阅 `ResultDecided` 并推进关卡阶段，不复制条件。
 
-现有 `WeaponReachedGoalEvent` / `WeaponDestroyedEvent` 属于护送武器兼容链路。除非某一关的策划再次启用武器结果，否则它们不参与最新第一关的成功/失败判定。
+洞穴模式的阈值默认为 6、等待时长默认为 10 秒。当前 `LevelContext` 只传 `LevelConfig.ObjectiveKind`，没有读取 `ObjectiveConfig` 内的结果参数。此处说明实际代码，不替代后续策划对数值的修改。
 
 武器的生命、位置、运输载体、固定路线进度和抵达状态完全属于 `MechanismSystem`。
 
 ## 2. 职责
 
 - 订阅当前 `LevelContext` 的 `LevelEventBus`；
-- 记录本局结果阶段、结果原因和只读结果快照；
-- 接收史莱姆终点进入事实、等待窗口结束事实和 `SlimeDepletedEvent`；兼容关卡可额外接收武器事实；
-- 根据已确认关卡规则确认一次 `LevelSucceededEvent` 或 `LevelFailedEvent`；
+- 保存所选目标模式、洞穴计数/等待计时以及最终 `LevelResult`；
+- 按所选模式订阅 `SlimeGoalOccupancyChangedEvent`，或 `WeaponReachedGoalEvent` / `WeaponDestroyedEvent`，并在两种模式下订阅 `SlimeDepletedEvent`；
+- 通过 `ResultDecided(LevelResult)` C# 事件通知 `LevelManager`；
 - 在暂停、重开和卸载时清理订阅与本局结果状态；
 - 为 `LevelManager`、UI 和测试提供只读结果查询。
 
@@ -46,62 +44,61 @@ Core 关卡结果规则组件只聚合当前关卡已经发生的结果事件，
 ## 4. 核心数据
 
 ```text
-LevelResultPhase
-LevelResultReason
-LevelResultSnapshot
-LevelResultConfig（如后续需要按关卡配置规则）
+LevelObjectiveKind
+LevelResult
+LevelResultRules
 ```
 
-结果组件最多保存：当前阶段、是否已确认、原因、确认时间/帧和关联的只读 ID。不得保存 `WeaponRuntimeData`、`SlimeRuntimeData` 或其他对象的第二份可写状态。
+`LevelResultRules` 保存目标模式、目标数量和等待计时，并公开 `HasResult`、`Result`、`GoalOccupantCount`、`RequiredCount`、`IsWaiting`、`RemainingSeconds` 与 `ResultDecided`。它不保存 `WeaponRuntimeData`、`SlimeRuntimeData` 或其他对象的第二份可写状态。
 
-## 5. 生命周期接口候选
-
-以下是代码迁移时需要登记到全局 API 表的最小生命周期和查询边界；具体 C# 类型名在实现前仍需确认：
+## 5. 当前接口与生命周期
 
 ```csharp
-void Initialize(LevelEventBus eventBus, LevelResultConfig config);
-LevelResultSnapshot GetSnapshot();
+LevelResultRules(ILevelEventBus bus, LevelObjectiveKind objectiveKind,
+                 int requiredCount = 6, float waitSeconds = 10f);
+void EndFrame(float deltaTime);
 void Dispose();
+event Action<LevelResult> ResultDecided;
+bool HasResult { get; }
+LevelResult Result { get; }
+int GoalOccupantCount { get; }
+int RequiredCount { get; }
+bool IsWaiting { get; }
+float RemainingSeconds { get; }
 ```
 
-结果确认由组件内部消费 EventBus 完成，不建议向 `LevelManager` 暴露“手动提交成功/失败”的公共命令。若后续需要调试注入，必须单独标记为测试接口。
+`LevelContext.Initialize()` 创建规则组件；`LevelContext.Tick()` 在帧末调用 `EndFrame(deltaTime)`；`LevelManager` 订阅 `ResultDecided`。构造器直接订阅本局 EventBus，`Dispose()` 解除订阅。没有公开的手动提交成功/失败命令。
 
 ## 6. 对外事件
 
 ```text
-LevelSucceededEvent
-LevelFailedEvent
+ResultDecided(LevelResult) // LevelResultRules C# event
 ```
 
 输入事实事件由各自所有者发布：
 
 | 事件 | 发布者 | 含义 |
 | --- | --- | --- |
-| `SlimeReachedGoalEvent`（候选） | 史莱姆/终点规则适配 | 一只史莱姆已经进入第一关终点洞穴 |
-| `LevelWaitWindowExpiredEvent`（候选） | 关卡流程/结果规则适配 | 第一关等待窗口已经结束 |
-| `WeaponDamagedEvent` | `MechanismSystem` | 兼容护送武器已经完成一次受击/伤害结算 |
-| `WeaponDestroyedEvent` | `MechanismSystem` | 兼容护送武器生命归零并确认摧毁 |
-| `WeaponReachedGoalEvent` | `MechanismSystem` | 兼容护送武器到达指定终点 |
+| `SlimeGoalOccupancyChangedEvent` | `SlimeManager` | 洞穴内存活史莱姆数量发生变化；进入/离开和死亡均按当前占用更新 |
+| `WeaponDamagedEvent` | `MechanismSystem` | 护送武器已经完成一次受击/伤害结算，供 UI/守卫等观察 |
+| `WeaponDestroyedEvent` | `MechanismSystem` | 护送武器生命归零并确认摧毁；护送模式下判负 |
+| `WeaponReachedGoalEvent` | `MechanismSystem` | 护送武器到达指定终点；护送模式下判胜 |
 | `SlimeDepletedEvent` | `SlimeManager` | 当前关卡最后一只史莱姆已经确认死亡 |
-| `LevelSucceededEvent` | Core 结果规则组件 | 本局成功已经确认 |
-| `LevelFailedEvent` | Core 结果规则组件 | 本局失败已经确认 |
+| `ResultDecided(LevelResult)` | `LevelResultRules` | 本局成功或失败已经确认；`LevelManager` 接收并推进阶段 |
 
 结果事件只携带只读快照或结果原因，不携带可写的运行时对象。
 
 ## 7. 依赖与信息流
 
 ```text
-终点/史莱姆规则适配
-  ├─ SlimeReachedGoalEvent（候选）
-  └─ LevelWaitWindowExpiredEvent（候选）
-SlimeManager
-  └─ SlimeDepletedEvent
-        ↓ 当前 LevelEventBus
-Core 结果规则组件
-  ├─ LevelSucceededEvent / LevelFailedEvent
-  └─ LevelResultSnapshot
-        ↓
-LevelManager / UISystem / 测试
+LevelConfig.ObjectiveKind
+  └─ LevelContext 创建 LevelResultRules
+       ├─ CaveOccupancy：SlimeGoalOccupancyChangedEvent + SlimeDepletedEvent
+       └─ EscortWeapon：WeaponReachedGoalEvent + WeaponDestroyedEvent + SlimeDepletedEvent
+             ↓ 当前 LevelEventBus
+       ResultDecided(LevelResult)
+             ↓
+       LevelManager → UI / 结算流程
 ```
 
 `GameRoot` 不持有本局 EventBus，也不参与关卡结果判定。`GuardManager` 查询 `MechanismSystem` 的武器快照来执行防守，不通过结果组件获取或修改武器。
@@ -109,33 +106,33 @@ LevelManager / UISystem / 测试
 ## 8. 关键不变量
 
 1. 结果规则组件不拥有武器、史莱姆、守卫或机关运行时数据。
-2. 终点进入、等待窗口和 `SlimeDepletedEvent` 只能由对应所有者发布；兼容武器事件仍由 `MechanismSystem` 发布。
+2. 洞穴人数事实由 `SlimeManager` 发布；武器事实由 `MechanismSystem` 发布；结果组件只消费所选模式的事实。
 3. Core 结果规则组件每局最多发布一次成功或失败结果。
 4. `LevelManager` 不复制结果条件，不从 UI 或表现回调推断结果。
 5. `Dispose` 后旧事件、计时器和结果不能作用于新关卡。
-6. 如果成功和失败事实在同一更新周期同时到达，优先级仍待确认，不能在各自 PR 中私自决定。
+6. 同帧裁决顺序由当前代码确定：护送模式抵达优先于摧毁/史莱姆耗尽；洞穴模式达标优先于史莱姆耗尽，耗尽优先于等待超时。
 
 ## 9. 待确认项
 
-- 结果组件最终类型名和是否由 `LevelContext` 直接持有字段；
-- 成功/失败事实同一帧同时到达时的优先级；
-- 终点进入事实的检测所有者、等待窗口时长、目标数量配置字段和多终点规则；
+- `ObjectiveConfig` 的结果参数是否应传给构造器；当前阈值/等待时长仍用默认值 6/10 秒；
+- 多终点规则；`LevelContext` 当前只允许一个 Goal 区域；
 - 多武器、多终点或后续关卡是否需要可配置结果规则；
-- 武器初始生命、受击反馈、修复机制和武器伤害入口的最终 API；
-- 旧 `ObjectiveConfig`、`ObjectiveRuntimeData` 和 `Objectives/` 目录的删除时机；
-- `LevelManager` 订阅 EventBus 还是由结果组件转发到其 C# 事件。
+- `Level_test` 的默认 `CaveOccupancy` 是否仍是期望设置；
+- `ObjectiveSystem` 旧源码与 `ObjectiveConfig` 资产的清理/迁移时机；
+- 配置中的 Castle 奖励 ID `SecondLevel` 与实际 Level ID `Castle` 的映射。
 
 ## 10. 验收场景
 
-- 史莱姆进入终点洞穴时发布只读事实，达到 6 只时结果组件只确认一次成功；
-- 等待窗口结束且数量不足 6 只时结果组件只确认一次失败；
-- 最后一只史莱姆死亡时由 `SlimeManager` 发布 `SlimeDepletedEvent`，结果组件只确认一次失败；
-- 兼容武器生命归零/到达终点时由 `MechanismSystem` 只发布对应武器事实；除明确启用武器规则的关卡外，结果组件不将其解释为最新第一关结果；
+- 当前配置为 `EscortWeapon` 的关卡：武器抵达判胜、武器摧毁或史莱姆耗尽判负，且只确认一次；
+- `CaveOccupancy`：当前存活人数达标判胜，首只进入后开始计时，耗尽立即判负，超时不足判负；
+- 关卡重开后旧 `LevelResultRules` 订阅被释放，不保留上一局结果；
 - UI、动画或场景重开回调不能重复确认结果；
 - `LevelManager` 能消费最终结果并进入结算/重开流程，结果组件本身不加载场景；
 - 重开后不存在上一局结果快照、事件订阅或武器运行时引用。
 
-## 补充：结果规则与场景组合（2026-10-14）
+## 历史记录：结果规则与场景组合（2026-10-14）
+
+以下内容记录当时的设计目标，具体接口和当前关卡结果配置已由上文更新。
 
 集成测试场景可以通过 `[SerializeField] private` 引用 UI、测试入口和具体适配器，但不能把场景按钮、Installer 或 UI 回调作为正式结果来源。结果规则组件仍由当前 `LevelContext` 创建，消费本局 EventBus 上的事实事件，并向 `LevelManager`/UI 提供只读结果快照或最终结果事件。
 

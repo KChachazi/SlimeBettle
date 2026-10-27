@@ -70,9 +70,9 @@ P0 感知快照可提供食物/引导源、普通目的地、逃跑目的地、�
 
 史莱姆的移动请求通过 MovementSystem 的 A* 网格路线避开地图静态障碍和不可通行区域；网格间距为 0.5 Unity 单位，八方向搜索禁止斜穿障碍角，并对可直达的连续路段做简化。敌人、守卫和非 Actor 的固定武器路线不因此改变。
 
-同类食物在岔路选择阶段仍按首关规则随机选择；普通状态下的食物/熔炉吸引按距离选择最近来源。策划图示要求的随机选择、20%/50%逃跑概率及状态触发时机仍待正式状态/概率接口；测试场景只验证已给定条件下的选路。
+同类食物在岔路选择阶段按规则随机选择；普通状态下的食物/熔炉吸引按距离选择最近来源。正式感知已接入逃跑判定：生命低于 50% 时按 `CFG_Status_Afraid` 的 20% 概率抽取，低于 30% 时按 50% 抽取；结果针对当前最近敌人和生命区间缓存，实际逃跑距离为 3 Unity 单位。状态触发由 StatusManager 按配置处理，具体值见 `18-StatusManager.md`。
 
-`ActorTargetPerceptionSource` 从当前关卡的 SlimeManager/EnemyManager 公开快照构造敌我目标事实；按自身 `ActorConfig.DetectionRange` 过滤死亡、同阵营和半径外 Actor，暂不判断视线遮挡。Level_test 原有随机漫游感知保持不变。`Assets/Game/Tests/AIBranches/` 的独立场景在正式目标感知之外只补尚未接入的食物、热源、逃跑判定和测试用人类目标。
+`ActorTargetPerceptionSource` 从当前关卡的 SlimeManager/EnemyManager 公开快照构造敌我目标事实；按自身 `ActorConfig.DetectionRange` 过滤死亡、同阵营和半径外 Actor，暂不判断视线遮挡。正式 FirstLevel/Castle 组合还会加入机关引导、逃跑与游走感知。Level_test 保留随机漫游感知；`Assets/Game/Tests/AIBranches/` 是使用可控输入验证分支的独立测试夹具，不代表正式关卡缺少对应接线。
 
 守卫感知还会读取 `EnemySnapshot.TargetActorId`、`IsAttacking` 和 `ActionState`，把敌人标记为“正在攻击护送武器”“正在攻击守卫”或“靠近武器且正在攻击”；这些标记只作为 `TargetObservation` 的只读事实输入，优先级由 `GuardDecision` 消费。
 

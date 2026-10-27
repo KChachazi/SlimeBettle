@@ -1,9 +1,9 @@
 # 99 全局 API 查询表
 
-版本：0.6 第一关地图机关子模块版
-最后更新：2026-10-15
+版本：0.7 代码现状整理版
+最后更新：2026-10-28
 用途：协作时查询跨系统公共接口
-状态：架构暂定
+状态：公共接口索引；“已实现”指代码提供接口，不代表 Unity 运行验收完成
 
 ## 1. 使用规则
 
@@ -13,7 +13,8 @@
 - 公共接口变化时，必须同步更新所属系统文档和本表；
 - Request 表示请求执行，Query 或 Get/TryGet 表示读取，Event 表示结果已经发生；
 - ActorDecisionTree、ActorStateMachine 和 AttackAction 的内部节点、状态和执行函数不进入全局表。
-- `MechanismSystem` 的逻辑归属为 `Map` 领域下辖子模块，当前由小智维护；本次只更新责任边界，不新增或冻结公共 API。
+- `MechanismSystem` 的逻辑归属为 `Map` 领域下辖子模块，由其公开接口提供机关生命周期；具体实现以当前源码为准。
+- 本表按 2026-10-28 源码更新。保留在文末的带日期接入记录仅作历史记录，不能覆盖当前接口状态。
 
 ## 2. 核心与目标 API
 
@@ -26,12 +27,12 @@
 | API-CORE-005 | LevelManager | RequestPause() / RequestResume() | 无 | 暂停/恢复事件 | UI、系统流程 | 已确认 |
 | API-CORE-006 | LevelManager | GetLevelState() | 无 | LevelState | UI、调试、系统 | 已确认 |
 | API-CORE-007 | LevelContext | GetEventBus() | 无 | 当前关卡 EventBus | 当前关卡系统 | 已确认 |
-| API-CORE-008 | Core 结果规则组件 | Initialize(LevelEventBus, LevelResultConfig) | 当前关卡 EventBus、结果配置 | 无 | LevelContext | 迁移待实现；最终类型名待确认 |
-| API-CORE-009 | Core 结果规则组件 | GetSnapshot() | 无 | LevelResultSnapshot | LevelManager、UI、测试 | 迁移待实现 |
-| API-CORE-010 | Core 结果规则组件 | Dispose() | 无 | 无 | LevelContext | 迁移待实现 |
-| API-CORE-011 | Core 结果规则组件 | 结果事件聚合 | 第一关终点进入统计、等待窗口结束、`SlimeDepletedEvent` 等已确认事实 | `LevelSucceededEvent` / `LevelFailedEvent` | LevelManager、UI、测试 | 第一关口径已确认；事件 payload/代码待迁移 |
-| API-CORE-014 | Core 结果规则组件 | 史莱姆终点统计与等待窗口（候选接口） | `SlimeReachedGoalEvent` / `LevelWaitWindowExpiredEvent` | 只读结果快照 | LevelManager、UI、测试 | 设计已确认；最终事件名和参数待评审 |
-| API-CORE-015 | Core 结果规则组件 | 兼容结果事件适配 | `WeaponDestroyedEvent` / `WeaponReachedGoalEvent` | 兼容关卡结果事实 | 仅启用护送武器链路的关卡 | 保留兼容；不作为最新第一关成功条件 |
+| API-CORE-008 | LevelResultRules | `LevelResultRules(ILevelEventBus, LevelObjectiveKind, int requiredCount = 6, float waitSeconds = 10f)` | 当前关卡 EventBus、目标模式及可选洞穴参数 | 结果规则实例并订阅相应事实 | LevelContext | 已实现；LevelContext 仅传 EventBus 和 `ObjectiveKind`，故洞穴值走默认值 |
+| API-CORE-009 | LevelResultRules | `ResultDecided` / `HasResult` / `Result` / `GoalOccupantCount` / `IsWaiting` / `RemainingSeconds` | 无 | 结果事件及只读状态 | LevelManager、UI、测试 | 已实现 |
+| API-CORE-010 | LevelResultRules | `EndFrame(float)` / `Dispose()` | 帧间隔 / 无 | 更新并裁决结果 / 解除订阅 | LevelContext、LevelManager | 已实现 |
+| API-CORE-011 | LevelResultRules | 结果事实聚合 | 洞穴人数变化/史莱姆耗尽，或护送武器抵达/摧毁/史莱姆耗尽 | `ResultDecided(LevelResult)` C# event | LevelManager | 已实现；目标类型由 `LevelConfig.ObjectiveKind` 选择 |
+| API-CORE-014 | SlimeManager → LevelResultRules | `SlimeGoalOccupancyChangedEvent` | 终点内当前存活史莱姆数量及进入/离开事实 | 洞穴计数、首只进入后启动等待窗口 | LevelResultRules、HUD | 已实现；当前一个 Goal 区域 |
+| API-CORE-015 | MechanismSystem → LevelResultRules | `WeaponDestroyedEvent` / `WeaponReachedGoalEvent` | 护送武器结果事实 | 护送模式判负/判胜 | LevelResultRules、LevelManager | 已实现；FirstLevel 与 Castle 当前均启用护送目标 |
 | API-CORE-012 | LevelContext | BindActorPorts(IActorPerceptionSource, IActorActionPort) | 当前关卡感知及行动请求适配器；效果端口可为 null | 无 | 关卡装配方 | P0 接入边界；MovementSystem 接管移动请求；效果端口为空时仅移动可用 |
 | API-CORE-013 | LevelContext | MapManager / MovementSystem | 无 | 当前关卡地图和移动服务 | 当前关卡系统 | P0：静态阻挡识别及 Rigidbody2D 移动已接入 |
 | API-CORE-016 | LevelManager | RequestReturnToPreviousFlow() | 无 | ReturnToPreviousFlowRequestedEvent，由 GameRoot 观察 | UISystem | 已实现 |
@@ -48,7 +49,7 @@ AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Acto
 | API-DATA-001 | ConfigSystem | TryGet<TConfig>(ConfigId, out TConfig) | 配置 ID | 是否成功、配置 | 关卡和玩法系统 | 已确认 |
 | API-DATA-002 | ConfigSystem | TryGetLevel(LevelId, out LevelConfig) | 关卡 ID | 是否成功、配置 | LevelManager、MapManager | 已确认 |
 | API-DATA-003 | ConfigSystem | ValidateAll() | 无 | 校验报告 | 编辑器工具、启动检查 | 已确认 |
-| API-DATA-004 | LevelResultConfig（候选名称） | 第一关终点目标数量、等待窗口和失败条件 | 无 | 结果规则配置 | Core 结果规则组件 | 第一关“至少 6 只史莱姆”已确认；最终字段待确认 |
+| API-DATA-004 | ObjectiveConfig | 结果/武器配置引用 | 配置资产 | ConfigRegistry 校验引用是否唯一/存在 | 启动校验 | 当前只做注册校验；规则字段未传入 `LevelResultRules` |
 | API-DATA-005 | ConfigSystem | TryGetActor(ConfigId, out ActorConfig) | 配置 ID | 是否成功、配置 | Actor Manager | 已实现 |
 | API-DATA-006 | ConfigSystem | TryGetStatus(StatusId, out StatusConfig) | 状态 ID | 是否成功、配置 | StatusManager、MapManager 区域适配 | 已实现；重复 StatusId 拒绝 |
 | API-DATA-007 | ConfigSystem | TryGetStatus(StatusKind, out StatusConfig) | 玩法状态种类 | 是否成功、配置 | StatusManager | 已实现；重复 StatusKind 拒绝 |
@@ -63,28 +64,28 @@ AI 选路验收场景位于 `Assets/Game/Tests/AIPathScene/`。它仅通过 Acto
 | API-LEVEL-002 | SlimeManager | TryGetSnapshot(ActorId, out SlimeSnapshot) | 史莱姆 ID | 是否成功、快照 | AI、UI、表现 | 已确认 |
 | API-LEVEL-003 | SlimeManager | GetAliveSnapshots() | 无 | 史莱姆只读快照列表 | Core 结果规则组件、UI、AI | 已确认 |
 | API-LEVEL-004 | SlimeManager | RequestDespawn(ActorId, DespawnReason) | ID、原因 | 是否成功 | LevelContext、测试 | 已确认 |
-| API-LEVEL-005 | SlimeManager | TryGetGroupSnapshot(GroupId, out SlimeGroupSnapshot) | 群体 ID | 是否成功、快照 | UI、调试、Actor | 暂定 |
-| API-LEVEL-014 | SlimeManager | TryCreateGroup(members, target, out GroupId) / TrySetGroupTarget(GroupId, target) / RequestDissolveGroup(GroupId) | 明确成员和目标 | 是否成功 | 关卡规则、测试 | P0 显式群体关系；自动规则待确认 |
-| API-LEVEL-015 | SlimeManager | TrySetSpawnParent(Transform) | 场景 SlimeRoot | 是否成功；后续生成实例的父节点 | 关卡场景装配组件 | P0 |
+| API-LEVEL-005 | SlimeManager | TryGetGroupSnapshot(GroupId, out SlimeGroupSnapshot) | 群体 ID | 是否成功、快照 | UI、调试、Actor | 已实现 |
+| API-LEVEL-014 | SlimeManager | TryCreateGroup / TrySetGroupTarget / RequestDissolveGroup | 明确成员和目标 | 是否成功 | 关卡规则、测试 | 已实现；自动成组策略由运行时行为决定 |
+| API-LEVEL-015 | SlimeManager | TrySetSpawnParent(Transform) | 场景 SlimeRoot | 是否成功；后续生成实例的父节点 | 关卡场景装配组件 | 已实现 |
 
 ### 4.2 EnemyManager
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-LEVEL-006 | EnemyManager | SpawnEnemy(EnemySpawnRequest) | 生成请求 | ActorId 或拒绝原因 | LevelContext、测试 | 暂定 |
-| API-LEVEL-007 | EnemyManager | TryGetSnapshot(ActorId, out EnemySnapshot) | 敌人 ID | 是否成功、快照 | AI、UI、表现 | 暂定 |
-| API-LEVEL-008 | EnemyManager | GetAliveSnapshots() | 无 | 敌人只读快照列表 | Actor、UI | 暂定 |
-| API-LEVEL-009 | EnemyManager | RequestDespawn(ActorId, DespawnReason) | ID、原因 | 是否成功 | LevelContext、测试 | 暂定 |
-| API-LEVEL-016 | EnemyManager | TrySetSpawnParent(Transform) | 场景 EnemyRoot | 是否成功；后续生成实例的父节点 | 关卡场景装配组件 | P0 |
+| API-LEVEL-006 | EnemyManager | SpawnEnemy(EnemySpawnRequest) | 生成请求 | ActorId 或拒绝原因 | LevelContext、测试 | 已实现 |
+| API-LEVEL-007 | EnemyManager | TryGetSnapshot(ActorId, out EnemySnapshot) | 敌人 ID | 是否成功、快照 | AI、UI、表现 | 已实现 |
+| API-LEVEL-008 | EnemyManager | GetAliveSnapshots() | 无 | 敌人只读快照列表 | Actor、UI | 已实现 |
+| API-LEVEL-009 | EnemyManager | RequestDespawn(ActorId, DespawnReason) | ID、原因 | 是否成功 | LevelContext、测试 | 已实现 |
+| API-LEVEL-016 | EnemyManager | TrySetSpawnParent(Transform) | 场景 EnemyRoot | 是否成功；后续生成实例的父节点 | 关卡场景装配组件 | 已实现 |
 
 ### 4.3 GuardManager
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-LEVEL-010 | GuardManager | SpawnGuard(GuardSpawnRequest) | 生成请求 | ActorId 或拒绝原因 | LevelContext、测试 | 暂定 |
-| API-LEVEL-011 | GuardManager | TryGetSnapshot(ActorId, out GuardSnapshot) | 守卫 ID | 是否成功、快照 | UI、AI、表现 | 暂定 |
-| API-LEVEL-012 | GuardManager | GetAliveSnapshots() | 无 | 守卫只读快照列表 | UI、MechanismSystem、测试 | 暂定 |
-| API-LEVEL-013 | GuardManager | SubmitCommand(ActorId, GuardCommand) | ID、语义指令 | 接受/拒绝 | InputSystem、调试工具 | 调试/待确认 |
+| API-LEVEL-010 | GuardManager | SpawnGuard(GuardSpawnRequest) | 生成请求 | ActorId 或拒绝原因 | LevelContext、测试 | 已实现 |
+| API-LEVEL-011 | GuardManager | TryGetSnapshot(ActorId, out GuardSnapshot) | 守卫 ID | 是否成功、快照 | UI、AI、表现 | 已实现 |
+| API-LEVEL-012 | GuardManager | GetAliveSnapshots() | 无 | 守卫只读快照列表 | UI、MechanismSystem、测试 | 已实现 |
+| API-LEVEL-013 | GuardManager | SubmitCommand(ActorId, GuardCommand) | ID、语义指令 | 接受/拒绝 | InputSystem、调试工具 | 接口已实现；正式 UI 是否开放控制不在此 API 判定 |
 
 Manager 不对外提供 ApplyEffect。生命和状态变化统一由 StatusManager 经过 LevelContext 内部 Actor 解析契约处理。
 
@@ -137,18 +138,19 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 
 | API 编号 | 提供者 | 接口 | 输入 | 输出 | 主要调用方 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| API-MECH-001 | MechanismSystem | NotifyContact(MechanismTriggerContext) | 接触事实 | 是否受理 | MovementSystem | 首关待实现 |
-| API-MECH-002 | MechanismSystem | RequestActivate(MechanismId, MechanismActivationRequest) | 机关 ID、请求 | 激活结果 | PlacementSystem、测试 | 首关待实现 |
-| API-MECH-005 | MechanismSystem | TryGetWeaponSnapshot(WeaponId, out WeaponSnapshot) | 武器 ID | 是否成功、武器快照 | GuardManager、UI、Core 结果规则组件 | 首关候选接口；待实现 |
-| API-MECH-006 | MechanismSystem | Weapon 伤害/运输结果入口（具体签名待确认） | 受击或运输事实 | `WeaponDamagedEvent` / `WeaponDestroyedEvent` / `WeaponReachedGoalEvent` | Actor/敌人、MovementSystem、测试 | 所有权已确认；签名待冻结 |
-| API-MECH-003 | PassageSystem | RequestEnter(PassageAccessRequest) | 通行请求 | 通过/等待/拒绝 | ActorStateMachine、MovementSystem | 待决定 |
-| API-MECH-004 | PassageSystem | NotifyExit(PassageId, ActorId) | 窄路、Actor ID | 是否释放 | MovementSystem、Manager | 待决定 |
+| API-MECH-001 | MechanismSystem | NotifyContact(MechanismTriggerContext) | 接触事实 | 是否受理 | Actor/场景适配器 | 已实现 |
+| API-MECH-002 | MechanismSystem | RequestActivate(MechanismId, MechanismActivationRequest) | 机关 ID、请求 | 激活结果 | Actor/机关适配器 | 已实现 |
+| API-MECH-005 | MechanismSystem | TryGetWeaponSnapshot(out EscortWeaponSnapshot) | 无 | 是否成功、护送武器快照 | GuardManager、UI、LevelResultRules | 已实现 |
+| API-MECH-006 | MechanismSystem | RequestWeaponDamage(ActorId, float) | 攻击者、伤害值 | 是否受理；发布 WeaponDamaged/Destroyed 事实 | Actor/敌人/守卫、测试 | 已实现 |
+| API-MECH-007 | MechanismSystem | GetFoodCartIds / TryGetFoodCartAtPosition / RequestLoadFoodCart / RequestMoveFoodCart | 餐车 ID、位置和装载/移动请求 | 可用状态、放置结果 | Castle 玩家交互适配器 | 已实现；轨道约束由餐车配置提供 |
+| API-MECH-003 | PassageSystem | RequestEnter(PassageAccessRequest) | 通行请求 | 通过/等待/拒绝 | ActorStateMachine、MovementSystem | 文档接口；当前未接入运行时 |
+| API-MECH-004 | PassageSystem | NotifyExit(PassageId, ActorId) | 窄路、Actor ID | 是否释放 | MovementSystem、Manager | 文档接口；当前未接入运行时 |
 | API-PLAYER-001 | InputSystem | ReadSnapshot() | 无 | PlayerInputSnapshot | CameraSystem、PlacementSystem、GuardManager | 已确认 |
 | API-PLAYER-002 | InputSystem | SetInputMode(InputMode) | Disabled / Gameplay / UiOnly | void；非法值抛异常 | 场景接入、UI | P0 已实现 |
-| API-PLAYER-003 | PlacementSystem | BeginPlacement(PlacementItemId) | 机关选择 ID（不是背包道具） | 开始结果 | UI、InputSystem | 首关范围已确认；最终名称待确认 |
-| API-PLAYER-004 | PlacementSystem | PreviewPlacement(WorldPosition) | 世界位置 | 校验结果 | InputSystem、UI | 待确认 |
-| API-PLAYER-005 | PlacementSystem | ConfirmPlacement() | 无 | PlacementResult | UI、InputSystem | 待确认 |
-| API-PLAYER-010 | PlacementSystem | ResolvePlacementTarget(WorldPosition)（候选） | 世界位置 | 普通 GridCell 或特殊 PlacementAnchorId，以及合法性 | InputSystem、UI、测试 | Grid + Anchor 设计已确认；最终接口待评审 |
+| API-PLAYER-003 | PlacementSystem | BeginPlacement(PlacementItemId) | 机关选择 ID（不是背包道具） | 开始/拒绝 | UI、InputSystem | 已实现 |
+| API-PLAYER-004 | PlacementSystem | PreviewPlacement(Vector3) / IsCellPlaceable(Vector3Int) | 世界位置/格子 | 校验结果/当前格提示 | InputSystem、UI、PlacementGridView | 已实现；后端在最终确认时复核 |
+| API-PLAYER-005 | PlacementSystem | ConfirmPlacement() / BeginRemoval() / ConfirmRemoval() / CancelPlacement() | 当前预览及交互模式 | PlacementResult | UI、InputSystem | 已实现；地图合法点击由输入适配器直接确认 |
+| API-PLAYER-010 | MapManager → PlacementSystem | GetPlacementAnchors() / TryGetPlacementAnchor(PlacementAnchorId, out PlacementAnchorSnapshot) | Anchor ID（可选） | Anchor 只读事实 | PlacementSystem、MechanismSystem | 已实现；Target 解析由 Placement 内部执行，不存在独立 `ResolvePlacementTarget` 公共 API |
 | API-PRESENT-001 | CameraSystem | ScreenToWorld(Vector2) | 屏幕像素位置 | Vector3，XY 玩法平面世界位置 | 玩家操作适配、UI | P0 已实现 |
 | API-PRESENT-002 | CameraSystem | SetBounds(CameraBounds) | 镜头边界 | 无 | MapManager、LevelContext | 已确认 |
 | API-UI-001 | UISystem | Refresh(UiState) | UI 状态 | 无 | UI 内部、状态同步 | 已确认 |
@@ -183,8 +185,7 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | --- | --- | --- | --- |
 | LevelStartedEvent | LevelManager | 关卡初始化完成并进入运行 | UI、表现、测试 |
 | LevelPausedEvent | LevelManager | 关卡规则暂停 | UI、表现 |
-| LevelSucceededEvent | Core 结果规则组件 | 关卡已确认成功 | LevelManager、UI、表现 |
-| LevelFailedEvent | Core 结果规则组件 | 关卡已确认失败 | LevelManager、UI、表现 |
+| LevelResultReportedEvent | LevelManager | 关卡结果已确认并进入结算阶段 | UI、场景表现 |
 | SlimeSpawnedEvent | SlimeManager | 史莱姆已生成 | UI、表现、测试 |
 | SlimeDiedEvent | SlimeManager | 史莱姆已确认死亡 | SlimeManager、UI、表现 |
 | SlimeDepletedEvent | SlimeManager | 最后一只史莱姆已确认死亡 | Core 结果规则组件、UI、测试 |
@@ -205,26 +206,27 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | StatusExpiredEvent | StatusManager | 状态因计时到期或区域宽限结束 | AI、状态机、UI |
 | MovementModifierChangedEvent | StatusManager | Actor 移速或定身修正已变化 | MovementSystem、表现、UI |
 | ActorControlChangedEvent | StatusManager | Actor 控制模式已变化 | Actor Manager、AI、表现 |
-| PlacementConfirmedEvent | PlacementSystem | 放置已确认 | 机关、UI、表现 |
-| PlacementReplacedEvent（候选） | PlacementSystem / MechanismSystem | 允许替换的 Anchor 已完成旧对象回收和新对象提交 | UI、表现、路线/陷阱规则 |
 | MechanismTriggeredEvent | MechanismSystem | 机关触发规则已确认并产生结果 | Actor、UI、表现、测试 |
+| MechanismExhaustedEvent | MechanismSystem | 机关使用次数耗尽 | Actor、UI、表现 |
+| MechanismPlacementCooldownChangedEvent | MechanismSystem | 某类机关放置冷却变化 | PlacementSystem、UI |
 | WeaponDamagedEvent | MechanismSystem | 护送武器受到已结算效果 | GuardManager、UI、表现 |
 | WeaponDestroyedEvent | MechanismSystem | 护送武器已被摧毁 | Core 结果规则组件、GuardManager、UI |
 | WeaponReachedGoalEvent | MechanismSystem | 护送武器已抵达指定终点 | Core 结果规则组件、UI、表现 |
-| SlimeReachedGoalEvent（候选） | SlimeManager / 终点规则适配 | 一只史莱姆已进入第一关终点洞穴 | Core 结果规则组件、UI、表现；第一关结果链路待实现 |
-| LevelWaitWindowExpiredEvent（候选） | 关卡流程/结果规则适配 | 第一关等待窗口结束 | Core 结果规则组件、UI、测试；第一关结果链路待实现 |
+| SlimeGoalOccupancyChangedEvent | SlimeManager | 终点区域内存活史莱姆数量变化 | LevelResultRules、HUD |
 
 ## 9. 不进入全局表的内容
 
 - DecisionTree 内部节点和感知实现；
-- `GuidanceKind.Wander` 是 ActorDecisionTree 感知契约中的漫游引导类型，仅由 Level_test 用于移动链路验收；
+- `GuidanceKind.Wander` 是 ActorDecisionTree 感知契约中的漫游目标类型，由关卡感知适配提供；
 - StateMachine 内部状态、转换和 AttackAction 私有步骤；
 - Actor 的私有字段、Manager 的集合缓存和 Unity 组件引用；
 - UI 控件刷新、动画、特效和音效播放方法；
 - 只有一个系统内部调用方的辅助方法。
 
 
-## 小宸首关接口通知（2026-10-11，待评审）
+## 历史记录：小宸首关接口通知（2026-10-11，待评审）
+
+本节及其后的带日期接入记录保留当时协作状态。其“待评审/未提供/候选”描述已由上文 2026-10-28 当前接口表更新，不再代表当前实现。
 
 | 提供者 | 接口 | 调用方 / 边界 |
 | --- | --- | --- |
@@ -236,7 +238,7 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 | UiState | 尾部可选参数 slimeLimit / weaponText | 保持旧构造调用兼容；未知值不显示成 0 |
 | FirstLevelPresentationRoot | Initialize(LevelManager, InputSystem, CameraSystem, PlacementGridAuthoring, IPlacementBackend, PlacementConfirmationMode, IFirstLevelStatusSource = null) | 场景组合；本关依赖，禁用解绑，重开清理 |
 
-机关创建、Anchor 替换、第一关史莱姆终点统计与新武器/Core 结果接口尚未完全提供，当前注入契约不替代对应所有者的正式 API。详细参数、失败与生命周期见小宸实现与接入通知；旧护送武器事件不改变最新第一关结果口径。
+当时记录的机关创建、Anchor 替换和结果接口等待状态已由后续代码实现；具体以当前表格和 Mechanism/Placement/Core 系统文档为准。
 
 首关快照补充：PlayerInputSnapshot.PointerBlocked 为只读 UI 手势/恢复保护事实；末尾可选构造参数保持旧调用兼容。PlacementInputAdapter 仅在未屏蔽的 Gameplay 快照下更新预览。
 
@@ -244,23 +246,23 @@ ActorDecisionTree 只查询状态，不通过 StatusManager 直接造成效果�
 
 2026-10-12 交互修正：PlacementInputAdapter 在地图 PrimaryAction 后锁定目标世界格子，移动鼠标到 CONFIRM 或移动镜头不会改选，再次点击地图可替换。锁定不新增公开 API；直接调用 PlacementSystem.PreviewPlacement / ConfirmPlacement 的契约不变。
 
-## 小宸首关当前接入补充（2026-10-16）
+## 历史记录：小宸首关接入补充（2026-10-16）
 
 - 当前地图点击/轻触直接提交合法放置，取代上方历史的锁定/确认按钮交互；预览/确认方法仍分开，便于适配器和测试复用。
 - `PlacementSystem` 构造参数尾部新增可选 `Func<IReadOnlyList<PlacementAnchorSnapshot>> readAnchors = null`、`float anchorPixelsPerWorldUnit = 0f`。旧无 Anchor 调用兼容；有 Anchor 必须显式提供同一地图定义的像素比例。
 - 消费已合入的 `MapManager.GetPlacementAnchors()`；`PlacementPreview.Anchor` 携带原地图快照，`PlacementRequest.AnchorId` 为尾部可选参数。不重新定义地图 ID/角色/允许类型/替换事实。
 - `PlacementValidationStatus` 追加 `AnchorFree / TypeMismatch / ReplacementDenied / ReplacementUnavailable`，保留旧枚举数值。确认重新读取快照；已占用且配置允许替换时，当前因缺少公开安全事务而拒绝，保留旧机关。
 - `FirstLevelPresentationRoot.Initialize` 尾部可选 `FirstLevelMapDefinition anchorMapDefinition = null`，Prefab 显式引用 `MAP_FirstLevel`。重开默认使用新 Context 的正式 MechanismPlacementBackend；不复用旧注入后端。
-- `IFirstLevelStatusSource` 已支持 GoalText / WaitingText / RouteHint；缺少上游路线提示时，HUD 仅显示当前 Anchor 的真实关联 ID，不推断路线状态。终点人数和窗口无真实来源时继续未接入。
+- 当时 `IFirstLevelStatusSource` 支持 GoalText / WaitingText / RouteHint；当前 HUD 由 `FirstLevelRuntimeStatusSource` 按目标模式读取武器或洞穴状态。
 
-以上是 Player/UI 本地兼容扩展及已有公开查询的接入通知；没有新增机关安全替换协议或候选终点事件实现，跨系统替换/结果契约仍待所属负责人提供。
+以上是 2026-10-16 的 Player/UI 接入状态记录；机关安全替换和结果链路已由后续代码接入，当前接口见本文前文。
 
 ## 小宸首关拆除接入补充（2026-10-19）
 
 - `PlacementSystem.BeginRemoval()` / `ConfirmRemoval()` 进入持续拆除模式并提交回收；`PreviewPlacement()` 复用当前指针预览，`PlacementPreview.RemovalTarget` 表示活跃玩家机关 ID。确认时重查阶段、占用和目标身份。
 - `IsRemoving` 表示拆除；`IsInteracting` 表示放置或拆除；`IsPlacing` 保持原语义。`CancelPlacement()` 同时取消两种模式，暂停、结算、重开和禁用沿用同一清理链路。
 - 可选 `IPlacementRemovalBackend.SupportsRemoval / RequestRemoval(MechanismId)` 由两个正式 Placement 后端适配已有 `MechanismSystem.RequestRemove()`；未实现该接口的旧放置后端继续兼容。返回 `PlacementResult`；机关系统拥有对象回收、碰撞释放和配置冷却，UI 不直接销毁机关。
-- `RemovalCompleted` 是本地尝试结果事件；资源返还与库存规则不在本次接口中新增。`ReferenceUiView.InitializePlacement()` / `ToggleRemoval()` 由当前关卡组合根接线，重开重新绑定新会话。
+- `RemovalCompleted` 是本地尝试结果事件；当前拆除不返还战役库存。`ReferenceUiView.InitializePlacement()` / `ToggleRemoval()` 由当前关卡组合根接线，重开重新绑定新会话。
 
 ## 小宸首关开局放置可见性修正（2026-10-19）
 
