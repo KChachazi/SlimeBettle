@@ -5,7 +5,9 @@
 默认命名空间：`SlimeBattle.Core`  
 建议实现目录：`Assets/Game/Scripts/Core/`  
 生命周期：应用运行期间存在，管理一个时刻的关卡上下文  
-状态：核心架构
+状态：负责已实现的关卡加载、重开、暂停、结果结算和战役账本生命周期
+
+> 2026-10-28 代码核对：下文中带日期的旧集成记录保留历史语境。正式 `FirstLevel` / `Castle` 当前启用护送武器结果；Build Settings 的场景清单见项目场景与配置目录说明。
 
 ## 1. 职责
 
@@ -57,15 +59,14 @@ LevelState GetLevelState();
 ```text
 LevelLoadStartedEvent
 LevelStartedEvent
-LevelPausedEvent
-LevelResumedEvent
-LevelSucceededEvent
-LevelFailedEvent
 LevelRestartedEvent
-LevelUnloadedEvent
+LevelLoadFailedEvent
+LevelStateChangedEvent
+LevelResultReportedEvent
+ReturnToPreviousFlowRequestedEvent
 ```
 
-`LevelStartedEvent` 表示系统初始化完成并且可以开始运行，不等于 Unity 场景刚刚打开。
+结果规则通过 `LevelResultRules.ResultDecided(LevelResult)` 通知 `LevelManager`；`LevelManager` 更新为 Succeeded/Failed 并发布 `LevelResultReportedEvent`。`LevelStartedEvent` 表示系统初始化完成并可以开始运行，不等于 Unity 场景刚刚打开。
 
 ## 6. 生命周期
 
@@ -78,9 +79,11 @@ LevelUnloadedEvent
 7. 将同一份已校验的 `ConfigRegistry` 交给需要配置的系统，创建并连接 LevelContext 持有的 Manager 和其他关卡服务；
 8. 发布 `LevelStartedEvent`；`Level_test` 的场景生成组件收到该事件后向正式 Manager 提交初始对象生成请求。
 
-P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配置；最新第一关必须包含与场景名对应的 `LevelConfig`、终点统计/等待窗口结果配置及所需角色、地形、路线和机关配置。护送武器配置仅在兼容武器链路启用的关卡中需要；旧 `ObjectiveConfig` / `WeaponConfig` 仅作为迁移期间的历史类型，不应成为最新第一关结果规则的新依赖。缺失或校验失败时发布 `LevelLoadFailedEvent`，不进入 `Running`。`Level_test` 的初始 Actor 由场景中的 `LevelActorSpawner` 在 `LevelStartedEvent` 后调用正式 Manager 公开接口生成；其他关卡仍需自行配置初始对象来源。
+当前实现由 `LevelManager.levelConfigs` 注册关卡配置，战役资源配置通过单独引用注入并在 `StartNewCampaign` 时初始化。正式第一关/城堡配置包含护送目标和对应场景武器；`LevelResultRules` 使用 `LevelConfig.ObjectiveKind` 选择规则，虽然 `ObjectiveConfig` 仍被注册校验，但其字段未传入结果规则。配置缺失/校验失败时发布 `LevelLoadFailedEvent`，不进入 `Running`。`FirstLevelCompositionRoot` / `CastleCompositionRoot` 在关卡开始后接入场景地图与 Actor 感知。
 
-`LevelManager` 还在 Inspector 中持有正式 `SlimeActor` 与 `EnemyActor` 预制体引用，并传给 `LevelContext`。`LevelContext` 再注入对应 Manager；缺少预制体时不进入运行态。当前 Bootstrap 场景已绑定 `PF_Slime_Green`、`PF_Enemy_Basic` 和 `Level_test` 所需的五个配置资产。Bootstrap 中的 `BootstrapMenuLoader` 加载 MainMenu，菜单 Start 按钮通过 `GameRoot.RequestEnterLevel` 请求进入 `Level_test`。
+`LevelManager` 在 Inspector 中持有 `SlimeActor`、`EnemyActor` 和可选 `GuardActor` Prefab，并通过 `LevelConfig`/默认字段解析守卫 Prefab。`BootstrapMenuLoader` 加载 MainMenu；菜单可请求进入 `FirstLevel` 或 `Castle`。`Level_test` 保留代码入口但 Build Settings 禁用；主菜单当前不提供该入口。
+
+正式场景若已加载且未通过 Build Settings 作为目标加载，`StartCurrentSceneLevel()` 可用同一套 ConfigRegistry、LevelContext、结果规则与资源生命周期初始化当前场景。
 
 重开关卡采用重新加载当前关卡场景的方案。第一版不要求为每个请求携带本局 ID，但必须保证旧上下文、旧订阅和旧任务已经失效。
 
@@ -101,10 +104,9 @@ P0 实现使用 `LevelManager` Inspector 中的 `ConfigAsset[]` 收集当前配�
 
 ## 9. 待确认项
 
-- 关卡场景命名和 `LevelId` 的映射方式；
 - 是否需要异步加载进度 UI；
-- 是否存在主菜单、关卡选择和下一关流程。
-- 目标结果与重开/下一关 UI 的结算展示顺序。
+- 是否添加通用的自动下一关流程；当前结果页重开/返回入口已接入，Next Level 流程未列为现状。
+- `ObjectiveConfig` 中武器引用与 `LevelConfig.ObjectiveKind` 的职责是否合并；Castle 奖励 ID 与 `Castle` LevelId 不一致。
 
 ## 补充：场景装配协作边界（2026-10-14）
 

@@ -5,25 +5,27 @@
 默认命名空间：`SlimeBattle.Mechanisms`  
 建议实现目录：`Assets/Game/Scripts/Mechanism/`  
 生命周期：当前关卡上下文生命周期  
-状态：食物/熔炉/障碍已有基础运行时；FirstLevel 的宝箱、滚石、沼泽表现和祭坛已由关卡装配器接入；本关特殊物仍使用轻量场景适配器，尚未统一迁入 MechanismSystem。
+状态：食物、熔炉、障碍、固定路线护送武器和 Anchor 安全替换已有运行时实现；Castle 餐车由 `MechanismSystem` 管理装载/沿轨道移动；宝箱、地刺和滚石仍由关卡场景适配器接线。
 逻辑归属：`Map` 领域下辖的动态机关子模块
 当前负责人：小智（已确认）
+
+> 本文按 2026-10-28 代码与配置整理。后文带日期的接入记录保留历史；若其中出现“待实现/待确认”与当前代码相冲突，以本节和当前公开 API 为准。静态代码检查不代表 Play Mode 验收。
 
 ## 1. 职责
 
 `MechanismSystem` 在逻辑上属于 `Map` 领域，但不并入 `MapManager` 的内部实现。`MapManager` 提供静态地图、路线、Anchor 和空间事实；`MechanismSystem` 负责机关实例、动态阻挡注册、触发、替换、回收、运行时快照和机关事件。当前已有机关及本轮首关机关接入统一由小智负责维护，其他成员只能通过公开接口调用或适配。
 
 - 管理场景中的静态环境元素和玩家放置的运行时环境元素；
-- 完全拥有已启用护送武器的生命、位置、运输载体、路线进度和抵达状态；该链路目前属于兼容/后续扩展，不得覆盖最新第一关的史莱姆终点统计结果；
+- 完全拥有已启用护送武器的生命、位置、运输载体、路线进度和抵达状态；当前 `FirstLevel` 与 `Castle` 的配置均选择护送武器目标；
 - 读取环境元素配置，保存实例 ID、位置、范围、剩余次数、冷却和当前状态；
 - 为 Actors 提供食物、熔炉等机制产生的引导源快照；熔炉首关不产生冷热状态；
 - 接收 `MovementSystem`、`MapManager` 和场景适配器提交的接触、经过、区域进入和拆除事实；
 - 判断环境元素是否满足触发条件、是否处于冷却或已经耗尽；
-- 对需要运行时交互的陷阱/补给提供明确的接入边界；在所有权未确认前不得由地图脚本或 UI 直接实例化；
+- 通过明确的场景适配器接收宝箱、地刺和滚石的运行时交互；这些适配器当前不消费 `FirstLevelHazardConfig`；
 - 将已经确认的效果请求提交给 `StatusManager`、`MovementSystem` 或其他约定的公开接口；
 - 发布环境元素状态变化和已经完成的触发结果。
 
-护送武器属于 `MechanismKind.EscortWeapon`，不是 Actor，也不由 Core 结果规则组件保存。若该兼容链路启用，武器沿地图配置的路线事实推进；它不再自动等同于最新第一关的胜利条件。动态通用寻路不在本轮实现。
+护送武器属于 `MechanismKind.EscortWeapon`，不是 Actor，也不由 Core 结果规则组件保存。`FirstLevel` 与 `Castle` 当前都启用该目标：武器抵达终点即成功；武器被摧毁或史莱姆耗尽则失败。武器沿地图配置的固定路线分段推进，不使用 Actor 的通用 A* 路径。
 
 ## 2. 不负责的内容
 
@@ -38,7 +40,7 @@
 
 ```text
 MechanismId
-    MechanismKind                 // Food, Furnace, Obstacle, EscortWeapon；Trap/Supply 归属待接口确认
+MechanismKind                 // Food, Furnace, Obstacle, EscortWeapon
 MechanismConfig
 MechanismRuntimeData
 MechanismTriggerContext
@@ -55,11 +57,11 @@ FurnaceRuntimeData
 PlacementCooldown
 ```
 
-当前第一关明确需要 `Food`、`Furnace`、`Obstacle`、路线关联陷阱和补给点；现有 `EscortWeapon` 作为兼容/后续扩展保留。宠物、通用掉落物、背包、通用道具系统不进入本轮闭环。陷阱和补给虽然进入第一关玩法范围，但其最终运行时所有者、激活接口和是否复用本系统仍需在公共接口评审中确认，不能通过临时字段或场景回调静默收敛。`LevelEventBus` 及史莱姆/机关事实事件仍用于跨系统通信。
+当前第一关使用 `Food`、`Furnace`、`Obstacle` 和 `EscortWeapon`。地刺、宝箱、滚石由 `FirstLevelCompositionRoot` 及其场景组件接线，尚未并入通用机关配置/实例模型。宠物、通用掉落物、背包和通用道具系统不属于当前实现。
 
 `MechanismConfig` 保存类型、是否允许玩家放置、吸引范围、占位半径、使用次数和冷却；障碍另保存首关总库存、耐久和碰撞半径。使用次数配置为 `0` 表示不限次数；食物必须配置有限使用次数。暖区吸引半径保存在 `MapAreaAuthoring`，默认设计值为 500px。机关配置资产需纳入当前关卡的 `ConfigRegistry`，场景/预制体的 `MechanismAuthoring` 保存其 `ConfigId`。
 
-首关离线数据位于 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset`、`Assets/Game/Configs/Mechanisms/PlayerPlaceable/` 和 `Assets/Game/Configs/Mechanisms/Hazards/`。`FirstLevelHazardConfig` 保存 T1-T5 与补给点的静态触发参数；它只定义数据，不创建陷阱对象、不检测接触、不结算效果。地图点的 `ConfigId` 与这些资产的 ID 对应，场景组合时仍须把需要的 ConfigAsset 加入 `LevelConfig`/`ConfigRegistry`。当前首关的食物吸引半径为 400px；熔炉没有首关半径数据，沿用项目已有 500px 配置；障碍数据为总库存 10、耐久 3、放置冷却 1 秒、碰撞半径 55px。
+首关配置位于 `Assets/Game/Configs/Maps/FirstLevel/MAP_FirstLevel.asset` 和 `Assets/Game/Configs/Mechanisms/PlayerPlaceable/`。`FirstLevelHazardConfig` 的 T1–T5 与补给资产目前没有进入 Bootstrap 的配置注册列表，运行时适配器也没有读取这些值。地刺伤害当前由 `TrapDamageAuthoring` 按每秒最大生命值 5% 结算；不能把该数值描述成由 `CFG_Trap_*` 驱动。玩家放置的库存由战役资源配置管理，机关同时在场上限由 `LevelConfig` 管理。
 
 T4 的 0.5 倍减速、3 秒时长只在 `CFG_Trap_T4` 中作为待运行时消费的效果数据。首关沼泽地图区域当前移动倍率为 1，避免陷阱运行时接入后同一减速同时由 MapManager 地形倍率和 StatusManager 状态倍率重复施加。该区域几何仍是无底图阶段的圆形代理，不能视作最终沼泽轮廓。
 
@@ -70,16 +72,19 @@ bool NotifyContact(MechanismTriggerContext context);
 bool RequestActivate(MechanismId mechanismId, MechanismActivationRequest request);
 bool TryGetSnapshot(MechanismId mechanismId, out MechanismSnapshot snapshot);
 IReadOnlyList<MechanismSnapshot> GetActiveSnapshots();
-bool TryGetWeaponSnapshot(WeaponId weaponId, out WeaponSnapshot snapshot);
+bool TryGetWeaponSnapshot(out EscortWeaponSnapshot snapshot);
+MechanismPlacementResult RequestPlace(ConfigId configId, Vector2 position, float rotationDegrees = 0f);
+MechanismPlacementResult RequestPlaceAtAnchor(ConfigId configId, PlacementAnchorId anchorId, float rotationDegrees = 0f);
+bool RequestRemove(MechanismId mechanismId);
 ```
 
-`MechanismAuthoring` 为关卡场景和放置预制体提供稳定实例 ID、配置 ID 与碰撞适配。场景机关在 `LevelContext` 创建时自动注册；放置系统先询问 `CanPlace`，再通过 `RequestPlace` 注册已生成的预制体，并通过 `RequestRemove` 拆除。每周可用总数仍由 `PlacementSystem`/关卡库存配置管理，本系统负责同时存在上限、地图占位校验和拆除冷却。
+`MechanismAuthoring` 为关卡场景和放置预制体提供稳定实例 ID、配置 ID 与碰撞适配。场景机关在 `LevelContext` 创建时注册；放置后端通过 `CanPlace` 和 `RequestPlace` 提交普通格，通过 `RequestPlaceAtAnchor` 执行 Anchor 安全替换，通过 `RequestRemove` 拆除。战役库存由 `CampaignResourceLedger` 扣除且拆除不返还；本系统负责同时在场上限、地图占位、碰撞注册、机关冷却和对象生命周期。当前 FirstLevel/Castle 的同时在场上限配置为 20，`Level_test` 为 5。
 
 ### 运行时机关层级与世界表现
 
 运行时机关实例统一挂到关卡的 `MechanismsRoot`。机关 Prefab 根保留 `MechanismAuthoring` 和碰撞体，世界表现必须放在根下的 `VisualRoot`，由 `SpriteRenderer`、动画和特效组成；UI 图形和 `PlacementGridView` 不能作为机关视觉子物体。当前共享 `Default` Sorting Layer 的约定是地图底图 `-100`、机关 `1`、Actor `0`、护送武器 `2`、放置预览 `100+`。机关根的位置保存世界 XY，`VisualRoot` 局部位置固定为零，替换占位美术时不改变这个层级和运行时接口。
 
-`TryGetWeaponSnapshot` 只读返回武器状态。武器受伤、销毁和到达终点的请求入口及其最终参数仍需在代码迁移前登记到 99 API 表，不能继续由 `ObjectiveSystem` 私有字段承载。
+`TryGetWeaponSnapshot` 只读返回武器状态。武器伤害通过 `RequestWeaponDamage(ActorId, float)` 提交；运输移动与到达事实由固定路线适配器驱动，并发布 `WeaponDestroyedEvent` / `WeaponReachedGoalEvent`。`LevelResultRules` 消费这些事实，不保存武器的第二份运行时状态。
 
 ## 5. 对外事件
 
@@ -97,7 +102,7 @@ WeaponReachedGoalEvent
 ## 5.1 共同规则
 
 - 机关配置属于设计时数据，实例位置、剩余次数、冷却和消耗状态属于当前关卡运行时数据；
-- 同时存在的放置物总上限从 `LevelConfig.MaximumActivePlacedMechanisms` 读取，默认关卡配置为 5；
+- 同时存在的放置物上限从 `LevelConfig.MaximumActivePlacedMechanisms` 读取；当前正式关卡为 20，测试关卡为 5；
 - 引导源快照至少需要包含类型、位置、有效范围、是否可用和所属机制 ID；
 - 多个同类引导源的随机选择、状态对应引导源优先级和战斗目标优先级由 Actor 感知/决策规则处理；
 - 机关触发产生的生命、状态、击退、移动或目标效果必须通过对应系统的公开接口结算；
@@ -109,23 +114,23 @@ WeaponReachedGoalEvent
 
 | 元素 | 当前规则方向 | 暂定限制 |
 | --- | --- | --- |
-| 食物 | 吸引范围内的史莱姆；进食后消失，并通过效果请求解除饥饿；本关若采用敌人掉落食物，按局部供给规则接入 | 具体引导范围、使用次数、重生/掉落来源待策划和配置确认 |
-| 熔炉 | 首关只作为史莱姆引导源和视觉机关，不产生寒冷/炙热状态 | 吸引范围和重装冷却保留为配置待确认，不在本轮写死 |
-| 障碍 | 阻挡史莱姆、魔物和守卫，改变空间事实；普通格子重复放置拒绝；L/SL Anchor 按配置允许替换旧障碍并回收旧对象 | 障碍耐久、同时存在上限和路线阻断后的选择时机待联调 |
-| 陷阱/补给 | 首关地刺由场景触发器向 StatusManager 请求持续伤害；宝箱由 Slime 接触后一次性增加 4 食物；滚石由 Slime 进入 Hazard 区域后延迟 1 秒向右滚动，每个单位在本次滚动中只受一次伤害 | 首关适配器暂由 FirstLevelCompositionRoot 装配；滚石伤害默认 20，可在场景上调整；之后可迁入统一机制接口 |
-| 护送武器 | 现有兼容链路：由史莱姆运输、守卫保护，沿地图路线事实移动；到达终点发布事实 | 不作为最新第一关成功条件；生命、运输人数、载体减速和路线参数待代码/策划联调 |
+| 食物 | 作为史莱姆引导源；成功进食一次后耗尽/移除，并通过 StatusManager 处理状态效果 | 战役库存由 `CFG_CampaignResources` 管理；当前开局 60、上限 60，进食增殖关闭 |
+| 熔炉 | 当前关卡作为史莱姆引导源；不据视觉表现直接添加冷热状态 | 战役开局 3、上限 10；具体效果仍以现有配置/状态接线为准 |
+| 障碍 | 运行时占位并注册动态阻挡；普通格重复放置拒绝；配置允许时可通过 Anchor 事务替换；支持拆除 | 战役开局 5、上限 15；正式关卡同时在场机关上限 20；拆除/消耗不返还战役库存 |
+| 陷阱/补给 | 首关地刺由场景触发器按 `TrapDamageAuthoring` 请求持续伤害；宝箱增加食物；滚石由场景 Hazard 区域触发并结算伤害 | `FirstLevelHazardConfig` 资产目前未进入 Bootstrap 注册、运行时适配器未读取；相关场景参数不能描述为由这些资产驱动 |
+| 护送武器 | `FirstLevel` 与 `Castle` 当前胜负目标；史莱姆搬运，守卫围绕武器防守，武器沿地图固定路线分段移动 | 抵达成功；摧毁或史莱姆耗尽失败；武器路线阻断时不使用史莱姆 A* 自动绕行 |
 
-障碍数量当前按周目暂定为：一周目 8 个、二周目 5 个、三周目 3 个。这里的“周目总可用数量”和“同时存在上限”是两个不同配置字段，不能混为一个计数。
+战役初始值为史莱姆 8/20、食物 60/60、熔炉 3/10、障碍 5/15。配置中的关卡奖励 ID 是 `FirstLevel`、`SecondLevel`、`ThirdLevel`；当前 Castle 的 LevelId 为 `Castle`，精确匹配会使第二关奖励失效，见场景/配置目录说明。
 
 组合放置可以形成路径、阵型和连锁反应，但组合规则必须通过明确的触发事实和结果接口实现，不能由表现层自行推断。首关普通 Grid 放置验证边界和单格占用，特殊 Anchor 额外验证允许类型与替换策略；不提前实现复杂组合规则。
 
 首关熔炉只提供 `GuideSourceSnapshot`，不得调用 `StatusManager` 添加炙热/寒冷状态。未来恢复温度玩法时再补充状态效果契约。
 
-### 5.3 第一关三路线与兼容武器路线
+### 5.3 第一关三路线与护送武器路线
 
-第一关的三条路线由 `MapManager` 提供稳定的只读路线事实，关卡规则根据 L1/L2/L3 障碍和 SL1/SL2/SL3 关联点筛选后续可选路线。MechanismSystem 不拥有路线选择算法，也不直接修改史莱姆目标。已经进入某条路线的 Actor 不因新放置被瞬移或重写历史位置；路线选择时机和同帧优先级由关卡规则/Actor 决策接口确认。
+第一关路线由 `MapManager` 提供只读事实，史莱姆感知适配器消费分支和引导源并为史莱姆选择路线；玩家放置机关时，`MechanismSystem` 负责地图占位、碰撞注册和 Anchor 事务，不直接改 Actor 的位置。史莱姆自身移动使用 MovementSystem 的 A*，它与岔路路线选择是两层逻辑。
 
-如果兼容护送武器链路启用，`MechanismSystem` 保存武器运输进度，并通过独立的机制运输移动适配向 `MovementSystem` 请求位置变化，`MovementSystem` 执行实际移动和碰撞事实。不得直接把 Actor 专用的移动 API 套用到非 Actor 武器上。首关不实现通用网格寻路、动态绕行或自动重规划。
+当前护送武器链路启用时，`MechanismSystem` 保存运输进度，并通过 `FixedRouteMovementAdapter` 按配置路点分段移动；Actor 专用的 A* 不套用到非 Actor 武器上。武器路线被障碍阻断时的动态绕行策略尚未实现。
 
 路线上的障碍占用、陷阱触发和被阻断后的处理必须通过已确认的公开事实接口完成。各实现不得自行把“阻挡即失败”“忽略障碍”或“自动绕行”写成公共规则。
 
@@ -137,8 +142,8 @@ WeaponReachedGoalEvent
 - `MechanismSystem` 负责可交互环境元素及其引导源快照；
 - `StatusManager` 负责寒冷、炙热、燃烧、冻结等状态和持续效果；
 - `MovementSystem` 负责接触、阻挡、位置结果和移动请求；
-- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示场景设计位置，不自行创建动态对象、不做概率判定，也不结算事件效果；FirstLevel 的宝箱/滚石由关卡装配器显式创建，本系统的通用 Trap/Supply 接口仍待后续统一；
-- 通用掉落物、固定/随机事件和道具系统不进入本轮；第一关局部食物供给、陷阱和补给的运行时归属及具体接口仍待确认。
+- MapManager 中的 `DropSpawn`、`Event`、`Trap` 和 `Hindrance` 地图点只表示设计位置；FirstLevel 的地刺、宝箱和滚石由关卡组合根/场景适配器创建并接线，不属于通用机关配置实例；
+- `CFG_Trap_*` / 补给配置尚未进入 Bootstrap 注册表，当前场景适配器没有读取这些配置。地刺数值由 `TrapDamageAuthoring` 提供；宝箱和滚石规则由对应场景组件提供。
 
 ### 5.5 FirstLevel 地图物件接入
 
@@ -154,7 +159,7 @@ Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager �
 - `MapManager`（地图事实、路线候选和 Anchor 查询）；
 - `MechanismAuthoring` 提供的 2D 触发接触事实；移动阻挡由 `MapManager` 向 `MovementSystem` 暴露；
 - `StatusManager` 处理效果；
-- `PassageSystem` 处理窄路相关规则。
+- `CampaignResourceLedger` 管理放置库存、关卡入场快照和奖励；配置字段与 LevelId 必须匹配。
 - `PlacementSystem` 提交玩家确认的环境元素放置结果；普通格子重复放置由 PlacementSystem 拒绝，Anchor 替换由双方公开契约协调。
 - `SlimeManager`/`SlimeGroupActor` 查询引导源和元素影响，不直接修改机关状态。
 - Core 结果规则组件优先观察第一关史莱姆终点统计/等待窗口事实；兼容武器链路可观察 `WeaponDestroyedEvent`、`WeaponReachedGoalEvent`，但不自动改变第一关成功口径，也不修改机关数据。
@@ -165,23 +170,17 @@ Actor 进入或离开低温/温暖区域时，StatusManager 消费 MapManager �
 2. 冷却、使用次数、存在状态和可用性只能由机关系统修改。
 3. 机关效果通过统一效果请求提交，不能绕过 `StatusManager` 或 `MovementSystem`；关卡结果通过事件交给 Core 结果规则组件。
 4. 障碍是否阻挡某个 Actor 由地图/移动系统依据机关快照判定，机关系统不直接移动 Actor。
-5. 普通网格重复放置必须拒绝；Anchor 替换只能在 Anchor 配置允许时发生，第一关 L/SL 障碍替换必须先保证旧对象可回收/可恢复，再提交新对象。
+5. 普通网格重复放置必须拒绝；Anchor 替换只能在 Anchor 配置允许时由 `RequestPlaceAtAnchor` 安全事务提交，失败时保留旧对象。
 6. Anchor、路线和陷阱是跨系统事实，不允许由机关预制体或 UI 直接改写 MapManager/Actor 私有数据。
 7. 旧关卡的机关请求不能作用于重开的新 `LevelContext`。
 
-## 8. 待确认项
+## 8. 当前缺口与复盘项
 
-- 放置请求、拆除请求、Anchor 替换和武器受击请求的最终公开接口，以及与 `PlacementSystem`/Core 的 API 表登记；
-- 食物进食、熔炉接触和暴躁解除的最终效果映射；
-- 食物、障碍和熔炉的精确范围、持续时间、重复使用和销毁条件；首关熔炉不得恢复温度效果；
-- 障碍“同时存在上限”和“周目总可用数量”的最终配置字段；
-- 第一关陷阱、补给和局部食物供给的最终运行时所有者、触发接口、资源/寿命规则；
-- 放置物与地形、群体、敌人和守卫的组合互动；
-- 随机事件、固定事件、陷阱、魔法、掉落物和不可放置场景机关的完整列表；
-- 机关与 `PassageSystem` 的窄路职责边界；
-- 具体表现预制体、动画和音效不应反向成为规则依赖。
-- 路线被障碍占用时，后续路线选择、等待、失败、禁止该次放置或其他规则的最终时机；
-- 兼容护送武器是否重新进入某一关、运输所需史莱姆数量和载体减速的最终参数。
+- 修正 Castle 奖励的 LevelId 映射；
+- 决定是否把陷阱/补给资产注册并接入场景适配器，避免配置资产与运行时硬编码并存；
+- 完成护送武器被玩家障碍挡住时的绕行/等待/停止策略；当前固定路线可能因阻挡停滞；
+- 继续核对食物、熔炉、障碍的数值配置是否与最新策划一致；运行时现有库存/上限规则不再属于待实现接口；
+- 为餐车、Anchor 替换和拆除补充场景交互验收证据；静态存在代码不代表 UI 操作已做 Play Mode 验收。
 
 ## 补充：机制 Prefab 与场景组合边界（2026-10-14）
 

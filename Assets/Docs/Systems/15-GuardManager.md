@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.Guards
 建议实现目录：Assets/Game/Scripts/Actors/Guard/
 生命周期：由当前 LevelContext 创建和销毁
-状态：核心架构，首关需要生成守卫并完成免疫/生命周期验证；护送武器保护属于兼容链路，数量与控制方式待确认
+状态：由 `LevelContext` 按配置创建/驱动；当前 `CFG_Guard` 配置 5 个出生偏移，并使守卫围绕护送武器站岗
 
 ## 1. 定位
 
@@ -48,10 +48,10 @@ GuardManager 是 LevelContext 内的守卫生命周期管理器，负责 GuardAc
 
 - LevelContext 和 LevelEventBus；
 - InputSystem 提供设备无关的指令；
-- MechanismSystem 在兼容武器链路启用时提供护送武器状态；最新第一关结果不由 GuardManager 判定；
+- MechanismSystem 提供护送武器位置；守卫的站岗点按出生偏移跟随武器，结果仍由 Core 规则判定；
 - EnemyManager 提供敌人查询；
 - MapManager 与 MovementSystem 提供空间和移动事实；
-- StatusManager 不向守卫应用食物、温暖或史莱姆状态修正；常规 Actor 受击契约仍需联调；
+- StatusManager 不向守卫应用食物、温暖或史莱姆状态修正；攻击与受击走 Actor/StatusManager 运行时链路；
 - GuardActor 提供个体行为。
 
 ## 7. 关键不变量

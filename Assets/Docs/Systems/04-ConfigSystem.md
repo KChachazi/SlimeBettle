@@ -6,7 +6,9 @@
 默认命名空间：`SlimeBattle.Data`  
 建议实现目录：`Assets/Game/Scripts/Data/Config/`；配置资产位于 `Assets/Game/Configs/`  
 生命周期：当前关卡上下文生命周期，可由应用级资产提供只读数据  
-状态：核心架构；策划数值为初始方案
+状态：配置注册、查询与校验已有运行时代码；具体数值以当前 `.asset` 为准
+
+> 2026-10-28 代码核对：当前结果规则由 `LevelConfig.ObjectiveKind` 选择；`ObjectiveConfig` 仍参与引用校验，但其 `FailWhenNoSlimes` 等字段没有传入 `LevelResultRules`。仓库没有 `LevelResultConfig` 类型。初始资源、奖励和守卫数量见当前配置资产，不能以早期候选数值表覆盖。
 
 ## 1. 职责
 
@@ -38,15 +40,17 @@ MechanismConfig
 PassageConfig
 StatusEffectConfig
 PlacementMechanismConfig
-LevelResultConfig
+ObjectiveConfig
 EscortWeaponConfig
+CampaignResourceConfig
+FirstLevelHazardConfig
 ```
 
 每个配置资产必须拥有稳定的 `ConfigId`。显示名称不能作为跨系统唯一键。
 
 `ActorConfig.DetectionRange` 是目标感知半径（世界单位），必须大于 `AttackRange`。当前测试资产暂填攻击半径 1.2、感知半径 1.5；这是通路测试值，不是策划最终数值，也不含墙体遮挡判定。
 
-当前结果规则配置包含 `FailWhenNoSlimes` 关卡规则开关：默认开启，保持“史莱姆全灭失败”；`Level_test` 的配置关闭它，仅保留护送对象生命归零失败。它只保存静态胜负规则，不保存本局史莱姆数量、武器生命或其他运行时数据。旧 `ObjectiveConfig` 仅作为迁移期间的历史类型。
+`ObjectiveConfig` 保存目标与武器配置引用及旧结果开关；配置注册会校验其引用，但当前 Core 结果运行时只消费 `LevelConfig.ObjectiveKind`，不会读取 `ObjectiveConfig.FailWhenNoSlimes`。不要把旧 `ObjectiveSystem` 字段描述成当前正式关卡胜负条件。
 
 ## 3.1 当前策划提出的初始数值
 
@@ -55,7 +59,7 @@ EscortWeaponConfig
 | 配置 | 攻击力 | 最大生命 | 移速 | 攻击间隔 | 其他 |
 | --- | ---: | ---: | ---: | ---: | --- |
 | `SlimeConfig` | 30 | 500 | 200 | 1 秒 | 单体属性；同屏数量由 `LevelConfig` 决定 |
-| `GuardConfig` | 100 | 1000 | 300 | 1.2 秒 | 初始数量待确认 |
+| `GuardConfig` | 100 | 1000 | 300 | 1.2 秒 | 当前 `CFG_Guard` 配置 5 名守卫及 5 个武器相对偏移 |
 | 普通 `EnemyConfig` | 70 | 800 | 300 | 1 秒 | 后续场景强度约提升 15%—20%，待确认 |
 
 史莱姆的饥饿、暴躁、害怕、寒冷、炙热、冻结、燃烧和暴击规则由 `StatusEffectConfig` 或相关规则配置承载。首关暂不启用寒冷和炙热；守卫不受食物、温暖或史莱姆状态影响。图示和正文存在饥饿计时规则差异，统一前不得假设只有一套最终数据。

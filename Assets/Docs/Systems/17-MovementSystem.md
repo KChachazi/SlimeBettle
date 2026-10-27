@@ -5,7 +5,7 @@
 默认命名空间：SlimeBattle.World.Movement
 建议实现目录：Assets/Game/Scripts/World/Movement/
 生命周期：当前 LevelContext 生命周期
-状态：P0 Actor 直线移动、史莱姆 A* 绕障、地图地形倍率、StatusManager 移动修正和固定路线分段适配契约已实现；护送武器端口接入待 MechanismSystem 消费
+状态：Actor 动态移动、史莱姆 A* 绕障、地图地形倍率、StatusManager 移动修正及护送武器固定路线分段移动均有运行时代码；武器被阻挡时仍不使用 Actor 的 A* 绕障策略
 
 ## 1. 职责
 
@@ -75,7 +75,7 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 - 使用动态 Rigidbody2D、零重力、冻结旋转和连续碰撞检测；MovementSystem 在 `FixedTick` 设置刚体速度，不直接改 Transform。
 - 角色之间由二维物理碰撞产生推挤；MovementSystem 只结束与 MapManager 识别出的静态实体碰撞所对应的请求。
 - `ActorConfig.MoveSpeed` 的单位为像素/秒；世界速度为 `MoveSpeed / SpriteRenderer.sprite.pixelsPerUnit`。
-- 普通 Actor 默认朝请求目标直线移动。SlimeManager 注册的史莱姆启用 A* 网格寻路：网格间距 0.5 Unity 单位，节点通过 MapManager 的边界、Road 区域和静态阻挡查询；八方向移动禁止斜穿角点，并将连续可直达路段合并。其他 Actor 保持直线移动。`FixedRouteMovementAdapter` 可将固定路线按路点转为非 Actor 移动端口的连续分段请求；其 `IFixedRouteSegmentMotor` 实现由武器/运输所有者提供。与 MapManager 绑定的场景静态实体碰撞时，Actor 请求停止并发布 `MovementBlockedEvent`；非 Actor 分段端口返回阻挡事实后，适配器停在 Blocked 等消费方决定重试或取消。系统不把碰撞解释为伤害或运输失败。
+- 普通 Actor 默认朝请求目标直线移动。SlimeManager 注册的史莱姆启用 A* 网格寻路：网格间距 0.5 Unity 单位，节点通过 MapManager 的边界、Road 区域和静态阻挡查询；八方向移动禁止斜穿角点，并将连续可直达路段合并。其他 Actor 保持直线移动。`FixedRouteMovementAdapter` 将护送武器的固定路点转换为非 Actor 分段移动请求。Actor 遇到静态阻挡会停止/重规划；武器分段请求被阻挡时仍按固定路线处理，不自动切换为史莱姆 A* 路径。系统不把碰撞直接解释为伤害或运输失败。
 - 地形移速修正从 MapManager 的当前位置快照读取；寒冷、炙热、减速等 Actor 状态修正由 StatusManager 提供。两类修正都只影响速度计算，MovementSystem 仍独占实际位移。
 - 地形倍率按乘法叠加到 Actor 基础移速和 StatusManager 提供的 Actor 状态倍率上。当前 `Level_test` 尚未配置语义地形区域，因此实际场景速度仍为原移速。
 - 暂停、死亡、销毁和重开会停止刚体并清理当前请求。取消会使当前速度归零；同一 Actor 只保留一个活动请求。
@@ -91,9 +91,8 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 
 ## 10. 待确认项
 
-- 后续是否加入绕开障碍的路径搜索；首关固定路线不等于动态寻路；
-- 动态占用查询接入后，玩家放置物/动态障碍对移动请求的影响；路线被障碍占用时的等待/失败/禁止放置规则待确认；
-- MechanismSystem 对 `IFixedRouteSegmentMotor` 的具体实现及武器碰撞/位置快照契约；
+- 护送武器固定路线被障碍阻挡时的自动绕行/等待/停止规则；当前没有复用史莱姆 A*；
+- 玩家放置物造成武器路线阻挡时的具体处理策略；
 - 沼泽减速和其他地形移动修正的组合顺序，以及地形区域边界事件与物理碰撞的先后语义。
 
 ## 11. 验收场景
@@ -101,8 +100,12 @@ ActorStateMachine 的移动请求由 LevelContext 内的行动端口适配器转
 `Assets/Game/Tests/README-Level_test-MVP.md` 记录当前 Level_test 的装配边界。`LevelActorSpawner` 为本场景绑定无目标的随机漫游感知源和移动端口；BasicSlimeDecision / BasicEnemyDecision 产生 Move 意图后，经 ActorStateMachine、MovementActorActionPort 到达 MovementSystem，再由动态 Rigidbody2D 执行。MapManager 区域事件、地形倍率和 StatusManager 移动修正已有运行时代码，但该场景还没有相应状态配置和区域标记，因此未在场景中验收这些效果；正式目标感知和确定性阻挡用例尚未接入。
 
 
-## 首关道路约束补充（2026-10-19）
+## 历史记录：首关道路约束补充（2026-10-19）
+
+以下描述是当时仅沿 Road 检查直线下一步的位置方案；史莱姆 A* 接入后已被后续实现取代。
 
 首关地图配置了 Road 多边形后，MovementSystem 在每个 FixedTick 计算当前直线移动的下一物理步位置，并通过 `MapManager.CanOccupy` 检查地图边界及道路区域；道路边缘容差为 0.2 Unity 单位（按当前比例约 20 个设计像素），用于跨过来源矩形之间的小测量缝隙。下一步离开道路或地图边界时，请求以 `Blocked` 结束并停止刚体。该机制不做绕行或动态寻路；静态 Collider 阻挡仍通过 Rigidbody2D 碰撞回报。
 
 地形移速倍率继续从当前位置读取并与 Actor 状态倍率相乘。首关两个沼泽区域均配置 0.5，因此 Slime/Enemy 进入其内时的地形移速减半；地图区域快照和进入/离开事件仍由 MapManager 提供。
+
+2026-10-28 代码盘点：史莱姆由 `AStarGridPathfinder` 绕开 `MapManager.CanOccupy` 判定的地图与动态机关阻挡；护送武器仍沿配置路点分段移动，遇阻不采用该 A* 路径。此状态来自源码检查，不是两条路线的 Play Mode 视觉验收。

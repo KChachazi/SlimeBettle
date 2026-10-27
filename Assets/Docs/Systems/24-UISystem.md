@@ -5,14 +5,14 @@
 默认命名空间：`SlimeBattle.UI`  
 建议实现目录：`Assets/Game/Scripts/UI/`  
 生命周期：应用级界面可跨关卡存在，关卡界面随 `LevelContext` 创建和销毁  
-状态：核心架构，第一关显示范围已按最新策划收敛；具体视觉布局和终点统计字段待联调
+状态：暂停/恢复/重开/返回和 HUD/结算视图已有运行时代码；场景组合提供资源、机关放置、护送武器和结果快照
 
-P0 实现更新：2026-10-14；负责人：小宸（候选接入）。首关接入范围包括三种机关选择、Grid + Anchor 放置模式、路线/Anchor 提示、史莱姆数量、终点统计、等待窗口和结果显示；不实现背包、通用掉落物、独立玩法事件或通用道具界面。护送武器状态仅作为兼容链路可选显示，不得驱动最新第一关结果。
+> 2026-10-28 代码现状：正式 FirstLevel/Castle 均使用护送武器目标，HUD 可显示武器生命/运输人数、目标状态、史莱姆数、机关库存与放置提示；洞穴计数/等待显示只在洞穴目标模式使用。显示层不自行判胜负。Play Mode/分辨率视觉验收不在本次静态盘点范围。
 
 ## 1. 职责
 
-- 显示关卡状态、史莱姆数量、终点洞穴统计、三种机关选择、普通格/Anchor 放置提示、路线/陷阱提示、暂停和结算；
-- 在兼容武器链路启用时显示护送武器状态，但不从该文字推断最新第一关胜负；
+- 显示关卡状态、史莱姆数量、按目标模式显示的武器/洞穴状态、机关库存、普通格/Anchor 放置提示、暂停和结算；
+- 在护送武器模式显示武器状态，但不从文字推断胜负；
 - 主动读取初始快照，并订阅后续状态事件；
 - 将按钮、触摸和菜单操作转换为流程或玩家请求；
 - 管理 UI 面板开关和界面状态；
@@ -35,8 +35,8 @@ LevelUiSnapshot
 ActorUiSnapshot
 LevelResultUiSnapshot
 WeaponUiSnapshot
-GoalSlimeUiSnapshot（候选）
-PlacementAnchorUiSnapshot（候选）
+FirstLevelStatusSnapshot
+PlacementPreview / PlacementBudgetSnapshot
 ```
 
 UI 允许持有用于显示的缓存，但缓存必须能通过重新查询所属系统恢复。
@@ -108,11 +108,13 @@ void Initialize(LevelManager manager, InputSystem input,
 验证与边界见 `Assets/Game/Tests/PlayerPresentation/README.md` 和 `Assets/Docs/P0-小宸接入说明.md`。
 
 
-## 小宸首关实现契约通知（2026-10-11）
+## 历史记录：小宸首关实现契约通知（2026-10-11）
+
+本节记录当时的接入计划，后续当前接口与结果目标已改变；不作为现状引用。
 
 网格、放置状态、显示与注入接口的新增契约见 `Assets/Docs/Tasks/首关最小地图-小宸实现与接入.md`。本次只修改 Player / UI 与隔离测试；当前机关创建请求和武器/Core 结果接口存在文档与代码差异，正式适配须等待所有者确认，不在调用方绕过规则。
 
-`UiState` 现有 `slimeLimit = -1 / weaponText = ""` 仍保持兼容；第一关后续快照应增加史莱姆终点统计、目标数量、等待窗口和 Anchor 预览状态，具体字段需在公共 API 评审后登记。`FirstLevelUiSnapshotSource` 读取真实存活/终点统计快照及 `MaxAliveCount`；非 20 配置显示差异，不改 Actor 或配置。`IFirstLevelStatusSource.ReadSnapshot(LevelContext)` 的旧 `WeaponText` 仅作为兼容显示，`ResultText` 必须来自 Core/LevelManager 权威状态；正式结果面板不根据武器文字或数量自行决定胜负。
+当前 `FirstLevelRuntimeStatusSource` 根据 `LevelConfig.ObjectiveKind` 读取护送武器或洞穴人数/等待快照，并从 `LevelManager` 读取最终结果阶段。HUD 的 `WeaponText`、`GoalText` 和 `WaitingText` 只用于显示；胜负只由 `LevelResultRules` 与 `LevelManager` 决定。
 
 ## 补充：UI Prefab 与场景组合边界（2026-10-14）
 

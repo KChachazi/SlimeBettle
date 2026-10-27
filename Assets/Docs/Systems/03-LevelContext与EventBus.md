@@ -7,13 +7,15 @@
 生命周期：当前关卡加载完成至当前关卡卸载  
 状态：核心架构
 
+> 2026-10-28 代码现状：`LevelContext` 已创建 `MapManager`、`StatusManager`、`MovementSystem`、`SlimeManager`、`EnemyManager`、`MechanismSystem` 和 `LevelResultRules`，并在守卫配置/生成条件满足时创建 `GuardManager`。Input、Placement、Camera、UI 和表现通过场景级装配组件接入；`PassageSystem` 未接入运行时。
+
 ## 1. 职责
 
 `LevelContext` 是当前关卡的运行时边界，保存本局系统之间的明确引用和关卡级资源。`LevelEventBus` 是该上下文内部的类型化通知通道。
 
 LevelContext 明确持有当前关卡的地图、角色管理器、移动、状态、机关和其他关卡级服务。`MapManager` 与 `MechanismSystem` 在逻辑上组成 Map 领域的两个子模块，其中 `MechanismSystem` 由小智负责维护，但仍由 LevelContext 分别创建、注入和销毁。它还创建一个位于 `Core` 的轻量关卡结果规则组件；该组件不是独立的 LevelContext Manager，不拥有武器或史莱姆运行时数据。管理器本身仍然是独立模块，但不能脱离 LevelContext 作为跨关卡单例存在。
 
-当前代码已落地 `ConfigRegistry`、`SlimeManager`、`EnemyManager`、`GuardManager`、`MechanismSystem`、`LevelResultRules`、`MapManager`、`MovementSystem`、`StatusManager` 和 `LevelEventBus`，同时仍保留旧 `ObjectiveSystem`/目标配置的迁移痕迹。护送武器事实链路已由 `MechanismSystem` 提供，但最新第一关结果仍需迁移为史莱姆终点统计、等待窗口和 6 只目标；本段不把该迁移写成已完成事实。MovementSystem 使用动态 `Rigidbody2D` 执行直线移动，并查询 StatusManager 的移速/定身修正；StatusManager 结算 Actor 生命与状态，消费 MapManager 区域事件。
+旧 `ObjectiveSystem` 源码和 Objective 配置资产仍在仓库，但 `LevelContext` 不创建旧系统。正式 FirstLevel/Castle 的结果规则当前由 `LevelConfig.ObjectiveKind` 选择护送武器模式；洞穴人数模式仍可供旧场景/测试配置使用。MovementSystem 执行 Actor 移动，史莱姆使用 A*；StatusManager 结算 Actor 生命与状态并消费 MapManager 区域事件。
 
 `LevelContext` 从 `LevelManager` 接收正式 SlimeActor / EnemyActor 预制体，并注入两个 Manager；运行时 Actor 是预制体实例，ActorCore 和 AI 运行时对象由实例自身初始化。Dispose 时 Manager 负责销毁这些实例。
 
@@ -43,7 +45,7 @@ MapManager mapManager
 MovementSystem movementSystem
 StatusManager statusManager
 MechanismSystem mechanismSystem
-CoreLevelOutcomeRules outcomeRules
+LevelResultRules resultRules
 ```
 
 `LevelServices` 只保存已确认需要注入的系统引用。不能提供任意字符串查找和无限制的 `GetService` 作为默认连接方式。
@@ -73,7 +75,7 @@ void Clear();
 
 ## 5. 对外事件
 
-`LevelEventBus` 本身不定义一个无限扩展的全局事件名称清单。各系统只发布已经发生且确实需要被其他系统观察的结果事件，例如 `SlimeDiedEvent`、`SlimeDepletedEvent`、终点进入事实、等待窗口结束事实、`MechanismTriggeredEvent`、`WeaponDestroyedEvent` 和 `WeaponReachedGoalEvent`。其中武器事件是兼容/后续链路；最新第一关 Core 结果规则优先消费史莱姆终点统计与等待窗口事实，再发布 `LevelSucceededEvent` / `LevelFailedEvent`。
+`LevelEventBus` 只承载本局已发生的事实，如 `SlimeDiedEvent`、`SlimeDepletedEvent`、`SlimeGoalOccupancyChangedEvent`、`MechanismTriggeredEvent`、`WeaponDestroyedEvent` 和 `WeaponReachedGoalEvent`。`LevelResultRules` 按目标模式订阅相关事实，并通过自己的 C# `ResultDecided(LevelResult)` 事件通知 `LevelManager`；代码没有 `LevelSucceededEvent` / `LevelFailedEvent` 类型。正式第一关和 Castle 当前都选择护送武器模式。
 
 ## 6. 依赖
 
@@ -87,7 +89,7 @@ void Clear();
 2. 由 `LevelManager` 收集并注册本关配置、调用 `ValidateAll()`，再创建地图查询服务；
 3. 创建 Map 领域的 MapManager 和 MechanismSystem，再创建 StatusManager、MovementSystem、SlimeManager、EnemyManager；StatusManager 订阅区域事件，MovementSystem 接收其移动修正查询；
 4. 创建 Core 结果规则组件，并让它订阅本局 LevelEventBus；
-5. 创建输入、放置、镜头、UI、表现及已确认的机关适配；
+5. 场景级组合组件在 `LevelStartedEvent` 后绑定 Input、Placement、Camera、UI、表现和关卡专属感知/地图适配；这些服务不由 `LevelContext` 创建为字段；
 6. 由 `LevelManager` 向需要配置的系统传入同一份已校验的 `ConfigRegistry`，并注入其他明确引用；
 7. 让各系统执行自身初始化；
 8. 由 `LevelManager` 发布关卡开始结果。

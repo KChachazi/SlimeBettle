@@ -85,7 +85,9 @@ Hungry、Agitated、Afraid、Cold、Hot 和 Burning 等内容优先作为 Status
 3. 死亡、暂停和重开时，当前动作和待执行命中必须失效。
 4. 状态机退出后不能向已销毁的 Actor 或 LevelContext 提交请求。
 
-## 9. P0 外部接入边界
+## 9. 当前接入情况（2026-10-28）
 
-MovementSystem 已使用 `MovementActorActionPort` 接收 Actor 的 `ActorMovementRequest`，并将位置与带请求 ID 的完成结果回传 Actor；Actor 不直接写 Transform。StatusManager 和正式效果端口尚未接入。Level_test 绑定随机漫游感知与仅移动的行动适配，验证决策树、状态机到动态 Rigidbody2D 的移动链路，不验证攻击效果；其他关卡仍须由装配方注入有效端口后才会驱动 Actor AI。
+`LevelContext` 创建 `StatusManager` 与 `MovementSystem`。场景组合组件通过 `BindActorPorts` 提供感知源；关卡把行动请求包装为 `MovementActorActionPort`，由它将移动交给 `MovementSystem`，并把效果请求交给 `StatusManager` 和 `MechanismSystem`。Actor 不直接写 Transform。未绑定有效感知源和行动端口时，Actor AI 不会运行。
+
+正式 `FirstLevel` 与 `Castle` 由各自的 CompositionRoot 提供目标感知和游走感知。`Level_test` 仍是独立的随机游走/移动链路测试场景，不覆盖正式关卡的战斗效果验收；场景是否列入 Build Settings 以项目场景目录说明为准。
 
